@@ -31,7 +31,7 @@ La versión mínima de Node se declara en `package.json`. Aunque Vite puede func
 
     ```env
     GEMINI_API_KEY=your_api_key_here
-    GEMINI_MODEL=gemini-3.1-flash-live-preview
+    GEMINI_MODEL=gemini-3.1-flash-live-preview or gemini-2.5-flash-native-audio-latest
     DEBUG_MODE=false
     ```
 
