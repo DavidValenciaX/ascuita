@@ -33,7 +33,7 @@ export const translations: Translations = {
         infoPlaceholder:
             'Things we should know about you… Likes, dislikes, hobbies, interests, favorite movies, books, tv shows, foods, etc.',
         letsGo: 'Let’s go!',
-        // AgentEdit
+        // EditCompanion
         name: 'Name',
         personality: 'Personality',
         personalityPlaceholder:
@@ -60,9 +60,9 @@ export const translations: Translations = {
         defaultAgentName: 'Tu compañero',
         edit: 'Editar',
         presets: 'Preajustes',
-        yourAgents: 'Tus agentes',
+        yourAgents: 'Tus compañeros',
         noneYet: 'Aún no hay ninguno.',
-        newAgent: 'Nuevo agente',
+        newAgent: 'Nuevo compañero',
         yourName: 'Tu nombre',
         settings: 'Configuración',
         // UserSettings
@@ -74,7 +74,7 @@ export const translations: Translations = {
         infoPlaceholder:
             'Cosas que deberíamos saber sobre ti... Gustos, aversiones, pasatiempos, intereses, películas favoritas, libros, programas de televisión, comidas, etc.',
         letsGo: '¡Vamos!',
-        // AgentEdit
+        // EditCompanion
         name: 'Nombre',
         personality: 'Personalidad',
         personalityPlaceholder:
@@ -84,7 +84,7 @@ export const translations: Translations = {
         // SettingsPanel
         settingsPanelTitle: 'Configuración',
         tabProfile: 'Perfil',
-        tabAgent: 'Agente',
+        tabAgent: 'Compañero',
         tabSpeech: 'Habla',
         tabLanguage: 'Idioma',
         // ControlTray

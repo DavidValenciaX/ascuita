@@ -6,7 +6,7 @@ Ascuita es una aplicación web para crear, probar y conversar con personajes de 
 
 * **Personaje 3D con Three.js**: el avatar ya no depende de bocas SVG. El cuerpo, ojos, brillo, movimiento y orientación se renderizan como una escena 3D.
 * **Boca procedural sincronizada con audio**: el lip sync usa análisis de audio y visemas inspirados en Adobe Character Animator; la boca se dibuja dinámicamente sobre una textura de canvas aplicada al personaje 3D.
-* **Agentes personalizables**: puedes elegir presets, crear agentes propios y ajustar nombre, personalidad, voz y color.
+* **Compañeros personalizables**: puedes elegir presets, crear compañeros propios y ajustar nombre, personalidad, voz y color.
 * **Soporte en español e inglés**: la interfaz cambia de idioma según el navegador y permite alternar idioma desde la configuración.
 * **Panel de configuración de animación**: incluye controles para ajustar sensibilidad, suavizado y comportamiento de la boca.
 * **Gemini Live API**: usa `@google/genai` para la conversación multimodal en tiempo real.
