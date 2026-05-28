@@ -13,8 +13,8 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
       ? `Tu nombre es ${agent.name}`
       : `Your name is ${agent.name}`)
     : (language === 'es'
-      ? 'Eres el asistente personal del usuario. No tienes un nombre todavía, así que preséntate simplemente como "tu asistente personal"'
-      : 'You are the user\'s personal assistant. You don\'t have a name yet, so introduce yourself simply as "your personal assistant"');
+      ? 'Eres el compañero y amigo del usuario. No tienes un nombre todavía, así que preséntate simplemente como "tu compañero"'
+      : 'You are the user\'s companion and friend. You don\'t have a name yet, so introduce yourself simply as "your companion"');
 
   const nameTool = language === 'es'
     ? 'Si el usuario te da un nombre para que uses como tuyo, llama inmediatamente a la función set_agent_name con ese nombre para guardarlo. Luego confirma verbalmente que usarás ese nombre de ahora en adelante.'

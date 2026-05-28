@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { create } from 'zustand';
-import { Agent, Assistant } from './presets/agents';
+import { Agent, Companion } from './presets/agents';
 
 /**
  * Speech animation
@@ -90,8 +90,8 @@ export const useAgent = create<{
   addAgent: (agent: Agent) => void;
   update: (agentId: string, adjustments: Partial<Agent>) => void;
 }>(set => ({
-  current: Assistant,
-  availablePresets: [Assistant],
+  current: Companion,
+  availablePresets: [Companion],
   availablePersonal: [],
 
   addAgent: (agent: Agent) => {

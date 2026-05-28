@@ -40,13 +40,13 @@ export default function AgentAvatar() {
           functionDeclarations: [
             {
               name: 'set_agent_name',
-              description: 'Saves the name the user gives to the assistant so it persists for the rest of the conversation.',
+              description: 'Saves the name the user gives to the companion so it persists for the rest of the conversation.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
                   name: {
                     type: Type.STRING,
-                    description: 'The name to assign to this assistant',
+                    description: 'The name to assign to this companion',
                   },
                 },
                 required: ['name'],
