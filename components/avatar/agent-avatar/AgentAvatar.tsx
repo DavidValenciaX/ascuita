@@ -91,8 +91,8 @@ export default function AgentAvatar() {
       client.send(
         {
           text: language === 'es'
-            ? 'Saluda al usuario y preséntate, explicando tu rol.'
-            : 'Greet the user and introduce yourself and your role.',
+            ? 'Saluda al usuario y preséntate como Ascuita, explicando tu rol.'
+            : 'Greet the user and introduce yourself as Ascuita and your role.',
         },
         true
       );

@@ -16,7 +16,7 @@ export const translations: Translations = {
     en: {
         // Header
         language: 'English',
-        defaultAgentName: 'Your companion',
+        defaultAgentName: 'Ascuita',
         edit: 'Edit',
         presets: 'Presets',
         yourAgents: 'Your agents',
@@ -57,7 +57,7 @@ export const translations: Translations = {
     es: {
         // Header
         language: 'Español',
-        defaultAgentName: 'Tu compañero',
+        defaultAgentName: 'Ascuita',
         edit: 'Editar',
         presets: 'Preajustes',
         yourAgents: 'Tus compañeros',
