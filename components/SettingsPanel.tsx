@@ -21,7 +21,7 @@ import {
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'companion' | 'agents' | 'speech' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -83,70 +83,6 @@ function ProfileTab() {
           onChange={e => setInfo(e.target.value)}
           placeholder={t('infoPlaceholder')}
         />
-      </div>
-    </div>
-  );
-}
-
-function CompanionTab() {
-  const agent = useAgent(state => state.current);
-  const updateAgent = useAgent(state => state.update);
-  const { t } = useTranslation();
-
-  function updateCurrentAgent(adjustments: Partial<Agent>) {
-    updateAgent(agent.id, adjustments);
-  }
-
-  return (
-    <div className="settingsPanel__tab">
-      <h2>{t('tabAgent')}</h2>
-      <div className="settingsPanel__field">
-        <input
-          className="largeInput"
-          type="text"
-          placeholder={t('name')}
-          value={agent.name}
-          onChange={e => updateCurrentAgent({ name: e.target.value })}
-        />
-      </div>
-      <label className="settingsPanel__field">
-        {t('personality')}
-        <textarea
-          value={agent.personality}
-          onChange={e => updateCurrentAgent({ personality: e.target.value })}
-          rows={7}
-          placeholder={t('personalityPlaceholder')}
-        />
-      </label>
-      <ul className="colorPicker">
-        {AGENT_COLORS.map((color, i) => (
-          <li
-            key={i}
-            className={c(`color-swatch-${i}`, { active: color === agent.bodyColor })}
-          >
-            <button
-              type="button"
-              aria-label={`${t('selectColor')} ${color}`}
-              onClick={() => updateCurrentAgent({ bodyColor: color })}
-            />
-          </li>
-        ))}
-      </ul>
-      <div className="voicePicker">
-        <label htmlFor="settings-voice-select">{t('voice')}</label>
-        <select
-          id="settings-voice-select"
-          value={agent.voice}
-          onChange={e =>
-            updateCurrentAgent({ voice: e.target.value as INTERLOCUTOR_VOICE })
-          }
-        >
-          {INTERLOCUTOR_VOICES.map(voice => (
-            <option key={voice} value={voice}>
-              {voice}
-            </option>
-          ))}
-        </select>
       </div>
     </div>
   );
@@ -439,7 +375,6 @@ export default function SettingsPanel() {
 
   const tabs: [Tab, string, string][] = [
     ['profile', 'person', t('tabProfile')],
-    ['companion', 'smart_toy', t('tabAgent')],
     ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
     ['language', 'language', t('tabLanguage')],
@@ -472,7 +407,6 @@ export default function SettingsPanel() {
 
         <div className="settingsPanel__content">
           {activeTab === 'profile' && <ProfileTab />}
-          {activeTab === 'companion' && <CompanionTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
           {activeTab === 'language' && <LanguageTab />}

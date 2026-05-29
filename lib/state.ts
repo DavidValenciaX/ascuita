@@ -124,20 +124,11 @@ export const useAgent = create<{
 export const useUI = create<{
   showUserConfig: boolean;
   setShowUserConfig: (show: boolean) => void;
-  showAgentEdit: boolean;
-  setShowAgentEdit: (show: boolean) => void;
-  showSpeechAnimationConfig: boolean;
-  setShowSpeechAnimationConfig: (show: boolean) => void;
   showSettingsPanel: boolean;
   setShowSettingsPanel: (show: boolean) => void;
 }>(set => ({
   showUserConfig: false,
   setShowUserConfig: (show: boolean) => set({ showUserConfig: show }),
-  showAgentEdit: false,
-  setShowAgentEdit: (show: boolean) => set({ showAgentEdit: show }),
-  showSpeechAnimationConfig: false,
-  setShowSpeechAnimationConfig: (show: boolean) =>
-    set({ showSpeechAnimationConfig: show }),
   showSettingsPanel: false,
   setShowSettingsPanel: (show: boolean) => set({ showSettingsPanel: show }),
 }));
