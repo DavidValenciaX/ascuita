@@ -34,7 +34,7 @@ export const translations: Translations = {
         infoPlaceholder:
             'Things we should know about you… Likes, dislikes, hobbies, interests, favorite movies, books, tv shows, foods, etc.',
         letsGo: 'Let’s go!',
-        // EditCompanion
+        // EditAgent
         name: 'Name',
         personality: 'Personality',
         personalityPlaceholder:
@@ -44,7 +44,7 @@ export const translations: Translations = {
         // SettingsPanel
         settingsPanelTitle: 'Settings',
         tabProfile: 'Profile',
-        tabAgent: 'Companion',
+        tabAgent: 'Agent',
         tabAgents: 'Agents',
         tabSpeech: 'Speech',
         tabLanguage: 'Language',
@@ -62,9 +62,9 @@ export const translations: Translations = {
         defaultAgentName: 'Ascuita',
         edit: 'Editar',
         presets: 'Preajustes',
-        yourAgents: 'Tus compañeros',
+        yourAgents: 'Tus agentes',
         noneYet: 'Aún no hay ninguno.',
-        newAgent: 'Nuevo compañero',
+        newAgent: 'Nuevo agente',
         saveAgent: 'Guardar y seleccionar',
         yourName: 'Tu nombre',
         settings: 'Configuración',
@@ -77,7 +77,7 @@ export const translations: Translations = {
         infoPlaceholder:
             'Cosas que deberíamos saber sobre ti... Gustos, aversiones, pasatiempos, intereses, películas favoritas, libros, programas de televisión, comidas, etc.',
         letsGo: '¡Vamos!',
-        // EditCompanion
+        // EditAgent
         name: 'Nombre',
         personality: 'Personalidad',
         personalityPlaceholder:
@@ -87,7 +87,7 @@ export const translations: Translations = {
         // SettingsPanel
         settingsPanelTitle: 'Configuración',
         tabProfile: 'Perfil',
-        tabAgent: 'Compañero',
+        tabAgent: 'Agente',
         tabAgents: 'Agentes',
         tabSpeech: 'Habla',
         tabLanguage: 'Idioma',
