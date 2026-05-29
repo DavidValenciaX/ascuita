@@ -1489,16 +1489,6 @@ input[type='range'] {
   font-size: 15px;
 }
 
-.settingsPanel__tabHeader .button.primary {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-}
-
-.settingsPanel__tabHeader .button.primary .icon {
-  font-size: 18px;
-}
-
 @media (max-width: 540px) {
   .settingsPanel__nav {
     min-width: 52px;

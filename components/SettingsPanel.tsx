@@ -191,17 +191,6 @@ function AgentsTab() {
             <span className="icon">arrow_back</span>
             {t('yourAgents')}
           </button>
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => {
-              changeAgent(editingAgent);
-              setEditingId(null);
-            }}
-          >
-            <span className="icon">check</span>
-            {t('saveAgent')}
-          </button>
         </div>
         <div className="settingsPanel__field">
           <input
