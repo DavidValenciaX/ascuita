@@ -22,6 +22,7 @@ export const translations: Translations = {
         yourAgents: 'Your agents',
         noneYet: 'None yet.',
         newAgent: 'New agent',
+        saveAgent: 'Save & select',
         yourName: 'Your name',
         settings: 'Settings',
         // UserSettings
@@ -43,7 +44,8 @@ export const translations: Translations = {
         // SettingsPanel
         settingsPanelTitle: 'Settings',
         tabProfile: 'Profile',
-        tabAgent: 'Agent',
+        tabAgent: 'Companion',
+        tabAgents: 'Agents',
         tabSpeech: 'Speech',
         tabLanguage: 'Language',
         // ControlTray
@@ -63,6 +65,7 @@ export const translations: Translations = {
         yourAgents: 'Tus compañeros',
         noneYet: 'Aún no hay ninguno.',
         newAgent: 'Nuevo compañero',
+        saveAgent: 'Guardar y seleccionar',
         yourName: 'Tu nombre',
         settings: 'Configuración',
         // UserSettings
@@ -85,6 +88,7 @@ export const translations: Translations = {
         settingsPanelTitle: 'Configuración',
         tabProfile: 'Perfil',
         tabAgent: 'Compañero',
+        tabAgents: 'Agentes',
         tabSpeech: 'Habla',
         tabLanguage: 'Idioma',
         // ControlTray

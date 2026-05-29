@@ -156,6 +156,15 @@ button {
   font-size: 1.2em;
 }
 
+.button.primary {
+  background: var(--Blue-500);
+  color: white;
+}
+
+.button.primary:hover {
+  background: #1a80e0;
+}
+
 button:focus {
   outline: none;
 }
@@ -1376,6 +1385,118 @@ input[type='range'] {
 .settingsPanel__langOptions .button.active {
   border: 1px solid var(--Blue-500);
   color: var(--Blue-400);
+}
+
+/* AgentsTab */
+.settingsPanel__agentSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settingsPanel__agentSection h3 {
+  color: var(--Neutral-60);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settingsPanel__agentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.settingsPanel__agentItem {
+  align-items: center;
+  border-radius: 8px;
+  display: flex;
+  gap: 4px;
+  transition: background 0.15s;
+}
+
+.settingsPanel__agentItem:hover {
+  background: var(--Neutral-20);
+}
+
+.settingsPanel__agentItem.active {
+  background: var(--Blue-900, #0d1f3c);
+}
+
+.settingsPanel__agentSelect {
+  align-items: center;
+  color: var(--Neutral-80);
+  display: flex;
+  flex: 1;
+  font-size: 15px;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.settingsPanel__agentItem.active .settingsPanel__agentSelect,
+.settingsPanel__agentItem:hover .settingsPanel__agentSelect {
+  color: white;
+}
+
+.settingsPanel__agentDot {
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 12px;
+  width: 12px;
+}
+
+.settingsPanel__agentCheck {
+  color: var(--Blue-400);
+  font-size: 18px !important;
+  margin-left: auto;
+}
+
+.settingsPanel__agentEdit {
+  color: var(--Neutral-50);
+  flex-shrink: 0;
+  padding: 8px 10px;
+  transition: color 0.15s;
+}
+
+.settingsPanel__agentEdit:hover {
+  color: white;
+}
+
+.settingsPanel__agentEdit .icon {
+  font-size: 18px;
+}
+
+.settingsPanel__newAgentBtn {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.settingsPanel__saveAgentBtn {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+  padding: 12px 20px;
+  font-size: 15px;
+}
+
+.settingsPanel__tabHeader .button.primary {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.settingsPanel__tabHeader .button.primary .icon {
+  font-size: 18px;
 }
 
 @media (max-width: 540px) {

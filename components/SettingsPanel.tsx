@@ -17,9 +17,11 @@ import {
   AGENT_COLORS,
   INTERLOCUTOR_VOICE,
   INTERLOCUTOR_VOICES,
+  createNewAgent,
 } from '@/lib/presets/agents';
+import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'agent' | 'speech' | 'language';
+type Tab = 'profile' | 'companion' | 'agents' | 'speech' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -86,7 +88,7 @@ function ProfileTab() {
   );
 }
 
-function AgentTab() {
+function CompanionTab() {
   const agent = useAgent(state => state.current);
   const updateAgent = useAgent(state => state.update);
   const { t } = useTranslation();
@@ -146,6 +148,202 @@ function AgentTab() {
           ))}
         </select>
       </div>
+    </div>
+  );
+}
+
+function AgentsTab() {
+  const { current, setCurrent, availablePresets, availablePersonal, addAgent } = useAgent();
+  const updateAgent = useAgent(state => state.update);
+  const { disconnect } = useLiveAPIContext();
+  const { t } = useTranslation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const editingAgent = editingId
+    ? [...availablePresets, ...availablePersonal].find(a => a.id === editingId)
+    : null;
+
+  function updateEditingAgent(adjustments: Partial<Agent>) {
+    if (editingId) updateAgent(editingId, adjustments);
+  }
+
+  function changeAgent(agent: Agent) {
+    disconnect();
+    setCurrent(agent);
+  }
+
+  function handleAddAgent() {
+    disconnect();
+    const newAgent = createNewAgent();
+    addAgent(newAgent);
+    setEditingId(newAgent.id);
+  }
+
+  if (editingAgent) {
+    return (
+      <div className="settingsPanel__tab">
+        <div className="settingsPanel__tabHeader">
+          <button
+            type="button"
+            className="button"
+            onClick={() => setEditingId(null)}
+          >
+            <span className="icon">arrow_back</span>
+            {t('yourAgents')}
+          </button>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => {
+              changeAgent(editingAgent);
+              setEditingId(null);
+            }}
+          >
+            <span className="icon">check</span>
+            {t('saveAgent')}
+          </button>
+        </div>
+        <div className="settingsPanel__field">
+          <input
+            className="largeInput"
+            type="text"
+            placeholder={t('name')}
+            value={editingAgent.name}
+            onChange={e => updateEditingAgent({ name: e.target.value })}
+            autoFocus
+          />
+        </div>
+        <label className="settingsPanel__field">
+          {t('personality')}
+          <textarea
+            value={editingAgent.personality}
+            onChange={e => updateEditingAgent({ personality: e.target.value })}
+            rows={7}
+            placeholder={t('personalityPlaceholder')}
+          />
+        </label>
+        <ul className="colorPicker">
+          {AGENT_COLORS.map((color, i) => (
+            <li
+              key={i}
+              className={c(`color-swatch-${i}`, { active: color === editingAgent.bodyColor })}
+            >
+              <button
+                type="button"
+                aria-label={`${t('selectColor')} ${color}`}
+                onClick={() => updateEditingAgent({ bodyColor: color })}
+              />
+            </li>
+          ))}
+        </ul>
+        <div className="voicePicker">
+          <label htmlFor="settings-new-agent-voice">{t('voice')}</label>
+          <select
+            id="settings-new-agent-voice"
+            value={editingAgent.voice}
+            onChange={e =>
+              updateEditingAgent({ voice: e.target.value as INTERLOCUTOR_VOICE })
+            }
+          >
+            {INTERLOCUTOR_VOICES.map(voice => (
+              <option key={voice} value={voice}>
+                {voice}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          className="button primary settingsPanel__saveAgentBtn"
+          onClick={() => {
+            changeAgent(editingAgent);
+            setEditingId(null);
+          }}
+        >
+          <span className="icon">check_circle</span>
+          {t('saveAgent')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settingsPanel__tab">
+      <h2>{t('tabAgents')}</h2>
+
+      <section className="settingsPanel__agentSection">
+        <h3>{t('presets')}</h3>
+        <ul className="settingsPanel__agentList">
+          {availablePresets.map(agent => (
+            <li
+              key={agent.id}
+              className={c('settingsPanel__agentItem', { active: agent.id === current.id })}
+            >
+              <button
+                type="button"
+                className="settingsPanel__agentSelect"
+                onClick={() => changeAgent(agent)}
+              >
+                <span
+                  className="settingsPanel__agentDot"
+                  style={{ background: agent.bodyColor }}
+                />
+                <span>{agent.name}</span>
+                {agent.id === current.id && (
+                  <span className="icon settingsPanel__agentCheck">check_circle</span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="settingsPanel__agentSection">
+        <h3>{t('yourAgents')}</h3>
+        {availablePersonal.length > 0 ? (
+          <ul className="settingsPanel__agentList">
+            {availablePersonal.map(agent => (
+              <li
+                key={agent.id}
+                className={c('settingsPanel__agentItem', { active: agent.id === current.id })}
+              >
+                <button
+                  type="button"
+                  className="settingsPanel__agentSelect"
+                  onClick={() => changeAgent(agent)}
+                >
+                  <span
+                    className="settingsPanel__agentDot"
+                    style={{ background: agent.bodyColor }}
+                  />
+                  <span>{agent.name || t('newAgent')}</span>
+                  {agent.id === current.id && (
+                    <span className="icon settingsPanel__agentCheck">check_circle</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="settingsPanel__agentEdit"
+                  onClick={() => setEditingId(agent.id)}
+                  title={t('edit')}
+                >
+                  <span className="icon">edit</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="settingsPanel__desc">{t('noneYet')}</p>
+        )}
+        <button
+          type="button"
+          className="button settingsPanel__newAgentBtn"
+          onClick={handleAddAgent}
+        >
+          <span className="icon">add</span>
+          {t('newAgent')}
+        </button>
+      </section>
     </div>
   );
 }
@@ -252,7 +450,8 @@ export default function SettingsPanel() {
 
   const tabs: [Tab, string, string][] = [
     ['profile', 'person', t('tabProfile')],
-    ['agent', 'smart_toy', t('tabAgent')],
+    ['companion', 'smart_toy', t('tabAgent')],
+    ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
     ['language', 'language', t('tabLanguage')],
   ];
@@ -284,7 +483,8 @@ export default function SettingsPanel() {
 
         <div className="settingsPanel__content">
           {activeTab === 'profile' && <ProfileTab />}
-          {activeTab === 'agent' && <AgentTab />}
+          {activeTab === 'companion' && <CompanionTab />}
+          {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
           {activeTab === 'language' && <LanguageTab />}
         </div>

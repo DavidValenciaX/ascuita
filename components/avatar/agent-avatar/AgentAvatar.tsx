@@ -88,17 +88,18 @@ export default function AgentAvatar() {
   useEffect(() => {
     const beginSession = async () => {
       if (!connected) return;
+      const agentName = current.name || 'Ascuita';
       client.send(
         {
           text: language === 'es'
-            ? 'Saluda al usuario y preséntate como Ascuita, explicando tu rol.'
-            : 'Greet the user and introduce yourself as Ascuita and your role.',
+            ? `Saluda al usuario y preséntate como ${agentName}, explicando tu rol.`
+            : `Greet the user and introduce yourself as ${agentName} and your role.`,
         },
         true
       );
     };
     beginSession();
-  }, [client, connected, language]);
+  }, [client, connected, current, language]);
 
   return (
     <div className="agent-avatar">
