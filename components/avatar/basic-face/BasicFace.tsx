@@ -135,7 +135,7 @@ function getMouthSignature(mouthShape: MouthShape) {
 
 export default function BasicFace({
   canvasRef,
-  radius = 250,
+  radius: _radius = 250,
   color,
 }: BasicFaceProps) {
   const timeoutRef = useRef<NodeJS.Timeout>(null);
@@ -146,7 +146,6 @@ export default function BasicFace({
 
   // Talking state
   const [isTalking, setIsTalking] = useState(false);
-  const [scale, setScale] = useState(0.1);
 
   // Face states from existing hooks
   const { eyeScale, mouthShape } = useFace();
@@ -176,16 +175,6 @@ export default function BasicFace({
   useEffect(() => { isTalkingRef.current = isTalking; }, [isTalking]);
   useEffect(() => { mouthShapeRef.current = mouthShape; }, [mouthShape]);
 
-  // Window resize scale factor
-  useEffect(() => {
-    function calculateScale() {
-      setScale(Math.min(window.innerWidth, window.innerHeight) / 1000);
-    }
-    window.addEventListener('resize', calculateScale);
-    calculateScale();
-    return () => window.removeEventListener('resize', calculateScale);
-  }, []);
-
   // Detect whether the agent is talking based on audio output volume
   useEffect(() => {
     if (volume > AUDIO_OUTPUT_DETECTION_THRESHOLD) {
@@ -198,18 +187,19 @@ export default function BasicFace({
     }
   }, [volume]);
 
-  const canvasSize = radius * 2 * scale;
+  const canvasWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const canvasHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
 
   // Handle resizing the WebGL renderer and updating camera projection
   useEffect(() => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
     if (renderer && camera) {
-      renderer.setSize(canvasSize, canvasSize, false);
-      camera.aspect = 1;
+      renderer.setSize(canvasWidth, canvasHeight, false);
+      camera.aspect = canvasWidth / canvasHeight;
       camera.updateProjectionMatrix();
     }
-  }, [canvasSize]);
+  }, [canvasWidth, canvasHeight]);
 
   // Main Three.js Scene Setup (Runs once on mount)
   useEffect(() => {
@@ -219,7 +209,7 @@ export default function BasicFace({
     // ── 1. Scene, Camera, Renderer ──────────────────────────────────────────
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(35, canvasWidth / canvasHeight, 0.1, 1000);
     camera.position.z = 8.2;
     cameraRef.current = camera;
 
@@ -228,7 +218,7 @@ export default function BasicFace({
       alpha: true,
       antialias: true,
     });
-    renderer.setSize(canvasSize, canvasSize, false);
+    renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer;
 
@@ -457,8 +447,8 @@ export default function BasicFace({
     >
       <canvas
         ref={canvasRef}
-        width={canvasSize}
-        height={canvasSize}
+        width={canvasWidth}
+        height={canvasHeight}
       />
     </div>
   );

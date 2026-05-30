@@ -3,7 +3,7 @@ body {
   font-family: 'Google Sans Display', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--Neutral-00);
+  background: var(--Neutral-10);
 }
 
 code {
@@ -1211,12 +1211,14 @@ input[type='range'] {
 }
 
 .basic-face {
-  aspect-ratio: 1;
   --avatar-glow-color: #5B9BF5;
   display: block;
   isolation: isolate;
-  position: relative;
-  width: min(70vmin, 100%);
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
 }
 
 .basic-face::before {
@@ -1245,8 +1247,6 @@ input[type='range'] {
     drop-shadow(0 0 18px var(--avatar-glow-color))
     drop-shadow(0 0 44px color-mix(in srgb, var(--avatar-glow-color) 40%, transparent));
   height: 100%;
-  inset: 0;
-  position: absolute;
   width: 100%;
   z-index: 1;
 }
