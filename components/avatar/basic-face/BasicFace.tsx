@@ -245,9 +245,9 @@ export default function BasicFace({
     composer.addPass(new RenderPass(scene, camera));
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
-      0.85, // strength
+      1.2,  // strength - aumentado para colors menos luminosos
       0.55, // radius
-      0.62  // threshold — below this luminance nothing blooms
+      0.3   // threshold - BAJADO significativamente para que colores fríos también hagan bloom
     );
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
@@ -262,7 +262,7 @@ export default function BasicFace({
       color: initialColor,
       gradientMap,
       emissive: new THREE.Color(initialColor),
-      emissiveIntensity: 0.35,
+      emissiveIntensity: 0.6,
       transparent: true,
       opacity: 0.94,
       depthWrite: false,
@@ -424,8 +424,8 @@ export default function BasicFace({
       const glowPulseSpeed = isTalkingRef.current ? 7.8 : 3.4;
       const glowPulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * glowPulseSpeed);
       const glowStrength = isTalkingRef.current ? 1.0 : 0.64;
-      innerGlow.scale.setScalar(3.5 + glowPulse + glowStrength * 0.08);
-      innerGlowMat.opacity = 0.18 + glowPulse * 0.07 + glowStrength * 0.08;
+      innerGlow.scale.setScalar(3.5 + glowPulse + glowStrength * 0.2);
+      innerGlowMat.opacity = 0.35 + glowPulse * 0.15 + glowStrength * 0.15;
 
       // Head gently turns toward cursor
       bodyMesh.rotation.y = THREE.MathUtils.lerp(bodyMesh.rotation.y, mouse.x * 1.5, 0.08);
