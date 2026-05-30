@@ -22,6 +22,16 @@ const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
 // Amount of delay between end of audio output and setting talking state to false
 const TALKING_STATE_COOLDOWN_MS = 2000;
 
+const BODY_EMISSIVE_INTENSITY = 0.32;
+const BODY_OPACITY = 0.92;
+const BLOOM_STRENGTH = 0.82;
+const BLOOM_RADIUS = 0.5;
+const BLOOM_THRESHOLD = 0.42;
+const GLOW_WHITE_MIX = 0.24;
+const GLOW_IDLE_OPACITY = 0.2;
+const GLOW_PULSE_OPACITY = 0.08;
+const GLOW_TALKING_OPACITY = 0.07;
+
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
   readonly canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -231,6 +241,8 @@ export default function BasicFace({
     });
     renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.82;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -245,9 +257,9 @@ export default function BasicFace({
     composer.addPass(new RenderPass(scene, camera));
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
-      1.2,  // strength - aumentado para colors menos luminosos
-      0.55, // radius
-      0.3   // threshold - BAJADO significativamente para que colores fríos también hagan bloom
+      BLOOM_STRENGTH,
+      BLOOM_RADIUS,
+      BLOOM_THRESHOLD
     );
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
@@ -262,22 +274,33 @@ export default function BasicFace({
       color: initialColor,
       gradientMap,
       emissive: new THREE.Color(initialColor),
-      emissiveIntensity: 0.6,
+      emissiveIntensity: BODY_EMISSIVE_INTENSITY,
       transparent: true,
-      opacity: 0.94,
+      opacity: BODY_OPACITY,
       depthWrite: false,
     });
-    const eyeMat = new THREE.MeshBasicMaterial({ color: '#1F2430' });
-    const eyeHighlightMat = new THREE.MeshBasicMaterial({ color: '#FFFFFF' });
+    const eyeMat = new THREE.MeshBasicMaterial({
+      color: '#1F2430',
+      transparent: true,
+      opacity: 1,
+      depthWrite: false,
+    });
+    const eyeHighlightMat = new THREE.MeshBasicMaterial({
+      color: '#FFFFFF',
+      transparent: true,
+      opacity: 1,
+      depthWrite: false,
+    });
 
     const glowTexture = new THREE.CanvasTexture(buildGlowTexture());
     glowTexture.colorSpace = THREE.SRGBColorSpace;
+    const initialGlowColor = new THREE.Color(initialColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
 
     const innerGlowMat = new THREE.SpriteMaterial({
       map: glowTexture,
-      color: initialColor,
+      color: initialGlowColor,
       transparent: true,
-      opacity: 0.42,
+      opacity: GLOW_IDLE_OPACITY,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -312,6 +335,7 @@ export default function BasicFace({
     bodyMesh.add(leftEyePivot);
 
     const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
+    leftEye.renderOrder = 3;
     leftEye.position.set(0, 0, 1.55);
     leftEye.scale.set(1.0, 1.15, 0.42);
     leftEyePivot.add(leftEye);
@@ -322,15 +346,18 @@ export default function BasicFace({
     bodyMesh.add(rightEyePivot);
 
     const rightEye = new THREE.Mesh(eyeGeom, eyeMat);
+    rightEye.renderOrder = 3;
     rightEye.position.set(0, 0, 1.55);
     rightEye.scale.set(1.0, 1.15, 0.42);
     rightEyePivot.add(rightEye);
 
     const leftEyeHighlight = new THREE.Mesh(eyeHighlightGeom, eyeHighlightMat);
+    leftEyeHighlight.renderOrder = 4;
     leftEyeHighlight.position.set(-0.04, 0.04, 0.12);
     leftEye.add(leftEyeHighlight);
 
     const rightEyeHighlight = new THREE.Mesh(eyeHighlightGeom, eyeHighlightMat);
+    rightEyeHighlight.renderOrder = 4;
     rightEyeHighlight.position.set(-0.04, 0.04, 0.12);
     rightEye.add(rightEyeHighlight);
 
@@ -365,7 +392,7 @@ export default function BasicFace({
     bodyMesh.add(mouthPivot);
 
     const mouthMesh = new THREE.Mesh(mouthGeom, mouthMat);
-    mouthMesh.renderOrder = 2;
+    mouthMesh.renderOrder = 5;
     mouthMesh.position.set(0, 0, 1.55);
     mouthPivot.add(mouthMesh);
 
@@ -383,8 +410,8 @@ export default function BasicFace({
     let animationId: number;
     let lastMouthSignature = '';
     let lastColor = '';
-    const white = new THREE.Color('#FFFFFF');
     const glowColor = new THREE.Color(initialColor);
+    const glowTint = new THREE.Color(initialColor);
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -396,7 +423,8 @@ export default function BasicFace({
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
         glowColor.set(lastColor);
-        innerGlowMat.color.copy(glowColor).lerp(white, 0.62);
+        glowTint.copy(glowColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
+        innerGlowMat.color.copy(glowTint);
       }
 
       // Eye blink — squash both eyes vertically
@@ -424,8 +452,8 @@ export default function BasicFace({
       const glowPulseSpeed = isTalkingRef.current ? 7.8 : 3.4;
       const glowPulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * glowPulseSpeed);
       const glowStrength = isTalkingRef.current ? 1.0 : 0.64;
-      innerGlow.scale.setScalar(3.5 + glowPulse + glowStrength * 0.2);
-      innerGlowMat.opacity = 0.35 + glowPulse * 0.15 + glowStrength * 0.15;
+      innerGlow.scale.setScalar(3.0 + glowPulse * 0.55 + glowStrength * 0.12);
+      innerGlowMat.opacity = GLOW_IDLE_OPACITY + glowPulse * GLOW_PULSE_OPACITY + glowStrength * GLOW_TALKING_OPACITY;
 
       // Head gently turns toward cursor
       bodyMesh.rotation.y = THREE.MathUtils.lerp(bodyMesh.rotation.y, mouse.x * 1.5, 0.08);
