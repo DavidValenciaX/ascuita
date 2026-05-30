@@ -27,7 +27,7 @@ const BODY_OPACITY = 1;
 const BLOOM_STRENGTH = 0.1;
 const BLOOM_RADIUS = 0.5;
 const BLOOM_THRESHOLD = 0.15;
-const GLOW_WHITE_MIX = 0.24;
+const GLOW_WHITE_MIX = 0.4;
 const GLOW_IDLE_OPACITY = 0.2;
 const GLOW_PULSE_OPACITY = 0.08;
 const GLOW_TALKING_OPACITY = 0.07;
@@ -53,23 +53,30 @@ function buildGradientMap(): THREE.DataTexture {
 
 function buildGlowTexture(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
+  // Se aumenta la resolución para un difuminado de mejor calidad
+  canvas.width = 256; 
+  canvas.height = 256;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
-  const gradient = ctx.createRadialGradient(64, 64, 8, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.78)');
-  gradient.addColorStop(0.28, 'rgba(255, 255, 255, 0.52)');
-  gradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.16)');
+  // Centro x, Centro y, Radio interior, Centro x, Centro y, Radio exterior
+  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  
+  // Modificando estos valores controlas la fuerza del centro y la suavidad del halo
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.9)'); // núcleo "gordo"
+  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
+  gradient.addColorStop(0.45, 'rgba(255, 255, 255, 0.2)');
+  gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.1)');
   gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillRect(0, 0, 256, 256);
 
   return canvas;
 }
+
 
 function drawSmileLine(ctx: CanvasRenderingContext2D, width: number, lift: number) {
   ctx.beginPath();
