@@ -4,6 +4,10 @@
  */
 import { type RefObject, useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 import useFace from '../../../hooks/avatar/use-face';
 import type { MouthShape } from '../../../hooks/avatar/use-face';
@@ -160,6 +164,7 @@ export default function BasicFace({
   // Three.js renderer & camera refs for resize updates without rebuilding the scene
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const composerRef = useRef<EffectComposer | null>(null);
 
   // Synchronize dynamic variables with refs to feed into the Three.js loop without closures going stale
   const eyeScaleRef = useRef(eyeScale);
@@ -197,6 +202,7 @@ export default function BasicFace({
     const camera = cameraRef.current;
     if (renderer && camera) {
       renderer.setSize(canvasWidth, canvasHeight, false);
+      composerRef.current?.setSize(canvasWidth, canvasHeight);
       camera.aspect = canvasWidth / canvasHeight;
       camera.updateProjectionMatrix();
     }
@@ -229,6 +235,24 @@ export default function BasicFace({
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
 
+    // ── 1b. Bloom post-processing ───────────────────────────────────────────
+    // The glow used to be a CSS drop-shadow that relied on a transparent canvas.
+    // Now that an opaque room fills the canvas, the glow has to live inside the
+    // 3D scene. UnrealBloomPass blooms only the brightest pixels (the emissive
+    // body + additive glow sprite), leaving the dim room walls untouched.
+    const composer = new EffectComposer(renderer);
+    composer.setSize(canvasWidth, canvasHeight);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(canvasWidth, canvasHeight),
+      0.85, // strength
+      0.55, // radius
+      0.62  // threshold — below this luminance nothing blooms
+    );
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+    composerRef.current = composer;
+
     // ── 2. Toon shading gradient map ────────────────────────────────────────
     const gradientMap = buildGradientMap();
 
@@ -237,6 +261,8 @@ export default function BasicFace({
     const bodyMat = new THREE.MeshToonMaterial({
       color: initialColor,
       gradientMap,
+      emissive: new THREE.Color(initialColor),
+      emissiveIntensity: 0.35,
       transparent: true,
       opacity: 0.94,
       depthWrite: false,
@@ -368,6 +394,7 @@ export default function BasicFace({
       if (colorRef.current !== lastColor) {
         lastColor = colorRef.current || '#5B9BF5';
         bodyMat.color.set(lastColor);
+        bodyMat.emissive.set(lastColor);
         glowColor.set(lastColor);
         innerGlowMat.color.copy(glowColor).lerp(white, 0.62);
       }
@@ -408,7 +435,7 @@ export default function BasicFace({
       const targetTilt = (tiltAngleRef.current * Math.PI) / 180;
       characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, 0.1);
 
-      renderer.render(scene, camera);
+      composer.render();
     };
 
     animate();
@@ -427,6 +454,9 @@ export default function BasicFace({
       mouthTexture.dispose();
       gradientMap.dispose();
       innerGlowMat.dispose();
+      bloomPass.dispose();
+      composer.dispose();
+      composerRef.current = null;
       renderer.dispose();
     };
   }, []);
