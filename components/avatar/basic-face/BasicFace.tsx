@@ -10,6 +10,7 @@ import type { MouthShape } from '../../../hooks/avatar/use-face';
 import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
+import { setupSceneEnvironment } from '../../../hooks/avatar/useSceneEnvironment';
 
 // Minimum volume level that indicates audio output is occurring
 const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
@@ -209,8 +210,12 @@ export default function BasicFace({
     // ── 1. Scene, Camera, Renderer ──────────────────────────────────────────
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(35, canvasWidth / canvasHeight, 0.1, 1000);
-    camera.position.z = 8.2;
+    // Pulled-back, slightly raised camera looking gently downward so the floor,
+    // ceiling and side walls enter the frame and their edges converge toward the
+    // back wall (one-point perspective), which is what reads as a 3D room.
+    const camera = new THREE.PerspectiveCamera(48, canvasWidth / canvasHeight, 0.1, 1000);
+    camera.position.set(0, 0.9, 8.5);
+    camera.lookAt(0, 0.0, -2);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
@@ -220,6 +225,8 @@ export default function BasicFace({
     });
     renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
 
     // ── 2. Toon shading gradient map ────────────────────────────────────────
@@ -262,6 +269,7 @@ export default function BasicFace({
     // Body
     const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
     bodyMesh.renderOrder = 0;
+    bodyMesh.castShadow = true;
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
@@ -331,25 +339,11 @@ export default function BasicFace({
     bodyMesh.add(mouthPivot);
 
     const mouthMesh = new THREE.Mesh(mouthGeom, mouthMat);
-  mouthMesh.renderOrder = 2;
+    mouthMesh.renderOrder = 2;
     mouthMesh.position.set(0, 0, 1.55);
     mouthPivot.add(mouthMesh);
 
-    // ── 6. Lighting ──────────────────────────────────────────────────────────
-    // Soft ambient keeps toon shading bright and cheerful
-    scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    mainLight.position.set(3, 5, 10);
-    scene.add(mainLight);
-
-    const rimLight = new THREE.DirectionalLight(0xFFE8F8, 0.35);
-    rimLight.position.set(-5, 3, -5);
-    scene.add(rimLight);
-
-    const fillLight = new THREE.PointLight(0xffffff, 0.55, 12);
-    fillLight.position.set(0, 1, 5);
-    scene.add(fillLight);
+    const cleanupEnvironment = setupSceneEnvironment(scene);
 
     // ── 7. Mouse tracker ─────────────────────────────────────────────────────
     const mouse = { x: 0, y: 0 };
@@ -423,6 +417,7 @@ export default function BasicFace({
     return () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener('mousemove', handleMouseMove);
+      cleanupEnvironment();
 
       bodyGeom.dispose(); bodyMat.dispose();
       eyeGeom.dispose(); eyeMat.dispose();
