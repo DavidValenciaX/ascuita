@@ -135,6 +135,6 @@ export const useUI = create<{
   setShowUserConfig: (show: boolean) => set({ showUserConfig: show }),
   showSettingsPanel: false,
   setShowSettingsPanel: (show: boolean) => set({ showSettingsPanel: show }),
-  sceneTheme: 'light',
+  sceneTheme: 'dark',
   setSceneTheme: (theme: SceneTheme) => set({ sceneTheme: theme }),
 }));

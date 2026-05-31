@@ -49,10 +49,10 @@ export const translations: Translations = {
         tabSpeech: 'Speech',
         tabAppearance: 'Appearance',
         tabLanguage: 'Language',
-        sceneTheme: '3D room theme',
-        sceneThemeDesc: 'Choose the default basic room behind the avatar.',
+        sceneTheme: '3D space theme',
+        sceneThemeDesc: 'Choose the default basic space behind the avatar.',
         sceneThemeLight: 'Light studio: soft, bright, and warm.',
-        sceneThemeDark: 'Dark studio: the original cozy room.',
+        sceneThemeDark: 'Dark studio: the cozy space.',
         // ControlTray
         streaming: 'Streaming',
         // ErrorScreen
@@ -97,10 +97,10 @@ export const translations: Translations = {
         tabSpeech: 'Habla',
         tabAppearance: 'Apariencia',
         tabLanguage: 'Idioma',
-        sceneTheme: 'Tema del cuarto 3D',
-        sceneThemeDesc: 'Elige el cuarto basico que aparece detras del avatar.',
+        sceneTheme: 'Tema del espacio 3D',
+        sceneThemeDesc: 'Elige el espacio basico que aparece detras del avatar.',
         sceneThemeLight: 'Estudio claro: suave, luminoso y calido.',
-        sceneThemeDark: 'Estudio oscuro: el cuarto acogedor original.',
+        sceneThemeDark: 'Estudio oscuro: el espacio acogedor.',
         // ControlTray
         streaming: 'Transmitiendo',
         // ErrorScreen
