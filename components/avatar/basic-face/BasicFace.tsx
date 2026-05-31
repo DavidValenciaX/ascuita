@@ -13,7 +13,10 @@ import useFace from '../../../hooks/avatar/use-face';
 import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
-import { setupSceneEnvironment } from '../../../hooks/avatar/useSceneEnvironment';
+import {
+  SceneEnvironmentTheme,
+  setupSceneEnvironment,
+} from '../../../hooks/avatar/useSceneEnvironment';
 
 // Minimum volume level that indicates audio output is occurring
 const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
@@ -38,6 +41,8 @@ type BasicFaceProps = {
   readonly radius?: number;
   /** The color of the face. */
   readonly color?: string;
+  /** The default 3D room theme behind the avatar. */
+  readonly sceneTheme?: SceneEnvironmentTheme;
 };
 
 /** Build a 4-step toon gradient map using DataTexture (WebGL2-safe, no FLIP_Y issues). */
@@ -80,6 +85,7 @@ export default function BasicFace({
   canvasRef,
   radius: _radius = 250,
   color,
+  sceneTheme = 'light',
 }: BasicFaceProps) {
   const timeoutRef = useRef<NodeJS.Timeout>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -324,7 +330,7 @@ export default function BasicFace({
     mouthMesh.position.set(0, 0, 1.55);
     mouthPivot.add(mouthMesh);
 
-    const cleanupEnvironment = setupSceneEnvironment(scene);
+    const cleanupEnvironment = setupSceneEnvironment(scene, { theme: sceneTheme });
 
     // ── 7. Mouse tracker ─────────────────────────────────────────────────────
     const mouse = { x: 0, y: 0 };
@@ -415,7 +421,7 @@ export default function BasicFace({
       composerRef.current = null;
       renderer.dispose();
     };
-  }, []);
+  }, [sceneTheme]);
 
   useEffect(() => {
     containerRef.current?.style.setProperty('--avatar-glow-color', color || '#5B9BF5');

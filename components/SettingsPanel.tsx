@@ -21,7 +21,7 @@ import {
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'appearance' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -340,6 +340,36 @@ function SpeechTab() {
   );
 }
 
+function AppearanceTab() {
+  const { sceneTheme, setSceneTheme } = useUI();
+  const { t } = useTranslation();
+  const isLight = sceneTheme === 'light';
+
+  return (
+    <div className="settingsPanel__tab">
+      <h2>{t('tabAppearance')}</h2>
+      <p className="settingsPanel__desc">{t('sceneThemeDesc')}</p>
+
+      <label className="settingsPanel__themeToggle">
+        <input
+          type="checkbox"
+          checked={isLight}
+          onChange={e => setSceneTheme(e.target.checked ? 'light' : 'dark')}
+        />
+        <span className="settingsPanel__themeTrack" aria-hidden="true">
+          <span className="settingsPanel__themeThumb">
+            <span className="icon">{isLight ? 'light_mode' : 'dark_mode'}</span>
+          </span>
+        </span>
+        <span className="settingsPanel__themeText">
+          <strong>{t('sceneTheme')}</strong>
+          <small>{isLight ? t('sceneThemeLight') : t('sceneThemeDark')}</small>
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function LanguageTab() {
   const { language, setLanguage, t } = useTranslation();
 
@@ -377,6 +407,7 @@ export default function SettingsPanel() {
     ['profile', 'person', t('tabProfile')],
     ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
+    ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
   ];
 
@@ -409,6 +440,7 @@ export default function SettingsPanel() {
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
+          {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'language' && <LanguageTab />}
         </div>
       </div>

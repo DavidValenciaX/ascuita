@@ -1366,6 +1366,81 @@ input[type='range'] {
   color: var(--Blue-400);
 }
 
+.settingsPanel__themeToggle {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(128, 193, 255, 0.14), rgba(255, 199, 144, 0.1)),
+    var(--Neutral-15);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  user-select: none;
+}
+
+.settingsPanel__themeToggle input {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.settingsPanel__themeTrack {
+  background: linear-gradient(135deg, #1e1e2a, #353548);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 3px;
+  transition: background 0.2s ease;
+  width: 62px;
+}
+
+.settingsPanel__themeThumb {
+  align-items: center;
+  background: #12151f;
+  border-radius: 50%;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  color: #b8d7ff;
+  display: flex;
+  height: 26px;
+  justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  width: 26px;
+}
+
+.settingsPanel__themeThumb .icon {
+  font-size: 18px;
+}
+
+.settingsPanel__themeToggle input:checked + .settingsPanel__themeTrack {
+  background: linear-gradient(135deg, #dfeaff, #fff0dc);
+}
+
+.settingsPanel__themeToggle input:checked + .settingsPanel__themeTrack .settingsPanel__themeThumb {
+  background: #ffffff;
+  color: #fa7b17;
+  transform: translateX(28px);
+}
+
+.settingsPanel__themeText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settingsPanel__themeText strong {
+  color: var(--Neutral-90);
+  font-size: 15px;
+}
+
+.settingsPanel__themeText small {
+  color: var(--gray-300);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 /* AgentsTab */
 .settingsPanel__agentSection {
   display: flex;

@@ -9,7 +9,7 @@ import { LiveServerToolCall } from '@google/genai';
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createSystemInstructions } from '@/lib/prompts';
-import { useAgent, useUser } from '@/lib/state';
+import { useAgent, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 
 export default function AgentAvatar() {
@@ -17,6 +17,7 @@ export default function AgentAvatar() {
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const user = useUser();
   const { current, update: updateAgent } = useAgent();
+  const { sceneTheme } = useUI();
   const { language } = useLanguage();
 
   // Set the configuration for the Live API
@@ -103,7 +104,11 @@ export default function AgentAvatar() {
 
   return (
     <div className="agent-avatar">
-      <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+      <BasicFace
+        canvasRef={faceCanvasRef!}
+        color={current.bodyColor}
+        sceneTheme={sceneTheme}
+      />
     </div>
   );
 }

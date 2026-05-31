@@ -121,14 +121,20 @@ export const useAgent = create<{
 /**
  * UI
  */
+export type SceneTheme = 'dark' | 'light';
+
 export const useUI = create<{
   showUserConfig: boolean;
   setShowUserConfig: (show: boolean) => void;
   showSettingsPanel: boolean;
   setShowSettingsPanel: (show: boolean) => void;
+  sceneTheme: SceneTheme;
+  setSceneTheme: (theme: SceneTheme) => void;
 }>(set => ({
   showUserConfig: false,
   setShowUserConfig: (show: boolean) => set({ showUserConfig: show }),
   showSettingsPanel: false,
   setShowSettingsPanel: (show: boolean) => set({ showSettingsPanel: show }),
+  sceneTheme: 'light',
+  setSceneTheme: (theme: SceneTheme) => set({ sceneTheme: theme }),
 }));
