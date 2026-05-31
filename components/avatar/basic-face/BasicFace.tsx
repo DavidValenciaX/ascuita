@@ -178,7 +178,7 @@ export default function BasicFace({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.82;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
 
     // ── 1b. Bloom post-processing ───────────────────────────────────────────
