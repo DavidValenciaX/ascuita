@@ -1221,27 +1221,6 @@ input[type='range'] {
   z-index: 0;
 }
 
-.basic-face::before {
-  background:
-    radial-gradient(circle at 50% 52%, var(--avatar-glow-color) 0%, transparent 56%),
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--avatar-glow-color) 55%, white) 0%, transparent 42%);
-  border-radius: 50%;
-  content: '';
-  filter: blur(34px);
-  inset: 7%;
-  opacity: 0.36;
-  pointer-events: none;
-  position: absolute;
-  transform: scale(0.96);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  z-index: -1;
-}
-
-.basic-face.is-talking::before {
-  opacity: 0.52;
-  transform: scale(1.04);
-}
-
 .basic-face canvas {
   filter:
     drop-shadow(0 0 18px var(--avatar-glow-color))
