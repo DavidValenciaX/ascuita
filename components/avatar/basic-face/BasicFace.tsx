@@ -8,9 +8,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-
+import { drawFriendlyMouth, getMouthSignature } from '../../../hooks/avatar/mouth-config';
 import useFace from '../../../hooks/avatar/use-face';
-import type { MouthShape } from '../../../hooks/avatar/use-face';
 import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
@@ -76,84 +75,6 @@ function buildGlowTexture(): HTMLCanvasElement {
 
   return canvas;
 }
-
-
-function drawSmileLine(ctx: CanvasRenderingContext2D, width: number, lift: number) {
-  ctx.beginPath();
-  ctx.moveTo(-width / 2, 4);
-  ctx.quadraticCurveTo(0, 22 + lift, width / 2, 4);
-  ctx.stroke();
-}
-
-function drawFriendlyMouth(ctx: CanvasRenderingContext2D, mouthShape: MouthShape) {
-  ctx.clearRect(0, 0, 256, 256);
-  ctx.save();
-  ctx.translate(128, 132);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#1F2430';
-  ctx.fillStyle = '#1F2430';
-
-  if (mouthShape.viseme === 'Neutral') {
-    ctx.lineWidth = 14;
-    drawSmileLine(ctx, 74, -4);
-    ctx.restore();
-    return;
-  }
-
-  if (mouthShape.viseme === 'M') {
-    ctx.lineWidth = 18;
-    drawSmileLine(ctx, 58, -12);
-    ctx.restore();
-    return;
-  }
-
-  if (mouthShape.viseme === 'Smile') {
-    ctx.lineWidth = 16;
-    drawSmileLine(ctx, 104, 6);
-    ctx.restore();
-    return;
-  }
-
-  const isRoundMouth = ['Oh', 'Uh', 'WO-o', 'Surprised'].includes(mouthShape.viseme);
-  const openness = Math.max(
-    mouthShape.open,
-    mouthShape.viseme === 'Surprised' ? 0.75 : isRoundMouth ? 0.42 : 0.25
-  );
-  const spread = Math.max(mouthShape.spread, mouthShape.viseme === 'Ee' ? 0.58 : 0.22);
-  const roundness = Math.max(mouthShape.round, isRoundMouth ? 0.7 : 0.15);
-  const mouthWidth = isRoundMouth ? 52 + roundness * 34 : 70 + spread * 62;
-  const mouthHeight = 22 + openness * 76;
-  const top = -mouthHeight / 2 + 8;
-
-  ctx.beginPath();
-  ctx.ellipse(0, top + mouthHeight / 2, mouthWidth / 2, mouthHeight / 2, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (mouthHeight > 44) {
-    const tongueGradient = ctx.createLinearGradient(0, top + mouthHeight * 0.45, 0, top + mouthHeight);
-    tongueGradient.addColorStop(0, '#FF9AB5');
-    tongueGradient.addColorStop(1, '#FF6F9A');
-    ctx.fillStyle = tongueGradient;
-    ctx.globalAlpha = 0.8;
-    ctx.beginPath();
-    ctx.ellipse(0, top + mouthHeight * 0.65, mouthWidth * 0.28, mouthHeight * 0.18, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
-function getMouthSignature(mouthShape: MouthShape) {
-  return [
-    mouthShape.viseme,
-    mouthShape.intensity.toFixed(2),
-    mouthShape.open.toFixed(2),
-    mouthShape.spread.toFixed(2),
-    mouthShape.round.toFixed(2),
-  ].join(':');
-}
-
 
 export default function BasicFace({
   canvasRef,
