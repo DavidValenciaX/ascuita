@@ -83,6 +83,26 @@ function createStudioGradientTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+function createHorizonGlowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 256, 256);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function createSoftCircleTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -229,10 +249,12 @@ export function setupSceneEnvironment(
     added.push(floorGlow);
     dispose.push(() => { floorGlowGeom.dispose(); floorGlowMat.dispose(); floorGlowTexture.dispose(); });
 
+    const horizonGlowTexture = createHorizonGlowTexture();
     const horizonGlowMat = new THREE.MeshBasicMaterial({
+      map: horizonGlowTexture,
       color: '#ffffff',
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.35,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
@@ -241,7 +263,7 @@ export function setupSceneEnvironment(
     horizonGlow.position.set(0, -0.55, -halfD + 0.02);
     scene.add(horizonGlow);
     added.push(horizonGlow);
-    dispose.push(() => { horizonGlowGeom.dispose(); horizonGlowMat.dispose(); });
+    dispose.push(() => { horizonGlowGeom.dispose(); horizonGlowMat.dispose(); horizonGlowTexture.dispose(); });
   }
 
   // ── Lights ────────────────────────────────────────────────────────────────
