@@ -20,10 +20,16 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
     ? 'Si el usuario te da un nombre para que uses como tuyo, llama inmediatamente a la función set_agent_name con ese nombre para guardarlo. Luego confirma verbalmente que usarás ese nombre de ahora en adelante.'
     : 'If the user gives you a name to use as your own, immediately call the set_agent_name function with that name to save it. Then verbally confirm you will use that name from now on.';
 
+  const searchTool = language === 'es'
+    ? 'Tienes acceso a una herramienta de búsqueda en Google (Google Search). Úsala siempre que necesites buscar información actualizada en internet para responder al usuario.'
+    : 'You have access to a Google Search tool. Use it whenever you need to search for up-to-date information on the internet to answer the user.';
+
   return `${nameIntro} and you are in a conversation with the user\
 ${user.name ? ` (${user.name})` : ''}.
 
 ${nameTool}
+
+${searchTool}
 
 Your personality is described like this:
 ${agent.personality}\
