@@ -24,7 +24,7 @@
 export const DEFAULT_LIVE_API_MODEL =
   process.env.GEMINI_MODEL ||
   process.env.MODEL ||
-  'gemini-2.5-flash-native-audio-latest';
+  'gemini-3.1-flash-live-preview';
 
 /**
  * Enables debug-only UI details.
