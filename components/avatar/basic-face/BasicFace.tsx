@@ -354,6 +354,11 @@ export default function BasicFace({
     window.addEventListener('touchstart', handleMouseMove as any);
     window.addEventListener('touchmove', handleMouseMove as any);
 
+    // ── 7b. Saccades (Rapid eye micro-movements) ─────────────────────────────
+    let nextSaccadeTime = performance.now() + 2000;
+    const saccadeTarget = { x: 0, y: 0 };
+    const currentSaccade = { x: 0, y: 0 };
+
     // ── 8. Animation loop ─────────────────────────────────────────────────────
     let animationId: number;
     let lastMouthSignature = '';
@@ -381,6 +386,29 @@ export default function BasicFace({
       rightEye.scale.y = 1.15 * currentEyeScale;
       leftEye.scale.x = 1 + (1 - currentEyeScale) * 0.18;
       rightEye.scale.x = 1 + (1 - currentEyeScale) * 0.18;
+
+      // Saccades (Rapid eye movements)
+      const nowMs = performance.now();
+      if (nowMs > nextSaccadeTime) {
+        if (Math.random() > 0.4) {
+          // Dart eyes
+          saccadeTarget.x = (Math.random() - 0.5) * 0.15;
+          saccadeTarget.y = (Math.random() - 0.5) * 0.15;
+          nextSaccadeTime = nowMs + 150 + Math.random() * 400; // brief dart
+        } else {
+          // Return to center
+          saccadeTarget.x = 0;
+          saccadeTarget.y = 0;
+          nextSaccadeTime = nowMs + 2000 + Math.random() * 3000; // wait before next dart
+        }
+      }
+      currentSaccade.x = THREE.MathUtils.lerp(currentSaccade.x, saccadeTarget.x, 0.4);
+      currentSaccade.y = THREE.MathUtils.lerp(currentSaccade.y, saccadeTarget.y, 0.4);
+
+      leftEyePivot.rotation.x = THREE.MathUtils.degToRad(-14.2) + currentSaccade.y;
+      leftEyePivot.rotation.y = THREE.MathUtils.degToRad(-16.3) + currentSaccade.x;
+      rightEyePivot.rotation.x = THREE.MathUtils.degToRad(-14.2) + currentSaccade.y;
+      rightEyePivot.rotation.y = THREE.MathUtils.degToRad(16.3) + currentSaccade.x;
 
       // Procedural viseme drawing keeps the lip sync while avoiding uncanny mouth art.
       const currentMouthShape = mouthShapeRef.current;
