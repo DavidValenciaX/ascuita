@@ -17,6 +17,7 @@ export function useIdleCursor(timeoutMs: number = 3000) {
     };
 
     window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('touchstart', onMouseMove);
     window.addEventListener('mouseleave', onMouseLeave);
 
     // Initial trigger
@@ -26,6 +27,7 @@ export function useIdleCursor(timeoutMs: number = 3000) {
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('touchstart', onMouseMove);
       window.removeEventListener('mouseleave', onMouseLeave);
       clearTimeout(timeoutId);
       document.body.classList.remove('cursor-hidden');

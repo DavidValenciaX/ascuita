@@ -332,13 +332,27 @@ export default function BasicFace({
 
     const cleanupEnvironment = setupSceneEnvironment(scene, { theme: sceneTheme });
 
-    // ── 7. Mouse tracker ─────────────────────────────────────────────────────
+    // ── 7. Mouse/Touch tracker ───────────────────────────────────────────────
     const mouse = { x: 0, y: 0 };
-    const handleMouseMove = (e: MouseEvent) => {
-      mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      let clientX, clientY;
+      if ('touches' in e) {
+        if (e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          return;
+        }
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      mouse.x =  (clientX / window.innerWidth)  * 2 - 1;
+      mouse.y = -(clientY / window.innerHeight) * 2 + 1;
     };
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove as any);
+    window.addEventListener('touchstart', handleMouseMove as any);
+    window.addEventListener('touchmove', handleMouseMove as any);
 
     // ── 8. Animation loop ─────────────────────────────────────────────────────
     let animationId: number;
@@ -390,6 +404,10 @@ export default function BasicFace({
       innerGlowMat.opacity = GLOW_IDLE_OPACITY + glowPulse * GLOW_PULSE_OPACITY + glowStrength * GLOW_TALKING_OPACITY;
 
       // Head gently turns toward cursor
+      if (document.body.classList.contains('cursor-hidden')) {
+        mouse.x = THREE.MathUtils.lerp(mouse.x, 0, 0.02);
+        mouse.y = THREE.MathUtils.lerp(mouse.y, 0, 0.02);
+      }
       bodyMesh.rotation.y = THREE.MathUtils.lerp(bodyMesh.rotation.y, mouse.x * 1.5, 0.08);
       bodyMesh.rotation.x = THREE.MathUtils.lerp(bodyMesh.rotation.x, -mouse.y * 1.5, 0.08);
 
@@ -405,7 +423,9 @@ export default function BasicFace({
     // ── 9. Cleanup ────────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousemove', handleMouseMove as any);
+      window.removeEventListener('touchstart', handleMouseMove as any);
+      window.removeEventListener('touchmove', handleMouseMove as any);
       cleanupEnvironment();
 
       bodyGeom.dispose(); bodyMat.dispose();
