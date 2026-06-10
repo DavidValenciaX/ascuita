@@ -29,10 +29,19 @@ const BODY_OPACITY = 1;
 const BLOOM_STRENGTH = 0.1;
 const BLOOM_RADIUS = 0.5;
 const BLOOM_THRESHOLD = 0.1;
-const GLOW_WHITE_MIX = 0.4;
-const GLOW_IDLE_OPACITY = 0.2;
-const GLOW_PULSE_OPACITY = 0.08;
-const GLOW_TALKING_OPACITY = 0.07;
+
+// Inner flame (3D sphere) constants
+const FLAME_BASE_RADIUS = 0.45;
+const FLAME_IDLE_SCALE = 1.0;
+const FLAME_TALKING_SCALE = 1.35;
+const FLAME_PULSE_SPEED_IDLE = 2.2;
+const FLAME_PULSE_SPEED_TALKING = 8.5;
+const FLAME_NOISE_SPEED = 1.8;
+const FLAME_COLOR_CORE = '#FF6B35';      // Naranja intenso (núcleo)
+const FLAME_COLOR_INNER = '#FF9F1C';     // Amarillo-naranja (zona media)
+const FLAME_COLOR_OUTER = '#FFD600';     // Amarillo brillante (punta)
+const FLAME_EMISSIVE_INTENSITY = 2.8;
+const FLAME_OPACITY = 0.85;
 
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
@@ -55,30 +64,176 @@ function buildGradientMap(): THREE.DataTexture {
   return tex;
 }
 
-function buildGlowTexture(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  // Se aumenta la resolución para un difuminado de mejor calidad
-  canvas.width = 256; 
-  canvas.height = 256;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-
-  // Centro x, Centro y, Radio interior, Centro x, Centro y, Radio exterior
-  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  
-  // Modificando estos valores controlas la fuerza del centro y la suavidad del halo
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.9)'); // núcleo "gordo"
-  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
-  gradient.addColorStop(0.45, 'rgba(255, 255, 255, 0.2)');
-  gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.1)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 256, 256);
-
-  return canvas;
+/** Custom shader material for a volumetric flame-like sphere */
+function createFlameMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uColorCore: { value: new THREE.Color(FLAME_COLOR_CORE) },
+      uColorInner: { value: new THREE.Color(FLAME_COLOR_INNER) },
+      uColorOuter: { value: new THREE.Color(FLAME_COLOR_OUTER) },
+      uIntensity: { value: FLAME_EMISSIVE_INTENSITY },
+      uOpacity: { value: FLAME_OPACITY },
+      uScale: { value: FLAME_IDLE_SCALE },
+      uIsTalking: { value: 0.0 },
+    },
+    vertexShader: /* glsl */ `
+      varying vec3 vPosition;
+      varying vec3 vNormal;
+      varying float vDepth;
+      
+      void main() {
+        vPosition = position;
+        vNormal = normal;
+        vDepth = gl_Position.z / gl_Position.w;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform vec3 uColorCore;
+      uniform vec3 uColorInner;
+      uniform vec3 uColorOuter;
+      uniform float uIntensity;
+      uniform float uOpacity;
+      uniform float uScale;
+      uniform float uIsTalking;
+      
+      varying vec3 vPosition;
+      varying vec3 vNormal;
+      varying float vDepth;
+      
+      // Simplex 3D noise (simplified for performance)
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }
+      vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+      
+      float snoise(vec3 v) {
+        const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+        
+        vec3 i  = floor(v + dot(v, C.yyy));
+        vec3 x0 = v - i + dot(i, C.xxx);
+        
+        vec3 g = step(x0.yzx, x0.xyz);
+        vec3 l = 1.0 - g;
+        vec3 i1 = min(g.xyz, l.zxy);
+        vec3 i2 = max(g.xyz, l.zxy);
+        
+        vec3 x1 = x0 - i1 + C.xxx;
+        vec3 x2 = x0 - i2 + C.yyy;
+        vec3 x3 = x0 - D.yyy;
+        
+        i = mod289(i);
+        vec4 p = permute(permute(permute(
+                  i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+        
+        float n_ = 1.0/7.0;
+        vec3 ns = n_ * D.wyz - D.xzx;
+        
+        vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+        
+        vec4 x_ = floor(j * ns.z);
+        vec4 y_ = floor(j - 7.0 * x_);
+        
+        vec4 x = x_ * ns.x + ns.yyyy;
+        vec4 y = y_ * ns.x + ns.yyyy;
+        vec4 h = 1.0 - abs(x) - abs(y);
+        
+        vec4 b0 = vec4(x.xy, y.xy);
+        vec4 b1 = vec4(x.zw, y.zw);
+        
+        vec4 s0 = floor(b0) * 2.0 + 1.0;
+        vec4 s1 = floor(b1) * 2.0 + 1.0;
+        vec4 sh = -step(h, vec4(0.0));
+        
+        vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+        vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+        
+        vec3 p0 = vec3(a0.xy, h.x);
+        vec3 p1 = vec3(a0.zw, h.y);
+        vec3 p2 = vec3(a1.xy, h.z);
+        vec3 p3 = vec3(a1.zw, h.w);
+        
+        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+        p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+        
+        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+        m = m * m;
+        return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+      }
+      
+      // Fractal Brownian Motion for organic flame noise
+      float fbm(vec3 p) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        float frequency = 1.0;
+        for (int i = 0; i < 5; i++) {
+          value += amplitude * snoise(p * frequency);
+          amplitude *= 0.5;
+          frequency *= 2.0;
+        }
+        return value;
+      }
+      
+      void main() {
+        // Normalized position from center (0 to 1 at surface)
+        vec3 localPos = vPosition * uScale;
+        float distFromCenter = length(localPos);
+        
+        // Base spherical falloff
+        float sphereFalloff = 1.0 - smoothstep(0.3, 1.0, distFromCenter);
+        
+        // Flame noise - animated, stretched vertically
+        vec3 noisePos = localPos * 2.5;
+        noisePos.y *= 1.8; // Stretch vertically like a flame
+        noisePos.z *= 0.8;
+        float noise = fbm(noisePos + vec3(uTime * 0.8, uTime * 1.2, uTime * 0.5));
+        
+        // Talking state adds more turbulence
+        float talkNoise = 0.0;
+        if (uIsTalking > 0.5) {
+          talkNoise = fbm(noisePos * 2.0 + vec3(uTime * 3.0, uTime * 4.0, uTime * 2.0)) * uIsTalking;
+        }
+        
+        // Combine noise
+        float flameShape = sphereFalloff + noise * 0.35 + talkNoise * 0.25;
+        flameShape = clamp(flameShape, 0.0, 1.0);
+        
+        // Vertical gradient (flame is brighter at top)
+        float heightFactor = smoothstep(-0.5, 1.0, localPos.y * uScale);
+        
+        // Fresnel effect for glowing edges
+        vec3 viewDir = normalize(-vPosition);
+        float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.5);
+        
+        // Color gradient: core -> inner -> outer
+        vec3 color = mix(uColorCore, uColorInner, smoothstep(0.2, 0.6, distFromCenter));
+        color = mix(color, uColorOuter, smoothstep(0.5, 0.9, distFromCenter) * heightFactor);
+        
+        // Add fresnel glow
+        color += uColorOuter * fresnel * 0.6 * heightFactor;
+        
+        // Talking state: brighter, more intense
+        float talkBoost = 1.0 + uIsTalking * 0.6;
+        color *= talkBoost;
+        
+        // Final alpha with emissive intensity
+        float alpha = flameShape * uOpacity * (0.6 + 0.4 * heightFactor);
+        alpha *= (0.7 + 0.3 * fresnel);
+        
+        // Emissive output for bloom
+        gl_FragColor = vec4(color * uIntensity, alpha);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.BackSide, // Render inside of sphere for volumetric look
+  });
 }
 
 export default function BasicFace({
@@ -226,24 +381,15 @@ export default function BasicFace({
       depthWrite: false,
     });
 
-    const glowTexture = new THREE.CanvasTexture(buildGlowTexture());
-    glowTexture.colorSpace = THREE.SRGBColorSpace;
-    const initialGlowColor = new THREE.Color(initialColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
-
-    const innerGlowMat = new THREE.SpriteMaterial({
-      map: glowTexture,
-      color: initialGlowColor,
-      transparent: true,
-      opacity: GLOW_IDLE_OPACITY,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
+    // ── 3b. Flame material (3D volumetric sphere) ──────────────────────────────
+    const flameMaterial = createFlameMaterial();
 
     // ── 4. Geometries ───────────────────────────────────────────────────────
     const bodyGeom = new THREE.SphereGeometry(1.55, 32, 32);
     const eyeGeom = new THREE.SphereGeometry(0.16, 32, 32);
     const eyeHighlightGeom = new THREE.SphereGeometry(0.045, 16, 16);
     const mouthGeom = new THREE.PlaneGeometry(0.78, 0.78);
+    const flameGeom = new THREE.SphereGeometry(FLAME_BASE_RADIUS, 32, 32);
 
     // ── 5. Character node hierarchy ─────────────────────────────────────────
     const characterGroup = new THREE.Group();
@@ -256,11 +402,11 @@ export default function BasicFace({
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
-    const innerGlow = new THREE.Sprite(innerGlowMat);
-    innerGlow.position.set(0, -0.08, -0.12);
-    innerGlow.renderOrder = 1;
-    innerGlow.scale.set(2.2, 2.2, 1);
-    bodyMesh.add(innerGlow);
+    // Inner flame (3D volumetric sphere) - replaces the 2D glow sprite
+    const flameMesh = new THREE.Mesh(flameGeom, flameMaterial);
+    flameMesh.renderOrder = 1;
+    flameMesh.position.set(0, -0.08, -0.12);
+    bodyMesh.add(flameMesh);
 
     // Soft black eyes with tiny highlights
     const leftEyePivot = new THREE.Group();
@@ -363,8 +509,6 @@ export default function BasicFace({
     let animationId: number;
     let lastMouthSignature = '';
     let lastColor = '';
-    const glowColor = new THREE.Color(initialColor);
-    const glowTint = new THREE.Color(initialColor);
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -375,9 +519,6 @@ export default function BasicFace({
         lastColor = colorRef.current || '#5B9BF5';
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
-        glowColor.set(lastColor);
-        glowTint.copy(glowColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
-        innerGlowMat.color.copy(glowTint);
       }
 
       // Eye blink — squash both eyes vertically
@@ -425,11 +566,22 @@ export default function BasicFace({
       const speechBounce = isTalkingRef.current ? Math.sin(elapsedSeconds * 12) * 0.018 : 0;
       bodyMesh.scale.set(1.04 + speechBounce, 1.15 - speechBounce * 0.45, 0.88);
 
-      const glowPulseSpeed = isTalkingRef.current ? 7.8 : 3.4;
-      const glowPulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * glowPulseSpeed);
-      const glowStrength = isTalkingRef.current ? 1.0 : 0.64;
-      innerGlow.scale.setScalar(3.0 + glowPulse * 0.55 + glowStrength * 0.12);
-      innerGlowMat.opacity = GLOW_IDLE_OPACITY + glowPulse * GLOW_PULSE_OPACITY + glowStrength * GLOW_TALKING_OPACITY;
+      // Flame animation (replaces 2D glow sprite)
+      const isTalking = isTalkingRef.current;
+      const pulseSpeed = isTalking ? FLAME_PULSE_SPEED_TALKING : FLAME_PULSE_SPEED_IDLE;
+      const pulseScale = isTalking ? FLAME_TALKING_SCALE : FLAME_IDLE_SCALE;
+      const pulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * pulseSpeed);
+      const currentFlameScale = pulseScale * (0.85 + 0.3 * pulse);
+      
+      // Update flame shader uniforms
+      flameMaterial.uniforms.uTime.value = elapsedSeconds * FLAME_NOISE_SPEED;
+      flameMaterial.uniforms.uScale.value = currentFlameScale;
+      flameMaterial.uniforms.uIsTalking.value = isTalking ? 1.0 : 0.0;
+      
+      // Subtle flame position wobble
+      flameMesh.position.y = -0.08 + Math.sin(elapsedSeconds * 3.7) * 0.02 + (isTalking ? Math.sin(elapsedSeconds * 15) * 0.015 : 0);
+      flameMesh.position.x = Math.sin(elapsedSeconds * 2.3) * 0.015;
+      flameMesh.rotation.y = elapsedSeconds * 0.15; // Slow rotation for dynamic feel
 
       // Head gently turns toward cursor
       if (document.body.classList.contains('cursor-hidden')) {
@@ -460,10 +612,9 @@ export default function BasicFace({
       eyeGeom.dispose(); eyeMat.dispose();
       eyeHighlightGeom.dispose(); eyeHighlightMat.dispose();
       mouthGeom.dispose(); mouthMat.dispose();
-      glowTexture.dispose();
+      flameGeom.dispose(); flameMaterial.dispose();
       mouthTexture.dispose();
       gradientMap.dispose();
-      innerGlowMat.dispose();
       bloomPass.dispose();
       composer.dispose();
       composerRef.current = null;
