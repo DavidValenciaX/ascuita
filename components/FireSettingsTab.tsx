@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useRef } from 'react';
+import { ChangeEvent, ReactNode, useMemo, useRef } from 'react';
 import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
@@ -62,6 +62,12 @@ function exportConfig(config: InnerFireConfig) {
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+type FireSectionMeta = {
+  title: string;
+  content: ReactNode;
+  contentClassName?: string | null;
+};
 
 export default function FireSettingsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -149,37 +155,35 @@ export default function FireSettingsTab() {
     });
   }
 
-  return (
-    <div className="settingsPanel__tab">
-      <div className="settingsPanel__tabHeader">
-        <div>
-          <h2>Fuego interno</h2>
-          <p className="settingsPanel__desc">
-            Controles adaptados del modulo de `fuego`, integrados al avatar de Ascuita.
-          </p>
-        </div>
-        <button type="button" className="button" onClick={resetConfig}>
-          Restaurar
-        </button>
-      </div>
+  function renderSliderControls<TSection extends Record<string, number>>(
+    values: TSection,
+    controls: NumericSliderDef<TSection>[],
+    onChange: <K extends keyof TSection>(key: K, value: TSection[K]) => void
+  ) {
+    return controls.map(control => (
+      <FireSliderControl
+        key={control.key}
+        label={control.label}
+        value={values[control.key]}
+        min={control.min}
+        max={control.max}
+        step={control.step}
+        unit={control.unit}
+        onChange={value => onChange(control.key, value as TSection[typeof control.key])}
+      />
+    ));
+  }
 
-      <FireSliderSection title="Posicion" gridClassName="settingsPanel__fireGrid settingsPanel__fireGrid--three">
-        {positionControls.map(control => (
-          <FireSliderControl
-            key={control.key}
-            label={control.label}
-            value={config.transform[control.key]}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            unit={control.unit}
-            onChange={value => updateTransformValue(control.key, value)}
-          />
-        ))}
-      </FireSliderSection>
-
-      <div className="settingsPanel__fireSection">
-        <div className="settingsPanel__fireSectionTitle">Paleta</div>
+  const fireSections: FireSectionMeta[] = [
+    {
+      title: 'Posicion',
+      contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--three',
+      content: renderSliderControls(config.transform, positionControls, updateTransformValue),
+    },
+    {
+      title: 'Paleta',
+      contentClassName: null,
+      content: (
         <label className="settingsPanel__fireControl">
           <span>
             <strong>Estilo de fuego</strong>
@@ -201,67 +205,52 @@ export default function FireSettingsTab() {
           </select>
           <small>{FIRE_PALETTES[config.palette.selected].description}</small>
         </label>
+      ),
+    },
+    {
+      title: 'Sistema de particulas',
+      content: renderSliderControls(config.particles, particleControls, updateParticleValue),
+    },
+    {
+      title: 'Umbrales de color',
+      contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--three',
+      content: renderSliderControls(config.color, colorControls, updateColorValue),
+    },
+    {
+      title: 'Textura',
+      contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--three',
+      content: renderSliderControls(config.texture, textureControls, updateTextureValue),
+    },
+    {
+      title: 'Respuesta al habla',
+      contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--two',
+      content: renderSliderControls(config.scale, scaleControls, updateScaleValue),
+    },
+  ];
+
+  return (
+    <div className="settingsPanel__tab">
+      <div className="settingsPanel__tabHeader">
+        <div>
+          <h2>Fuego interno</h2>
+          <p className="settingsPanel__desc">
+            Controles adaptados del modulo de `fuego`, integrados al avatar de Ascuita.
+          </p>
+        </div>
+        <button type="button" className="button" onClick={resetConfig}>
+          Restaurar
+        </button>
       </div>
 
-      <FireSliderSection title="Sistema de particulas">
-        {particleControls.map(control => (
-          <FireSliderControl
-            key={control.key}
-            label={control.label}
-            value={config.particles[control.key]}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            unit={control.unit}
-            onChange={value => updateParticleValue(control.key, value)}
-          />
-        ))}
-      </FireSliderSection>
-
-      <FireSliderSection title="Umbrales de color" gridClassName="settingsPanel__fireGrid settingsPanel__fireGrid--three">
-        {colorControls.map(control => (
-          <FireSliderControl
-            key={control.key}
-            label={control.label}
-            value={config.color[control.key]}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            unit={control.unit}
-            onChange={value => updateColorValue(control.key, value)}
-          />
-        ))}
-      </FireSliderSection>
-
-      <FireSliderSection title="Textura" gridClassName="settingsPanel__fireGrid settingsPanel__fireGrid--three">
-        {textureControls.map(control => (
-          <FireSliderControl
-            key={control.key}
-            label={control.label}
-            value={config.texture[control.key]}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            unit={control.unit}
-            onChange={value => updateTextureValue(control.key, value)}
-          />
-        ))}
-      </FireSliderSection>
-
-      <FireSliderSection title="Respuesta al habla" gridClassName="settingsPanel__fireGrid settingsPanel__fireGrid--two">
-        {scaleControls.map(control => (
-          <FireSliderControl
-            key={control.key}
-            label={control.label}
-            value={config.scale[control.key]}
-            min={control.min}
-            max={control.max}
-            step={control.step}
-            unit={control.unit}
-            onChange={value => updateScaleValue(control.key, value)}
-          />
-        ))}
-      </FireSliderSection>
+      {fireSections.map(section => (
+        <FireSliderSection
+          key={section.title}
+          title={section.title}
+          contentClassName={section.contentClassName}
+        >
+          {section.content}
+        </FireSliderSection>
+      ))}
 
       <div className="settingsPanel__fireActions">
         <button
