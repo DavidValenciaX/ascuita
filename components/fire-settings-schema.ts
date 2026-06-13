@@ -1,6 +1,12 @@
 import { InnerFireConfig } from '@/lib/fire/config';
 
-export type FireNumericSectionKey = 'transform' | 'particles' | 'color' | 'texture' | 'scale';
+export type FireNumericSectionKey =
+  | 'transform'
+  | 'bloom'
+  | 'particles'
+  | 'color'
+  | 'texture'
+  | 'scale';
 
 export type NumericSliderDef<TSection extends Record<string, number>> = {
   key: keyof TSection & string;
@@ -34,6 +40,12 @@ const positionControls: NumericSliderDef<InnerFireConfig['transform']>[] = [
   { key: 'x', label: 'Fuego X', min: -2, max: 2, step: 0.01 },
   { key: 'y', label: 'Fuego Y', min: -2, max: 2, step: 0.01 },
   { key: 'z', label: 'Fuego Z', min: -2, max: 2, step: 0.01 },
+];
+
+const bloomControls: NumericSliderDef<InnerFireConfig['bloom']>[] = [
+  { key: 'strength', label: 'Bloom Strength', min: 0, max: 5, step: 0.1 },
+  { key: 'radius', label: 'Bloom Radius', min: 0, max: 3, step: 0.1 },
+  { key: 'threshold', label: 'Bloom Threshold', min: 0, max: 1, step: 0.01 },
 ];
 
 const particleControls: NumericSliderDef<InnerFireConfig['particles']>[] = [
@@ -85,6 +97,13 @@ export const FIRE_SETTINGS_SECTIONS: FireSettingsSectionSchema[] = [
     key: 'palette',
     title: 'Paleta',
     contentClassName: null,
+  },
+  {
+    kind: 'sliders',
+    key: 'bloom',
+    title: 'Bloom / glow',
+    contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--three',
+    controls: bloomControls,
   },
   {
     kind: 'sliders',

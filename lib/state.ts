@@ -10,6 +10,7 @@ import {
   DeepPartial,
   InnerFireConfig,
   mergeInnerFireConfig,
+  normalizeInnerFireConfig,
 } from './fire/config';
 
 /**
@@ -70,8 +71,29 @@ export const useInnerFire = create<{
   config: cloneInnerFireConfig(defaultInnerFireConfig),
   updateConfig: adjustments =>
     set(state => ({ config: mergeInnerFireConfig(state.config, adjustments) })),
-  replaceConfig: config => set({ config: cloneInnerFireConfig(config) }),
+  replaceConfig: config => set({ config: normalizeInnerFireConfig(config) }),
   resetConfig: () => set({ config: cloneInnerFireConfig(defaultInnerFireConfig) }),
+}));
+
+export type AvatarRenderConfig = {
+  bodyEmissiveIntensity: number;
+  bodyOpacity: number;
+};
+
+export const defaultAvatarRenderConfig: AvatarRenderConfig = {
+  bodyEmissiveIntensity: 0.32,
+  bodyOpacity: 1,
+};
+
+export const useAvatarRender = create<{
+  config: AvatarRenderConfig;
+  updateConfig: (adjustments: Partial<AvatarRenderConfig>) => void;
+  resetConfig: () => void;
+}>(set => ({
+  config: defaultAvatarRenderConfig,
+  updateConfig: adjustments =>
+    set(state => ({ config: { ...state.config, ...adjustments } })),
+  resetConfig: () => set({ config: defaultAvatarRenderConfig }),
 }));
 
 /**

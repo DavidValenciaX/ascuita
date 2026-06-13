@@ -14,7 +14,7 @@ import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createInnerFireSystem, type InnerFireSystem } from '@/lib/fire/inner-fire';
-import { useInnerFire } from '@/lib/state';
+import { useAvatarRender, useInnerFire } from '@/lib/state';
 import {
   SceneEnvironmentTheme,
   setupSceneEnvironment,
@@ -25,12 +25,6 @@ const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
 
 // Amount of delay between end of audio output and setting talking state to false
 const TALKING_STATE_COOLDOWN_MS = 2000;
-
-const BODY_EMISSIVE_INTENSITY = 0.32;
-const BODY_OPACITY = 1;
-const BLOOM_STRENGTH = 0.1;
-const BLOOM_RADIUS = 0.5;
-const BLOOM_THRESHOLD = 0.1;
 
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
@@ -63,6 +57,7 @@ export default function BasicFace({
   const containerRef = useRef<HTMLDivElement>(null);
   const innerFireRef = useRef<InnerFireSystem | null>(null);
   const innerFireConfig = useInnerFire(state => state.config);
+  const avatarRenderConfig = useAvatarRender(state => state.config);
 
   // Audio output volume
   const { volume } = useLiveAPIContext();
@@ -91,6 +86,8 @@ export default function BasicFace({
   const tiltAngleRef = useRef(tiltAngle);
   const isTalkingRef = useRef(isTalking);
   const mouthShapeRef = useRef(mouthShape);
+  const innerFireConfigRef = useRef(innerFireConfig);
+  const avatarRenderConfigRef = useRef(avatarRenderConfig);
 
   useEffect(() => { eyeScaleRef.current = eyeScale; }, [eyeScale]);
   useEffect(() => { colorRef.current = color; }, [color]);
@@ -98,6 +95,8 @@ export default function BasicFace({
   useEffect(() => { tiltAngleRef.current = tiltAngle; }, [tiltAngle]);
   useEffect(() => { isTalkingRef.current = isTalking; }, [isTalking]);
   useEffect(() => { mouthShapeRef.current = mouthShape; }, [mouthShape]);
+  useEffect(() => { innerFireConfigRef.current = innerFireConfig; }, [innerFireConfig]);
+  useEffect(() => { avatarRenderConfigRef.current = avatarRenderConfig; }, [avatarRenderConfig]);
 
   // Detect whether the agent is talking based on audio output volume
   useEffect(() => {
@@ -165,9 +164,9 @@ export default function BasicFace({
     composer.addPass(new RenderPass(scene, camera));
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
-      BLOOM_STRENGTH,
-      BLOOM_RADIUS,
-      BLOOM_THRESHOLD
+      innerFireConfigRef.current.bloom.strength,
+      innerFireConfigRef.current.bloom.radius,
+      innerFireConfigRef.current.bloom.threshold
     );
     composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
@@ -182,9 +181,9 @@ export default function BasicFace({
       color: initialColor,
       gradientMap,
       emissive: new THREE.Color(initialColor),
-      emissiveIntensity: BODY_EMISSIVE_INTENSITY,
+      emissiveIntensity: avatarRenderConfigRef.current.bodyEmissiveIntensity,
       transparent: true,
-      opacity: BODY_OPACITY,
+      opacity: avatarRenderConfigRef.current.bodyOpacity,
       depthWrite: false,
     });
     const eyeMat = new THREE.MeshBasicMaterial({
@@ -333,6 +332,12 @@ export default function BasicFace({
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
       }
+
+      bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
+      bodyMat.opacity = avatarRenderConfigRef.current.bodyOpacity;
+      bloomPass.strength = innerFireConfigRef.current.bloom.strength;
+      bloomPass.radius = innerFireConfigRef.current.bloom.radius;
+      bloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
 
       // Eye blink — squash both eyes vertically
       const currentEyeScale = eyeScaleRef.current;

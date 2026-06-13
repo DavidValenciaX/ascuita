@@ -53,6 +53,7 @@ export default function FireSettingsTab() {
 
   const createSectionUpdater = createFireSectionUpdater(config, updateConfig);
   const updateTransformValue = createSectionUpdater('transform');
+  const updateBloomValue = createSectionUpdater('bloom');
   const updateParticleValue = createSectionUpdater('particles');
   const updateColorValue = createSectionUpdater('color');
   const updateTextureValue = createSectionUpdater('texture');
@@ -62,6 +63,8 @@ export default function FireSettingsTab() {
     switch (section.key) {
       case 'transform':
         return renderFireSliderControls(config.transform, section.controls, updateTransformValue);
+      case 'bloom':
+        return renderFireSliderControls(config.bloom, section.controls, updateBloomValue);
       case 'particles':
         return renderFireSliderControls(config.particles, section.controls, updateParticleValue);
       case 'color':
@@ -87,7 +90,10 @@ export default function FireSettingsTab() {
         <div>
           <h2>Fuego interno</h2>
           <p className="settingsPanel__desc">
-            Controles adaptados del modulo de `fuego`, integrados al avatar de Ascuita.
+            Controles del nucleo de fuego integrados al avatar de Ascuita.
+          </p>
+          <p className="settingsPanel__desc">
+            El bloom/glow de esta pestaña pertenece al fuego interno; los ajustes del avatar viven en su propia seccion.
           </p>
         </div>
         <button type="button" className="button" onClick={resetConfig}>

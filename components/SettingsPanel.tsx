@@ -6,7 +6,9 @@ import { useState } from 'react';
 import c from 'classnames';
 import FireSettingsTab from './FireSettingsTab';
 import {
+  AvatarRenderConfig,
   SpeechAnimationConfig,
+  useAvatarRender,
   useSpeechAnimation,
   useUI,
   useUser,
@@ -22,7 +24,7 @@ import {
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'appearance' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -49,6 +51,34 @@ const sliderConfigs: SliderConfig[] = [
   { key: 'fallbackScoreBase', label: 'Fallback: puntaje base', hint: 'Solo aplica si el fallback esta activo.', min: 0, max: 0.5, step: 0.01 },
   { key: 'fallbackScoreWeight', label: 'Fallback: peso del volumen', hint: 'Solo aplica si el fallback esta activo.', min: 0, max: 1, step: 0.01 },
   { key: 'fallbackCentroidThreshold', label: 'Fallback: umbral de centroide', hint: 'Frecuencia para decidir entre boca redonda y abierta.', min: 500, max: 3000, step: 50, unit: 'Hz' },
+];
+
+type AvatarSliderConfig = {
+  key: keyof AvatarRenderConfig;
+  label: string;
+  hint: string;
+  min: number;
+  max: number;
+  step: number;
+};
+
+const avatarSliderConfigs: AvatarSliderConfig[] = [
+  {
+    key: 'bodyEmissiveIntensity',
+    label: 'Emision del cuerpo',
+    hint: 'Controla cuanto brilla el material base del avatar, aparte del fuego interno.',
+    min: 0,
+    max: 1.5,
+    step: 0.01,
+  },
+  {
+    key: 'bodyOpacity',
+    label: 'Opacidad del cuerpo',
+    hint: 'Ajusta la presencia visual del cascaron del avatar sin tocar el sistema de fuego.',
+    min: 0.2,
+    max: 1,
+    step: 0.01,
+  },
 ];
 
 function formatValue(value: number, unit = '') {
@@ -371,6 +401,50 @@ function AppearanceTab() {
   );
 }
 
+function AvatarTab() {
+  const { config, updateConfig, resetConfig } = useAvatarRender();
+
+  function updateNumber(key: keyof AvatarRenderConfig, value: string) {
+    updateConfig({ [key]: Number(value) });
+  }
+
+  return (
+    <div className="settingsPanel__tab">
+      <div className="settingsPanel__tabHeader">
+        <div>
+          <h2>Avatar</h2>
+          <p className="settingsPanel__desc">
+            Ajustes del cuerpo y del render del avatar, separados del fuego interno.
+          </p>
+        </div>
+        <button type="button" className="button" onClick={resetConfig}>
+          Restaurar
+        </button>
+      </div>
+
+      <div className="speechAnimationSettings__grid">
+        {avatarSliderConfigs.map(slider => (
+          <label className="settingsPanel__fireControl" key={slider.key}>
+            <span>
+              <strong>{slider.label}</strong>
+              <output>{formatValue(config[slider.key])}</output>
+            </span>
+            <input
+              type="range"
+              min={slider.min}
+              max={slider.max}
+              step={slider.step}
+              value={config[slider.key]}
+              onChange={e => updateNumber(slider.key, e.target.value)}
+            />
+            <small>{slider.hint}</small>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LanguageTab() {
   const { language, setLanguage, t } = useTranslation();
 
@@ -409,6 +483,7 @@ export default function SettingsPanel() {
     ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
     ['fire', 'local_fire_department', 'Fuego'],
+    ['avatar', 'smart_toy', 'Avatar'],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
   ];
@@ -443,6 +518,7 @@ export default function SettingsPanel() {
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
           {activeTab === 'fire' && <FireSettingsTab />}
+          {activeTab === 'avatar' && <AvatarTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'language' && <LanguageTab />}
         </div>

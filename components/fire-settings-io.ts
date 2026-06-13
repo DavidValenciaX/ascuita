@@ -1,5 +1,5 @@
 import { ChangeEvent } from 'react';
-import { InnerFireConfig } from '@/lib/fire/config';
+import { InnerFireConfig, normalizeInnerFireConfig } from '@/lib/fire/config';
 
 export function exportFireConfig(config: InnerFireConfig) {
   const json = JSON.stringify(config, null, 2);
@@ -23,7 +23,7 @@ export function importFireConfigFromInput(
   reader.onload = loadEvent => {
     try {
       const parsed = JSON.parse(String(loadEvent.target?.result ?? '')) as InnerFireConfig;
-      onConfigLoaded(parsed);
+      onConfigLoaded(normalizeInnerFireConfig(parsed));
     } catch (error) {
       console.error('No se pudo importar la configuracion del fuego.', error);
     }

@@ -83,6 +83,11 @@ export type InnerFireConfig = {
     y: number;
     z: number;
   };
+  bloom: {
+    strength: number;
+    radius: number;
+    threshold: number;
+  };
   particles: {
     count: number;
     spawnRadius: number;
@@ -126,6 +131,11 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     y: -0.86,
     z: -0.04,
   },
+  bloom: {
+    strength: 0.1,
+    radius: 0.5,
+    threshold: 0.1,
+  },
   particles: {
     count: 1800,
     spawnRadius: 0.16,
@@ -165,6 +175,15 @@ export const defaultInnerFireConfig: InnerFireConfig = {
 
 export function cloneInnerFireConfig(config: InnerFireConfig): InnerFireConfig {
   return JSON.parse(JSON.stringify(config)) as InnerFireConfig;
+}
+
+export function normalizeInnerFireConfig(
+  config: DeepPartial<InnerFireConfig>
+): InnerFireConfig {
+  return mergeInnerFireConfig(
+    cloneInnerFireConfig(defaultInnerFireConfig),
+    config
+  );
 }
 
 export function mergeInnerFireConfig(
