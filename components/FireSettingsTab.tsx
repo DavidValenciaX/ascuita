@@ -8,8 +8,8 @@ import {
 } from '@/lib/fire/config';
 import { useInnerFire } from '@/lib/state';
 
-type SliderDef = {
-  key: string;
+type NumericSliderDef<TSection extends Record<string, number>> = {
+  key: keyof TSection & string;
   label: string;
   min: number;
   max: number;
@@ -17,13 +17,13 @@ type SliderDef = {
   unit?: string;
 };
 
-const positionControls: SliderDef[] = [
+const positionControls: NumericSliderDef<InnerFireConfig['transform']>[] = [
   { key: 'x', label: 'Fuego X', min: -2, max: 2, step: 0.01 },
   { key: 'y', label: 'Fuego Y', min: -2, max: 2, step: 0.01 },
   { key: 'z', label: 'Fuego Z', min: -2, max: 2, step: 0.01 },
 ];
 
-const particleControls: SliderDef[] = [
+const particleControls: NumericSliderDef<InnerFireConfig['particles']>[] = [
   { key: 'count', label: 'Cantidad de particulas', min: 200, max: 4000, step: 100 },
   { key: 'spawnRadius', label: 'Radio de emision', min: 0.05, max: 0.8, step: 0.01 },
   { key: 'spawnHeight', label: 'Altura de emision', min: 0.2, max: 2.5, step: 0.01 },
@@ -38,13 +38,13 @@ const particleControls: SliderDef[] = [
   { key: 'opacity', label: 'Opacidad', min: 0.1, max: 1, step: 0.01 },
 ];
 
-const colorControls: SliderDef[] = [
+const colorControls: NumericSliderDef<InnerFireConfig['color']>[] = [
   { key: 'threshold1', label: 'Etapa 1 a 2', min: 0, max: 0.5, step: 0.01 },
   { key: 'threshold2', label: 'Etapa 2 a 3', min: 0.1, max: 0.8, step: 0.01 },
   { key: 'threshold3', label: 'Etapa 3 a 4', min: 0.4, max: 1, step: 0.01 },
 ];
 
-const textureControls: SliderDef[] = [
+const textureControls: NumericSliderDef<InnerFireConfig['texture']>[] = [
   { key: 'size', label: 'Resolucion de textura', min: 16, max: 256, step: 16 },
   { key: 'coreOpacity', label: 'Opacidad del nucleo', min: 0.1, max: 1, step: 0.1 },
   { key: 'midOpacity', label: 'Opacidad media', min: 0, max: 1, step: 0.1 },
@@ -52,7 +52,7 @@ const textureControls: SliderDef[] = [
   { key: 'edgeOpacity', label: 'Opacidad de borde', min: 0, max: 0.5, step: 0.05 },
 ];
 
-const scaleControls: SliderDef[] = [
+const scaleControls: NumericSliderDef<InnerFireConfig['scale']>[] = [
   { key: 'idleXZ', label: 'Escala reposo X/Z', min: 0.3, max: 2, step: 0.01 },
   { key: 'idleY', label: 'Escala reposo Y', min: 0.3, max: 2, step: 0.01 },
   { key: 'talkingXZ', label: 'Escala al hablar X/Z', min: 0.3, max: 2.5, step: 0.01 },
@@ -101,6 +101,66 @@ export default function FireSettingsTab() {
     event.target.value = '';
   }
 
+  function updateTransformValue<K extends keyof InnerFireConfig['transform']>(
+    key: K,
+    value: InnerFireConfig['transform'][K]
+  ) {
+    updateConfig({
+      transform: {
+        ...config.transform,
+        [key]: value,
+      },
+    });
+  }
+
+  function updateParticleValue<K extends keyof InnerFireConfig['particles']>(
+    key: K,
+    value: InnerFireConfig['particles'][K]
+  ) {
+    updateConfig({
+      particles: {
+        ...config.particles,
+        [key]: value,
+      },
+    });
+  }
+
+  function updateColorValue<K extends keyof InnerFireConfig['color']>(
+    key: K,
+    value: InnerFireConfig['color'][K]
+  ) {
+    updateConfig({
+      color: {
+        ...config.color,
+        [key]: value,
+      },
+    });
+  }
+
+  function updateTextureValue<K extends keyof InnerFireConfig['texture']>(
+    key: K,
+    value: InnerFireConfig['texture'][K]
+  ) {
+    updateConfig({
+      texture: {
+        ...config.texture,
+        [key]: value,
+      },
+    });
+  }
+
+  function updateScaleValue<K extends keyof InnerFireConfig['scale']>(
+    key: K,
+    value: InnerFireConfig['scale'][K]
+  ) {
+    updateConfig({
+      scale: {
+        ...config.scale,
+        [key]: value,
+      },
+    });
+  }
+
   return (
     <div className="settingsPanel__tab">
       <div className="settingsPanel__tabHeader">
@@ -122,21 +182,15 @@ export default function FireSettingsTab() {
             <label key={control.key} className="settingsPanel__fireControl">
               <span>
                 <strong>{control.label}</strong>
-                <output>{formatValue(config.transform[control.key as keyof typeof config.transform], control.unit)}</output>
+                <output>{formatValue(config.transform[control.key], control.unit)}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={config.transform[control.key as keyof typeof config.transform]}
-                onChange={event =>
-                  updateConfig({
-                    transform: {
-                      [control.key]: Number(event.target.value),
-                    } as Partial<InnerFireConfig['transform']>,
-                  })
-                }
+                value={config.transform[control.key]}
+                onChange={event => updateTransformValue(control.key, Number(event.target.value))}
               />
             </label>
           ))}
@@ -175,21 +229,15 @@ export default function FireSettingsTab() {
             <label key={control.key} className="settingsPanel__fireControl">
               <span>
                 <strong>{control.label}</strong>
-                <output>{formatValue(config.particles[control.key as keyof typeof config.particles], control.unit)}</output>
+                <output>{formatValue(config.particles[control.key], control.unit)}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={config.particles[control.key as keyof typeof config.particles]}
-                onChange={event =>
-                  updateConfig({
-                    particles: {
-                      [control.key]: Number(event.target.value),
-                    } as Partial<InnerFireConfig['particles']>,
-                  })
-                }
+                value={config.particles[control.key]}
+                onChange={event => updateParticleValue(control.key, Number(event.target.value))}
               />
             </label>
           ))}
@@ -203,21 +251,15 @@ export default function FireSettingsTab() {
             <label key={control.key} className="settingsPanel__fireControl">
               <span>
                 <strong>{control.label}</strong>
-                <output>{formatValue(config.color[control.key as keyof typeof config.color], control.unit)}</output>
+                <output>{formatValue(config.color[control.key], control.unit)}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={config.color[control.key as keyof typeof config.color]}
-                onChange={event =>
-                  updateConfig({
-                    color: {
-                      [control.key]: Number(event.target.value),
-                    } as Partial<InnerFireConfig['color']>,
-                  })
-                }
+                value={config.color[control.key]}
+                onChange={event => updateColorValue(control.key, Number(event.target.value))}
               />
             </label>
           ))}
@@ -231,21 +273,15 @@ export default function FireSettingsTab() {
             <label key={control.key} className="settingsPanel__fireControl">
               <span>
                 <strong>{control.label}</strong>
-                <output>{formatValue(config.texture[control.key as keyof typeof config.texture], control.unit)}</output>
+                <output>{formatValue(config.texture[control.key], control.unit)}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={config.texture[control.key as keyof typeof config.texture]}
-                onChange={event =>
-                  updateConfig({
-                    texture: {
-                      [control.key]: Number(event.target.value),
-                    } as Partial<InnerFireConfig['texture']>,
-                  })
-                }
+                value={config.texture[control.key]}
+                onChange={event => updateTextureValue(control.key, Number(event.target.value))}
               />
             </label>
           ))}
@@ -259,21 +295,15 @@ export default function FireSettingsTab() {
             <label key={control.key} className="settingsPanel__fireControl">
               <span>
                 <strong>{control.label}</strong>
-                <output>{formatValue(config.scale[control.key as keyof typeof config.scale], control.unit)}</output>
+                <output>{formatValue(config.scale[control.key], control.unit)}</output>
               </span>
               <input
                 type="range"
                 min={control.min}
                 max={control.max}
                 step={control.step}
-                value={config.scale[control.key as keyof typeof config.scale]}
-                onChange={event =>
-                  updateConfig({
-                    scale: {
-                      [control.key]: Number(event.target.value),
-                    } as Partial<InnerFireConfig['scale']>,
-                  })
-                }
+                value={config.scale[control.key]}
+                onChange={event => updateScaleValue(control.key, Number(event.target.value))}
               />
             </label>
           ))}
