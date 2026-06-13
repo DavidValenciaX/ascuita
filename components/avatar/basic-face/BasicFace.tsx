@@ -13,7 +13,8 @@ import useFace from '../../../hooks/avatar/use-face';
 import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
-import { createInnerFireSystem } from '@/lib/fire/inner-fire';
+import { createInnerFireSystem, type InnerFireSystem } from '@/lib/fire/inner-fire';
+import { useInnerFire } from '@/lib/state';
 import {
   SceneEnvironmentTheme,
   setupSceneEnvironment,
@@ -60,6 +61,8 @@ export default function BasicFace({
 }: BasicFaceProps) {
   const timeoutRef = useRef<NodeJS.Timeout>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerFireRef = useRef<InnerFireSystem | null>(null);
+  const innerFireConfig = useInnerFire(state => state.config);
 
   // Audio output volume
   const { volume } = useLiveAPIContext();
@@ -214,7 +217,8 @@ export default function BasicFace({
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
-    const innerFire = createInnerFireSystem();
+    const innerFire = createInnerFireSystem(innerFireConfig);
+    innerFireRef.current = innerFire;
     bodyMesh.add(innerFire.root);
 
     // Soft black eyes with tiny highlights
@@ -409,6 +413,7 @@ export default function BasicFace({
       eyeHighlightGeom.dispose(); eyeHighlightMat.dispose();
       mouthGeom.dispose(); mouthMat.dispose();
       innerFire.dispose();
+      innerFireRef.current = null;
       mouthTexture.dispose();
       gradientMap.dispose();
       bloomPass.dispose();
@@ -417,6 +422,10 @@ export default function BasicFace({
       renderer.dispose();
     };
   }, [sceneTheme]);
+
+  useEffect(() => {
+    innerFireRef.current?.replaceConfig(innerFireConfig);
+  }, [innerFireConfig]);
 
   useEffect(() => {
     containerRef.current?.style.setProperty('--avatar-glow-color', color || '#5B9BF5');

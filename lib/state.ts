@@ -4,6 +4,13 @@
 */
 import { create } from 'zustand';
 import { Agent, Ascuita } from './presets/agents';
+import {
+  cloneInnerFireConfig,
+  defaultInnerFireConfig,
+  DeepPartial,
+  InnerFireConfig,
+  mergeInnerFireConfig,
+} from './fire/config';
 
 /**
  * Speech animation
@@ -49,6 +56,22 @@ export const useSpeechAnimation = create<{
   updateConfig: adjustments =>
     set(state => ({ config: { ...state.config, ...adjustments } })),
   resetConfig: () => set({ config: defaultSpeechAnimationConfig }),
+}));
+
+/**
+ * Inner fire
+ */
+export const useInnerFire = create<{
+  config: InnerFireConfig;
+  updateConfig: (adjustments: DeepPartial<InnerFireConfig>) => void;
+  replaceConfig: (config: InnerFireConfig) => void;
+  resetConfig: () => void;
+}>(set => ({
+  config: cloneInnerFireConfig(defaultInnerFireConfig),
+  updateConfig: adjustments =>
+    set(state => ({ config: mergeInnerFireConfig(state.config, adjustments) })),
+  replaceConfig: config => set({ config: cloneInnerFireConfig(config) }),
+  resetConfig: () => set({ config: cloneInnerFireConfig(defaultInnerFireConfig) }),
 }));
 
 /**

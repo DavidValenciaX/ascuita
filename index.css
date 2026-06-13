@@ -1543,6 +1543,99 @@ input[type='range'] {
   font-size: 15px;
 }
 
+.settingsPanel__fireSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settingsPanel__fireSectionTitle {
+  color: var(--Blue-400);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settingsPanel__fireGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settingsPanel__fireGrid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settingsPanel__fireControl {
+  background:
+    linear-gradient(180deg, rgba(255, 148, 57, 0.08), rgba(255, 148, 57, 0.02)),
+    var(--Neutral-15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.settingsPanel__fireControl span {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.settingsPanel__fireControl strong {
+  color: var(--Neutral-90);
+  font-size: 13px;
+}
+
+.settingsPanel__fireControl output {
+  color: #ffb866;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.settingsPanel__fireControl small {
+  color: var(--gray-300);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settingsPanel__fireControl select {
+  background: var(--Neutral-20);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 8px;
+  color: var(--Neutral-90);
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+.settingsPanel__fireControl input[type='range'] {
+  accent-color: #ff9440;
+}
+
+.settingsPanel__fireActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.settingsPanel__fireActions .button {
+  background: var(--Neutral-20);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settingsPanel__fireActions .button:hover {
+  background: rgba(255, 148, 64, 0.12);
+  border-color: rgba(255, 148, 64, 0.28);
+  color: white;
+}
+
 @media (max-width: 540px) {
   .settingsPanel__nav {
     min-width: 52px;
@@ -1554,6 +1647,11 @@ input[type='range'] {
 
   .settingsPanel__content {
     padding: 20px 16px;
+  }
+
+  .settingsPanel__fireGrid,
+  .settingsPanel__fireGrid--three {
+    grid-template-columns: 1fr;
   }
 }
 

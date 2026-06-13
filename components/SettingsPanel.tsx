@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import c from 'classnames';
+import FireSettingsTab from './FireSettingsTab';
 import {
   SpeechAnimationConfig,
   useSpeechAnimation,
@@ -21,7 +22,7 @@ import {
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'appearance' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'appearance' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -407,6 +408,7 @@ export default function SettingsPanel() {
     ['profile', 'person', t('tabProfile')],
     ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
+    ['fire', 'local_fire_department', 'Fuego'],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
   ];
@@ -440,6 +442,7 @@ export default function SettingsPanel() {
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
+          {activeTab === 'fire' && <FireSettingsTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'language' && <LanguageTab />}
         </div>
