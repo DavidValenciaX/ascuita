@@ -2,21 +2,21 @@ import { useMemo, useRef } from 'react';
 import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
-  DeepPartial,
   FIRE_PALETTES,
   FirePaletteId,
-  InnerFireConfig,
 } from '@/lib/fire/config';
 import { useInnerFire } from '@/lib/state';
-import FireSliderControl from './FireSliderControl';
+import FireSelectControl from './FireSelectControl';
 import FireSliderSection from './FireSliderSection';
+import {
+  createFireSectionUpdater,
+  renderFireSliderControls,
+} from './fire-settings-helpers';
 import { exportFireConfig, importFireConfigFromInput } from './fire-settings-io';
 import {
   FIRE_SETTINGS_SECTIONS,
-  FireNumericSectionKey,
   FireSettingsSectionSchema,
   FireSliderSectionSchema,
-  NumericSliderDef,
 } from './fire-settings-schema';
 
 export default function FireSettingsTab() {
@@ -31,68 +31,27 @@ export default function FireSettingsTab() {
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) =>
     importFireConfigFromInput(event, replaceConfig);
 
-  function createSectionUpdater<TSectionKey extends FireNumericSectionKey>(sectionKey: TSectionKey) {
-    return <K extends keyof InnerFireConfig[TSectionKey]>(
-      key: K,
-      value: InnerFireConfig[TSectionKey][K]
-    ) => {
-      const nextSection: InnerFireConfig[TSectionKey] = {
-        ...config[sectionKey],
-      };
-      nextSection[key] = value;
-
-      const nextPatch: DeepPartial<InnerFireConfig> = {};
-      nextPatch[sectionKey] = nextSection;
-
-      updateConfig(nextPatch);
-    };
-  }
-
-  function renderSliderControls<TSection extends Record<string, number>>(
-    values: TSection,
-    controls: NumericSliderDef<TSection>[],
-    onChange: <K extends keyof TSection>(key: K, value: TSection[K]) => void
-  ) {
-    return controls.map(control => (
-      <FireSliderControl
-        key={control.key}
-        label={control.label}
-        value={values[control.key]}
-        min={control.min}
-        max={control.max}
-        step={control.step}
-        unit={control.unit}
-        onChange={value => onChange(control.key, value as TSection[typeof control.key])}
-      />
-    ));
-  }
-
   function renderPaletteControls() {
     return (
-      <label className="settingsPanel__fireControl">
-        <span>
-          <strong>Estilo de fuego</strong>
-          <output>{FIRE_PALETTES[config.palette.selected].label}</output>
-        </span>
-        <select
-          value={config.palette.selected}
-          onChange={event =>
-            updateConfig({
-              palette: { selected: event.target.value as FirePaletteId },
-            })
-          }
-        >
-          {paletteEntries.map(([id, palette]) => (
-            <option key={id} value={id}>
-              {palette.label}
-            </option>
-          ))}
-        </select>
-        <small>{FIRE_PALETTES[config.palette.selected].description}</small>
-      </label>
+      <FireSelectControl
+        label="Estilo de fuego"
+        value={config.palette.selected}
+        valueLabel={FIRE_PALETTES[config.palette.selected].label}
+        description={FIRE_PALETTES[config.palette.selected].description}
+        options={paletteEntries.map(([id, palette]) => ({
+          value: id,
+          label: palette.label,
+        }))}
+        onChange={(value: FirePaletteId) =>
+          updateConfig({
+            palette: { selected: value },
+          })
+        }
+      />
     );
   }
 
+  const createSectionUpdater = createFireSectionUpdater(config, updateConfig);
   const updateTransformValue = createSectionUpdater('transform');
   const updateParticleValue = createSectionUpdater('particles');
   const updateColorValue = createSectionUpdater('color');
@@ -102,15 +61,15 @@ export default function FireSettingsTab() {
   function renderSliderSection(section: FireSliderSectionSchema) {
     switch (section.key) {
       case 'transform':
-        return renderSliderControls(config.transform, section.controls, updateTransformValue);
+        return renderFireSliderControls(config.transform, section.controls, updateTransformValue);
       case 'particles':
-        return renderSliderControls(config.particles, section.controls, updateParticleValue);
+        return renderFireSliderControls(config.particles, section.controls, updateParticleValue);
       case 'color':
-        return renderSliderControls(config.color, section.controls, updateColorValue);
+        return renderFireSliderControls(config.color, section.controls, updateColorValue);
       case 'texture':
-        return renderSliderControls(config.texture, section.controls, updateTextureValue);
+        return renderFireSliderControls(config.texture, section.controls, updateTextureValue);
       case 'scale':
-        return renderSliderControls(config.scale, section.controls, updateScaleValue);
+        return renderFireSliderControls(config.scale, section.controls, updateScaleValue);
     }
   }
 

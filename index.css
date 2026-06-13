@@ -1568,11 +1568,9 @@ input[type='range'] {
 }
 
 .settingsPanel__fireControl {
-  background:
-    linear-gradient(180deg, rgba(255, 148, 57, 0.08), rgba(255, 148, 57, 0.02)),
-    var(--Neutral-15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--Neutral-20);
+  border: 1px solid var(--gray-800);
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1582,19 +1580,20 @@ input[type='range'] {
 .settingsPanel__fireControl span {
   align-items: center;
   display: flex;
-  gap: 10px;
+  flex-direction: row;
+  gap: 12px;
   justify-content: space-between;
 }
 
 .settingsPanel__fireControl strong {
-  color: var(--Neutral-90);
-  font-size: 13px;
+  color: white;
+  font-size: 14px;
 }
 
 .settingsPanel__fireControl output {
-  color: #ffb866;
-  font-family: 'Space Mono', monospace;
-  font-size: 12px;
+  color: var(--Blue-400);
+  font-family: monospace;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -1606,15 +1605,15 @@ input[type='range'] {
 
 .settingsPanel__fireControl select {
   background: var(--Neutral-20);
-  border: 1px solid var(--Neutral-30);
+  border: 1px solid var(--gray-800);
   border-radius: 8px;
-  color: var(--Neutral-90);
+  color: white;
   font-size: 14px;
   padding: 10px 12px;
 }
 
 .settingsPanel__fireControl input[type='range'] {
-  accent-color: #ff9440;
+  accent-color: var(--text);
 }
 
 .settingsPanel__fireActions {

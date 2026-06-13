@@ -1,5 +1,3 @@
-import { NumericSliderDef } from './fire-settings-schema';
-
 type FireSliderControlProps = {
   label: string;
   value: number;
