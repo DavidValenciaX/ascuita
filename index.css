@@ -1605,6 +1605,12 @@ input[type='range'] {
   color: white;
 }
 
+.settingsPanel__avatarSections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 @media (max-width: 540px) {
   .settingsPanel__nav {
     min-width: 52px;

@@ -149,7 +149,7 @@ export default function BasicFace({
     renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.82;
+    renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
@@ -162,13 +162,20 @@ export default function BasicFace({
     const composer = new EffectComposer(renderer);
     composer.setSize(canvasWidth, canvasHeight);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(
+    const fireBloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
       innerFireConfigRef.current.bloom.strength,
       innerFireConfigRef.current.bloom.radius,
       innerFireConfigRef.current.bloom.threshold
     );
-    composer.addPass(bloomPass);
+    const sceneBloomPass = new UnrealBloomPass(
+      new THREE.Vector2(canvasWidth, canvasHeight),
+      avatarRenderConfigRef.current.sceneBloomStrength,
+      avatarRenderConfigRef.current.sceneBloomRadius,
+      avatarRenderConfigRef.current.sceneBloomThreshold
+    );
+    composer.addPass(fireBloomPass);
+    composer.addPass(sceneBloomPass);
     composer.addPass(new OutputPass());
     composerRef.current = composer;
 
@@ -335,9 +342,13 @@ export default function BasicFace({
 
       bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
       bodyMat.opacity = avatarRenderConfigRef.current.bodyOpacity;
-      bloomPass.strength = innerFireConfigRef.current.bloom.strength;
-      bloomPass.radius = innerFireConfigRef.current.bloom.radius;
-      bloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
+      renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
+      fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
+      fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;
+      fireBloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
+      sceneBloomPass.strength = avatarRenderConfigRef.current.sceneBloomStrength;
+      sceneBloomPass.radius = avatarRenderConfigRef.current.sceneBloomRadius;
+      sceneBloomPass.threshold = avatarRenderConfigRef.current.sceneBloomThreshold;
 
       // Eye blink — squash both eyes vertically
       const currentEyeScale = eyeScaleRef.current;
@@ -381,7 +392,9 @@ export default function BasicFace({
       // Hover bobbing
       const hoverY = (hoverPositionRef.current / 10) * 0.18;
       characterGroup.position.y = hoverY + Math.sin(elapsedSeconds * 1.8) * 0.035;
-      const speechBounce = isTalkingRef.current ? Math.sin(elapsedSeconds * 12) * 0.018 : 0;
+      const speechBounce = isTalkingRef.current
+        ? Math.sin(elapsedSeconds * 12) * 0.018 * avatarRenderConfigRef.current.talkingBounceIntensity
+        : 0;
       bodyMesh.scale.set(1.04 + speechBounce, 1.15 - speechBounce * 0.45, 0.88);
 
       // Fire animation inside the body core.
@@ -421,7 +434,8 @@ export default function BasicFace({
       innerFireRef.current = null;
       mouthTexture.dispose();
       gradientMap.dispose();
-      bloomPass.dispose();
+      fireBloomPass.dispose();
+      sceneBloomPass.dispose();
       composer.dispose();
       composerRef.current = null;
       renderer.dispose();

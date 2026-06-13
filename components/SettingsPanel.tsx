@@ -62,22 +62,82 @@ type AvatarSliderConfig = {
   step: number;
 };
 
-const avatarSliderConfigs: AvatarSliderConfig[] = [
+type AvatarSectionConfig = {
+  title: string;
+  controls: AvatarSliderConfig[];
+};
+
+const avatarSectionConfigs: AvatarSectionConfig[] = [
   {
-    key: 'bodyEmissiveIntensity',
-    label: 'Emision del cuerpo',
-    hint: 'Controla cuanto brilla el material base del avatar, aparte del fuego interno.',
-    min: 0,
-    max: 1.5,
-    step: 0.01,
+    title: 'Material del avatar',
+    controls: [
+      {
+        key: 'bodyEmissiveIntensity',
+        label: 'Emision del cuerpo',
+        hint: 'Controla cuanto brilla el material base del avatar, aparte del fuego interno.',
+        min: 0,
+        max: 1.5,
+        step: 0.01,
+      },
+      {
+        key: 'bodyOpacity',
+        label: 'Opacidad del cuerpo',
+        hint: 'Ajusta la presencia visual del cascaron del avatar sin tocar el sistema de fuego.',
+        min: 0.2,
+        max: 1,
+        step: 0.01,
+      },
+    ],
   },
   {
-    key: 'bodyOpacity',
-    label: 'Opacidad del cuerpo',
-    hint: 'Ajusta la presencia visual del cascaron del avatar sin tocar el sistema de fuego.',
-    min: 0.2,
-    max: 1,
-    step: 0.01,
+    title: 'Movimiento al hablar',
+    controls: [
+      {
+        key: 'talkingBounceIntensity',
+        label: 'Intensidad del bounce',
+        hint: 'Escala cuanto se deforma el cuerpo cuando el avatar esta hablando.',
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+    ],
+  },
+  {
+    title: 'Postprocesado global',
+    controls: [
+      {
+        key: 'sceneExposure',
+        label: 'Exposicion de escena',
+        hint: 'Ajusta la exposicion general del render del avatar y del entorno.',
+        min: 0.3,
+        max: 1.6,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomStrength',
+        label: 'Bloom global: fuerza',
+        hint: 'Bloom adicional de escena, separado del bloom del fuego interno.',
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomRadius',
+        label: 'Bloom global: radio',
+        hint: 'Abre o concentra el halo del postprocesado global de escena.',
+        min: 0,
+        max: 3,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomThreshold',
+        label: 'Bloom global: umbral',
+        hint: 'Define cuan brillante debe ser una zona para entrar al bloom global.',
+        min: 0,
+        max: 1,
+        step: 0.01,
+      },
+    ],
   },
 ];
 
@@ -422,23 +482,30 @@ function AvatarTab() {
         </button>
       </div>
 
-      <div className="speechAnimationSettings__grid">
-        {avatarSliderConfigs.map(slider => (
-          <label className="settingsPanel__fireControl" key={slider.key}>
-            <span>
-              <strong>{slider.label}</strong>
-              <output>{formatValue(config[slider.key])}</output>
-            </span>
-            <input
-              type="range"
-              min={slider.min}
-              max={slider.max}
-              step={slider.step}
-              value={config[slider.key]}
-              onChange={e => updateNumber(slider.key, e.target.value)}
-            />
-            <small>{slider.hint}</small>
-          </label>
+      <div className="settingsPanel__avatarSections">
+        {avatarSectionConfigs.map(section => (
+          <div className="settingsPanel__fireSection" key={section.title}>
+            <div className="settingsPanel__fireSectionTitle">{section.title}</div>
+            <div className="settingsPanel__fireGrid">
+              {section.controls.map(slider => (
+                <label className="settingsPanel__fireControl" key={slider.key}>
+                  <span>
+                    <strong>{slider.label}</strong>
+                    <output>{formatValue(config[slider.key])}</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={slider.min}
+                    max={slider.max}
+                    step={slider.step}
+                    value={config[slider.key]}
+                    onChange={e => updateNumber(slider.key, e.target.value)}
+                  />
+                  <small>{slider.hint}</small>
+                </label>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
