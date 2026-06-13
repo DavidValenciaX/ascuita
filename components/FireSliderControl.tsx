@@ -1,3 +1,5 @@
+import { NumericSliderDef } from './fire-settings-schema';
+
 type FireSliderControlProps = {
   label: string;
   value: number;
@@ -6,15 +8,6 @@ type FireSliderControlProps = {
   step: number;
   unit?: string;
   onChange: (value: number) => void;
-};
-
-export type NumericSliderDef<TSection extends Record<string, number>> = {
-  key: keyof TSection & string;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  unit?: string;
 };
 
 function formatValue(value: number, unit = '') {
