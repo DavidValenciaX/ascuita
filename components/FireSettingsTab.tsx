@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
@@ -10,6 +10,7 @@ import {
 import { useInnerFire } from '@/lib/state';
 import FireSliderControl from './FireSliderControl';
 import FireSliderSection from './FireSliderSection';
+import { exportFireConfig, importFireConfigFromInput } from './fire-settings-io';
 import {
   FIRE_SETTINGS_SECTIONS,
   FireNumericSectionKey,
@@ -17,17 +18,6 @@ import {
   FireSliderSectionSchema,
   NumericSliderDef,
 } from './fire-settings-schema';
-
-function exportConfig(config: InnerFireConfig) {
-  const json = JSON.stringify(config, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'ascuita-fire-config.json';
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
 
 export default function FireSettingsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,22 +28,8 @@ export default function FireSettingsTab() {
     []
   );
 
-  function handleImport(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = loadEvent => {
-      try {
-        const parsed = JSON.parse(String(loadEvent.target?.result ?? '')) as InnerFireConfig;
-        replaceConfig(parsed);
-      } catch (error) {
-        console.error('No se pudo importar la configuracion del fuego.', error);
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-  }
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) =>
+    importFireConfigFromInput(event, replaceConfig);
 
   function createSectionUpdater<TSectionKey extends FireNumericSectionKey>(sectionKey: TSectionKey) {
     return <K extends keyof InnerFireConfig[TSectionKey]>(
@@ -174,7 +150,7 @@ export default function FireSettingsTab() {
         <button
           type="button"
           className="button"
-          onClick={() => exportConfig(config)}
+          onClick={() => exportFireConfig(config)}
         >
           <span className="icon">download</span>
           Exportar
