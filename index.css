@@ -728,13 +728,15 @@ header:hover .createButton {
 }
 
 .speechAnimationSettings__toggle strong,
-.speechAnimationSettings__control strong {
+.speechAnimationSettings__control strong,
+.settingsPanel__fireControl strong {
   color: white;
   font-size: 14px;
 }
 
 .speechAnimationSettings__toggle small,
-.speechAnimationSettings__control small {
+.speechAnimationSettings__control small,
+.settingsPanel__fireControl small {
   color: var(--gray-300);
   font-size: 12px;
   line-height: 1.35;
@@ -746,7 +748,9 @@ header:hover .createButton {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.speechAnimationSettings__control {
+.speechAnimationSettings__control,
+.settingsPanel__fireControl {
+  background: transparent;
   border: 1px solid var(--gray-800);
   border-radius: 8px;
   display: flex;
@@ -755,7 +759,8 @@ header:hover .createButton {
   padding: 14px;
 }
 
-.speechAnimationSettings__control span {
+.speechAnimationSettings__control span,
+.settingsPanel__fireControl span {
   align-items: center;
   display: flex;
   flex-direction: row;
@@ -763,7 +768,8 @@ header:hover .createButton {
   justify-content: space-between;
 }
 
-.speechAnimationSettings__control output {
+.speechAnimationSettings__control output,
+.settingsPanel__fireControl output {
   color: var(--Blue-400);
   font-family: monospace;
   font-size: 13px;
@@ -1567,44 +1573,8 @@ input[type='range'] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.settingsPanel__fireControl {
-  background: var(--Neutral-20);
-  border: 1px solid var(--gray-800);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-}
-
-.settingsPanel__fireControl span {
-  align-items: center;
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.settingsPanel__fireControl strong {
-  color: white;
-  font-size: 14px;
-}
-
-.settingsPanel__fireControl output {
-  color: var(--Blue-400);
-  font-family: monospace;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.settingsPanel__fireControl small {
-  color: var(--gray-300);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .settingsPanel__fireControl select {
-  background: var(--Neutral-20);
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--gray-800);
   border-radius: 8px;
   color: white;
