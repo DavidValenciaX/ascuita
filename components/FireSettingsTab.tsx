@@ -7,15 +7,7 @@ import {
   InnerFireConfig,
 } from '@/lib/fire/config';
 import { useInnerFire } from '@/lib/state';
-
-type NumericSliderDef<TSection extends Record<string, number>> = {
-  key: keyof TSection & string;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  unit?: string;
-};
+import FireSliderControl, { NumericSliderDef } from './FireSliderControl';
 
 const positionControls: NumericSliderDef<InnerFireConfig['transform']>[] = [
   { key: 'x', label: 'Fuego X', min: -2, max: 2, step: 0.01 },
@@ -58,11 +50,6 @@ const scaleControls: NumericSliderDef<InnerFireConfig['scale']>[] = [
   { key: 'talkingXZ', label: 'Escala al hablar X/Z', min: 0.3, max: 2.5, step: 0.01 },
   { key: 'talkingY', label: 'Escala al hablar Y', min: 0.3, max: 2.5, step: 0.01 },
 ];
-
-function formatValue(value: number, unit = '') {
-  const precision = Number.isInteger(value) ? 0 : value < 0.01 ? 4 : 2;
-  return `${Number(value.toFixed(precision))}${unit ? ` ${unit}` : ''}`;
-}
 
 function exportConfig(config: InnerFireConfig) {
   const json = JSON.stringify(config, null, 2);
@@ -179,20 +166,16 @@ export default function FireSettingsTab() {
         <div className="settingsPanel__fireSectionTitle">Posicion</div>
         <div className="settingsPanel__fireGrid settingsPanel__fireGrid--three">
           {positionControls.map(control => (
-            <label key={control.key} className="settingsPanel__fireControl">
-              <span>
-                <strong>{control.label}</strong>
-                <output>{formatValue(config.transform[control.key], control.unit)}</output>
-              </span>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                value={config.transform[control.key]}
-                onChange={event => updateTransformValue(control.key, Number(event.target.value))}
-              />
-            </label>
+            <FireSliderControl
+              key={control.key}
+              label={control.label}
+              value={config.transform[control.key]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              unit={control.unit}
+              onChange={value => updateTransformValue(control.key, value)}
+            />
           ))}
         </div>
       </div>
@@ -226,20 +209,16 @@ export default function FireSettingsTab() {
         <div className="settingsPanel__fireSectionTitle">Sistema de particulas</div>
         <div className="settingsPanel__fireGrid">
           {particleControls.map(control => (
-            <label key={control.key} className="settingsPanel__fireControl">
-              <span>
-                <strong>{control.label}</strong>
-                <output>{formatValue(config.particles[control.key], control.unit)}</output>
-              </span>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                value={config.particles[control.key]}
-                onChange={event => updateParticleValue(control.key, Number(event.target.value))}
-              />
-            </label>
+            <FireSliderControl
+              key={control.key}
+              label={control.label}
+              value={config.particles[control.key]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              unit={control.unit}
+              onChange={value => updateParticleValue(control.key, value)}
+            />
           ))}
         </div>
       </div>
@@ -248,20 +227,16 @@ export default function FireSettingsTab() {
         <div className="settingsPanel__fireSectionTitle">Umbrales de color</div>
         <div className="settingsPanel__fireGrid settingsPanel__fireGrid--three">
           {colorControls.map(control => (
-            <label key={control.key} className="settingsPanel__fireControl">
-              <span>
-                <strong>{control.label}</strong>
-                <output>{formatValue(config.color[control.key], control.unit)}</output>
-              </span>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                value={config.color[control.key]}
-                onChange={event => updateColorValue(control.key, Number(event.target.value))}
-              />
-            </label>
+            <FireSliderControl
+              key={control.key}
+              label={control.label}
+              value={config.color[control.key]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              unit={control.unit}
+              onChange={value => updateColorValue(control.key, value)}
+            />
           ))}
         </div>
       </div>
@@ -270,20 +245,16 @@ export default function FireSettingsTab() {
         <div className="settingsPanel__fireSectionTitle">Textura</div>
         <div className="settingsPanel__fireGrid settingsPanel__fireGrid--three">
           {textureControls.map(control => (
-            <label key={control.key} className="settingsPanel__fireControl">
-              <span>
-                <strong>{control.label}</strong>
-                <output>{formatValue(config.texture[control.key], control.unit)}</output>
-              </span>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                value={config.texture[control.key]}
-                onChange={event => updateTextureValue(control.key, Number(event.target.value))}
-              />
-            </label>
+            <FireSliderControl
+              key={control.key}
+              label={control.label}
+              value={config.texture[control.key]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              unit={control.unit}
+              onChange={value => updateTextureValue(control.key, value)}
+            />
           ))}
         </div>
       </div>
@@ -292,20 +263,16 @@ export default function FireSettingsTab() {
         <div className="settingsPanel__fireSectionTitle">Respuesta al habla</div>
         <div className="settingsPanel__fireGrid settingsPanel__fireGrid--two">
           {scaleControls.map(control => (
-            <label key={control.key} className="settingsPanel__fireControl">
-              <span>
-                <strong>{control.label}</strong>
-                <output>{formatValue(config.scale[control.key], control.unit)}</output>
-              </span>
-              <input
-                type="range"
-                min={control.min}
-                max={control.max}
-                step={control.step}
-                value={config.scale[control.key]}
-                onChange={event => updateScaleValue(control.key, Number(event.target.value))}
-              />
-            </label>
+            <FireSliderControl
+              key={control.key}
+              label={control.label}
+              value={config.scale[control.key]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              unit={control.unit}
+              onChange={value => updateScaleValue(control.key, value)}
+            />
           ))}
         </div>
       </div>
