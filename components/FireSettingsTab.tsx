@@ -2,6 +2,7 @@ import { ChangeEvent, ReactNode, useMemo, useRef } from 'react';
 import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
+  DeepPartial,
   FIRE_PALETTES,
   FirePaletteId,
   InnerFireConfig,
@@ -69,6 +70,8 @@ type FireSectionMeta = {
   contentClassName?: string | null;
 };
 
+type FireNumericSectionKey = 'transform' | 'particles' | 'color' | 'texture' | 'scale';
+
 export default function FireSettingsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { config, updateConfig, replaceConfig, resetConfig } = useInnerFire();
@@ -95,64 +98,21 @@ export default function FireSettingsTab() {
     event.target.value = '';
   }
 
-  function updateTransformValue<K extends keyof InnerFireConfig['transform']>(
-    key: K,
-    value: InnerFireConfig['transform'][K]
-  ) {
-    updateConfig({
-      transform: {
-        ...config.transform,
-        [key]: value,
-      },
-    });
-  }
+  function createSectionUpdater<TSectionKey extends FireNumericSectionKey>(sectionKey: TSectionKey) {
+    return <K extends keyof InnerFireConfig[TSectionKey]>(
+      key: K,
+      value: InnerFireConfig[TSectionKey][K]
+    ) => {
+      const nextSection: InnerFireConfig[TSectionKey] = {
+        ...config[sectionKey],
+      };
+      nextSection[key] = value;
 
-  function updateParticleValue<K extends keyof InnerFireConfig['particles']>(
-    key: K,
-    value: InnerFireConfig['particles'][K]
-  ) {
-    updateConfig({
-      particles: {
-        ...config.particles,
-        [key]: value,
-      },
-    });
-  }
+      const nextPatch: DeepPartial<InnerFireConfig> = {};
+      nextPatch[sectionKey] = nextSection;
 
-  function updateColorValue<K extends keyof InnerFireConfig['color']>(
-    key: K,
-    value: InnerFireConfig['color'][K]
-  ) {
-    updateConfig({
-      color: {
-        ...config.color,
-        [key]: value,
-      },
-    });
-  }
-
-  function updateTextureValue<K extends keyof InnerFireConfig['texture']>(
-    key: K,
-    value: InnerFireConfig['texture'][K]
-  ) {
-    updateConfig({
-      texture: {
-        ...config.texture,
-        [key]: value,
-      },
-    });
-  }
-
-  function updateScaleValue<K extends keyof InnerFireConfig['scale']>(
-    key: K,
-    value: InnerFireConfig['scale'][K]
-  ) {
-    updateConfig({
-      scale: {
-        ...config.scale,
-        [key]: value,
-      },
-    });
+      updateConfig(nextPatch);
+    };
   }
 
   function renderSliderControls<TSection extends Record<string, number>>(
@@ -173,6 +133,12 @@ export default function FireSettingsTab() {
       />
     ));
   }
+
+  const updateTransformValue = createSectionUpdater('transform');
+  const updateParticleValue = createSectionUpdater('particles');
+  const updateColorValue = createSectionUpdater('color');
+  const updateTextureValue = createSectionUpdater('texture');
+  const updateScaleValue = createSectionUpdater('scale');
 
   const fireSections: FireSectionMeta[] = [
     {
