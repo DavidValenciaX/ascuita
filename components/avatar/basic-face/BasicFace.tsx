@@ -6,6 +6,7 @@ import { type RefObject, useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { drawFriendlyMouth, getMouthSignature } from '../../../hooks/avatar/mouth-config';
@@ -25,6 +26,7 @@ const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
 
 // Amount of delay between end of audio output and setting talking state to false
 const TALKING_STATE_COOLDOWN_MS = 2000;
+const FIRE_BLOOM_LAYER = 1;
 
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
@@ -77,7 +79,8 @@ export default function BasicFace({
   // Three.js renderer & camera refs for resize updates without rebuilding the scene
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const composerRef = useRef<EffectComposer | null>(null);
+  const finalComposerRef = useRef<EffectComposer | null>(null);
+  const fireBloomComposerRef = useRef<EffectComposer | null>(null);
 
   // Synchronize dynamic variables with refs to feed into the Three.js loop without closures going stale
   const eyeScaleRef = useRef(eyeScale);
@@ -119,7 +122,8 @@ export default function BasicFace({
     const camera = cameraRef.current;
     if (renderer && camera) {
       renderer.setSize(canvasWidth, canvasHeight, false);
-      composerRef.current?.setSize(canvasWidth, canvasHeight);
+      finalComposerRef.current?.setSize(canvasWidth, canvasHeight);
+      fireBloomComposerRef.current?.setSize(canvasWidth, canvasHeight);
       camera.aspect = canvasWidth / canvasHeight;
       camera.updateProjectionMatrix();
     }
@@ -161,12 +165,44 @@ export default function BasicFace({
     // body + additive glow sprite), leaving the dim room walls untouched.
     const composer = new EffectComposer(renderer);
     composer.setSize(canvasWidth, canvasHeight);
-    composer.addPass(new RenderPass(scene, camera));
+    const finalRenderPass = new RenderPass(scene, camera);
     const fireBloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
       innerFireConfigRef.current.bloom.strength,
       innerFireConfigRef.current.bloom.radius,
       innerFireConfigRef.current.bloom.threshold
+    );
+    const fireBloomComposer = new EffectComposer(renderer);
+    fireBloomComposer.renderToScreen = false;
+    fireBloomComposer.setSize(canvasWidth, canvasHeight);
+    fireBloomComposer.addPass(new RenderPass(scene, camera));
+    fireBloomComposer.addPass(fireBloomPass);
+
+    const fireBloomMixPass = new ShaderPass(
+      new THREE.ShaderMaterial({
+        uniforms: {
+          baseTexture: { value: null },
+          bloomTexture: { value: fireBloomComposer.renderTarget2.texture },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D baseTexture;
+          uniform sampler2D bloomTexture;
+          varying vec2 vUv;
+
+          void main() {
+            gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv);
+          }
+        `,
+      }),
+      'baseTexture'
     );
     const sceneBloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
@@ -174,10 +210,12 @@ export default function BasicFace({
       avatarRenderConfigRef.current.sceneBloomRadius,
       avatarRenderConfigRef.current.sceneBloomThreshold
     );
-    composer.addPass(fireBloomPass);
+    composer.addPass(finalRenderPass);
+    composer.addPass(fireBloomMixPass);
     composer.addPass(sceneBloomPass);
     composer.addPass(new OutputPass());
-    composerRef.current = composer;
+    finalComposerRef.current = composer;
+    fireBloomComposerRef.current = fireBloomComposer;
 
     // ── 2. Toon shading gradient map ────────────────────────────────────────
     const gradientMap = buildGradientMap();
@@ -224,6 +262,7 @@ export default function BasicFace({
     characterGroup.add(bodyMesh);
 
     const innerFire = createInnerFireSystem(innerFireConfig);
+    innerFire.points.layers.enable(FIRE_BLOOM_LAYER);
     innerFireRef.current = innerFire;
     bodyMesh.add(innerFire.root);
 
@@ -413,6 +452,10 @@ export default function BasicFace({
       const targetTilt = (tiltAngleRef.current * Math.PI) / 180;
       characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, 0.1);
 
+      const previousCameraLayersMask = camera.layers.mask;
+      camera.layers.set(FIRE_BLOOM_LAYER);
+      fireBloomComposer.render();
+      camera.layers.mask = previousCameraLayersMask;
       composer.render();
     };
 
@@ -437,7 +480,9 @@ export default function BasicFace({
       fireBloomPass.dispose();
       sceneBloomPass.dispose();
       composer.dispose();
-      composerRef.current = null;
+      fireBloomComposer.dispose();
+      finalComposerRef.current = null;
+      fireBloomComposerRef.current = null;
       renderer.dispose();
     };
   }, [sceneTheme]);
