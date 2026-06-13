@@ -185,7 +185,8 @@ function createFlameMaterial(): THREE.ShaderMaterial {
         float distFromCenter = length(localPos);
         
         // Base spherical falloff
-        float sphereFalloff = 1.0 - smoothstep(0.3, 1.0, distFromCenter);
+        float sphereFalloff = 1.0 - smoothstep(0.0, 1.0, distFromCenter);
+        sphereFalloff = pow(sphereFalloff, 1.8); // soft power curve — no hard core
         
         // Flame noise - animated, stretched vertically
         vec3 noisePos = localPos * 2.5;
@@ -199,9 +200,10 @@ function createFlameMaterial(): THREE.ShaderMaterial {
           talkNoise = fbm(noisePos * 2.0 + vec3(uTime * 3.0, uTime * 4.0, uTime * 2.0)) * uIsTalking;
         }
         
-        // Combine noise
-        float flameShape = sphereFalloff + noise * 0.35 + talkNoise * 0.25;
+        // Combine noise — smaller noise weight avoids hard lumpy edges
+        float flameShape = sphereFalloff + noise * 0.18 + talkNoise * 0.12;
         flameShape = clamp(flameShape, 0.0, 1.0);
+        flameShape = pow(flameShape, 1.4); // extra soft roll-off
         
         // Vertical gradient (flame is brighter at top)
         float heightFactor = smoothstep(-0.5, 1.0, localPos.y * uScale);
@@ -221,9 +223,10 @@ function createFlameMaterial(): THREE.ShaderMaterial {
         float talkBoost = 1.0 + uIsTalking * 0.6;
         color *= talkBoost;
         
-        // Final alpha with emissive intensity
-        float alpha = flameShape * uOpacity * (0.6 + 0.4 * heightFactor);
-        alpha *= (0.7 + 0.3 * fresnel);
+        // Final alpha — cubic fade so the outermost pixels dissolve softly
+        float alpha = pow(flameShape, 1.5) * uOpacity * (0.5 + 0.5 * heightFactor);
+        alpha *= (0.55 + 0.45 * fresnel);
+        alpha = pow(alpha, 1.2); // one more pass of softening
         
         // Emissive output for bloom
         gl_FragColor = vec4(color * uIntensity, alpha);
