@@ -3,14 +3,16 @@ import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
   DeepPartial,
-  FIRE_PALETTES,
   InnerFireConfig,
   mergeInnerFireConfig,
 } from './config';
 
+const DEFAULT_AVATAR_FIRE_COLOR = '#5B9BF5';
+
 export type InnerFireSystem = {
   root: THREE.Group;
   points: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  setAvatarColor: (nextAvatarColor: string) => void;
   applyConfig: (overrides: DeepPartial<InnerFireConfig>) => void;
   replaceConfig: (nextConfig: InnerFireConfig) => void;
   update: (elapsedSeconds: number, isTalking: boolean) => void;
@@ -46,11 +48,33 @@ function buildFireSpriteTexture(config: InnerFireConfig): THREE.CanvasTexture {
   return texture;
 }
 
+function getMonochromeFireStops(
+  avatarColor: string,
+  targetStops: THREE.Color[],
+  scratchHsl: THREE.HSL
+) {
+  const baseColor = targetStops[2].set(avatarColor || DEFAULT_AVATAR_FIRE_COLOR);
+  baseColor.getHSL(scratchHsl);
+
+  const hue = scratchHsl.h;
+  const saturation = THREE.MathUtils.clamp(Math.max(scratchHsl.s, 0.45), 0, 1);
+  const midLightness = THREE.MathUtils.clamp(Math.max(scratchHsl.l, 0.44), 0, 1);
+
+  targetStops[0].setHSL(hue, saturation * 0.35, THREE.MathUtils.clamp(midLightness + 0.42, 0.74, 0.96));
+  targetStops[1].setHSL(hue, saturation * 0.7, THREE.MathUtils.clamp(midLightness + 0.18, 0.56, 0.82));
+  targetStops[2].setHSL(hue, saturation, THREE.MathUtils.clamp(midLightness, 0.4, 0.68));
+  targetStops[3].setHSL(hue, saturation * 0.9, THREE.MathUtils.clamp(midLightness - 0.2, 0.18, 0.5));
+  targetStops[4].setHSL(hue, saturation * 0.75, THREE.MathUtils.clamp(midLightness - 0.38, 0.04, 0.28));
+}
+
 function sampleFirePalette(
   config: InnerFireConfig,
+  avatarColor: string,
   life: number,
+  paletteStops: THREE.Color[],
   targetColor: THREE.Color,
-  mixTargetColor: THREE.Color
+  mixTargetColor: THREE.Color,
+  scratchHsl: THREE.HSL
 ): THREE.Color {
   let fromIndex = 0;
   let toIndex = 1;
@@ -80,14 +104,18 @@ function sampleFirePalette(
     mixFactor = THREE.MathUtils.clamp((life - config.color.threshold3) / (1 - config.color.threshold3), 0, 1);
   }
 
-  const paletteStops = FIRE_PALETTES[config.palette.selected].stops;
-  targetColor.setHex(paletteStops[fromIndex]);
-  mixTargetColor.setHex(paletteStops[toIndex]);
+  getMonochromeFireStops(avatarColor, paletteStops, scratchHsl);
+  targetColor.copy(paletteStops[fromIndex]);
+  mixTargetColor.copy(paletteStops[toIndex]);
   return targetColor.lerp(mixTargetColor, mixFactor);
 }
 
-export function createInnerFireSystem(overrides: DeepPartial<InnerFireConfig> = {}): InnerFireSystem {
+export function createInnerFireSystem(
+  overrides: DeepPartial<InnerFireConfig> = {},
+  initialAvatarColor = DEFAULT_AVATAR_FIRE_COLOR
+): InnerFireSystem {
   let config = mergeInnerFireConfig(cloneInnerFireConfig(defaultInnerFireConfig), overrides);
+  let avatarColor = initialAvatarColor;
   let geometry = new THREE.BufferGeometry();
   let positions = new Float32Array(config.particles.count * 3);
   let colors = new Float32Array(config.particles.count * 3);
@@ -95,6 +123,8 @@ export function createInnerFireSystem(overrides: DeepPartial<InnerFireConfig> = 
   let velocities: FireVelocity[] = [];
   const colorScratch = new THREE.Color();
   const colorMixScratch = new THREE.Color();
+  const paletteStops = Array.from({ length: 5 }, () => new THREE.Color());
+  const hslScratch: THREE.HSL = { h: 0, s: 0, l: 0 };
   const root = new THREE.Group();
   let texture = buildFireSpriteTexture(config);
   let material = new THREE.PointsMaterial({
@@ -164,6 +194,9 @@ export function createInnerFireSystem(overrides: DeepPartial<InnerFireConfig> = 
   return {
     root,
     points,
+    setAvatarColor(nextAvatarColor) {
+      avatarColor = nextAvatarColor || DEFAULT_AVATAR_FIRE_COLOR;
+    },
     applyConfig(overrides) {
       const previousConfig = config;
       config = mergeInnerFireConfig(config, overrides);
@@ -233,7 +266,15 @@ export function createInnerFireSystem(overrides: DeepPartial<InnerFireConfig> = 
         positions[baseIndex] *= config.particles.taper;
         positions[baseIndex + 2] *= config.particles.taper;
 
-        const color = sampleFirePalette(config, lifetimes[i], colorScratch, colorMixScratch);
+        const color = sampleFirePalette(
+          config,
+          avatarColor,
+          lifetimes[i],
+          paletteStops,
+          colorScratch,
+          colorMixScratch,
+          hslScratch
+        );
         colors[baseIndex] = color.r;
         colors[baseIndex + 1] = color.g;
         colors[baseIndex + 2] = color.b;

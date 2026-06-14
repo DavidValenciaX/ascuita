@@ -1,12 +1,9 @@
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import {
   cloneInnerFireConfig,
   defaultInnerFireConfig,
-  FIRE_PALETTES,
-  FirePaletteId,
 } from '@/lib/fire/config';
 import { useInnerFire } from '@/lib/state';
-import FireSelectControl from './FireSelectControl';
 import FireSliderSection from './FireSliderSection';
 import {
   createFireSectionUpdater,
@@ -23,33 +20,8 @@ export default function FireSettingsTab() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { config, updateConfig, replaceConfig, resetConfig } = useInnerFire();
 
-  const paletteEntries = useMemo(
-    () => Object.entries(FIRE_PALETTES) as [FirePaletteId, (typeof FIRE_PALETTES)[FirePaletteId]][],
-    []
-  );
-
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) =>
     importFireConfigFromInput(event, replaceConfig);
-
-  function renderPaletteControls() {
-    return (
-      <FireSelectControl
-        label="Estilo de fuego"
-        value={config.palette.selected}
-        valueLabel={FIRE_PALETTES[config.palette.selected].label}
-        description={FIRE_PALETTES[config.palette.selected].description}
-        options={paletteEntries.map(([id, palette]) => ({
-          value: id,
-          label: palette.label,
-        }))}
-        onChange={(value: FirePaletteId) =>
-          updateConfig({
-            palette: { selected: value },
-          })
-        }
-      />
-    );
-  }
 
   const createSectionUpdater = createFireSectionUpdater(config, updateConfig);
   const updateTransformValue = createSectionUpdater('transform');
@@ -76,14 +48,6 @@ export default function FireSettingsTab() {
     }
   }
 
-  function renderSectionContent(section: FireSettingsSectionSchema) {
-    if (section.kind === 'palette') {
-      return renderPaletteControls();
-    }
-
-    return renderSliderSection(section);
-  }
-
   return (
     <div className="settingsPanel__tab">
       <div className="settingsPanel__tabHeader">
@@ -94,6 +58,9 @@ export default function FireSettingsTab() {
           </p>
           <p className="settingsPanel__desc">
             El bloom/glow de esta pestaña pertenece al fuego interno; los ajustes del avatar viven en su propia seccion.
+          </p>
+          <p className="settingsPanel__desc">
+            La paleta del fuego ahora se genera automaticamente a partir del color del avatar.
           </p>
         </div>
         <button type="button" className="button" onClick={resetConfig}>
@@ -107,7 +74,7 @@ export default function FireSettingsTab() {
           title={section.title}
           contentClassName={section.contentClassName}
         >
-          {renderSectionContent(section)}
+          {renderSliderSection(section)}
         </FireSliderSection>
       ))}
 

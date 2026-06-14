@@ -26,15 +26,7 @@ export type FireSliderSectionSchema = {
     controls: NumericSliderDef<InnerFireConfig[TSectionKey]>[];
   };
 }[FireNumericSectionKey];
-
-export type FirePaletteSectionSchema = {
-  kind: 'palette';
-  key: 'palette';
-  title: string;
-  contentClassName: null;
-};
-
-export type FireSettingsSectionSchema = FireSliderSectionSchema | FirePaletteSectionSchema;
+export type FireSettingsSectionSchema = FireSliderSectionSchema;
 
 const positionControls: NumericSliderDef<InnerFireConfig['transform']>[] = [
   { key: 'x', label: 'Fuego X', min: -2, max: 2, step: 0.01 },
@@ -91,12 +83,6 @@ export const FIRE_SETTINGS_SECTIONS: FireSettingsSectionSchema[] = [
     title: 'Posicion',
     contentClassName: 'settingsPanel__fireGrid settingsPanel__fireGrid--three',
     controls: positionControls,
-  },
-  {
-    kind: 'palette',
-    key: 'palette',
-    title: 'Paleta',
-    contentClassName: null,
   },
   {
     kind: 'sliders',

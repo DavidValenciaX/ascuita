@@ -261,7 +261,7 @@ export default function BasicFace({
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
-    const innerFire = createInnerFireSystem(innerFireConfig);
+    const innerFire = createInnerFireSystem(innerFireConfig, initialColor);
     innerFire.points.layers.enable(FIRE_BLOOM_LAYER);
     innerFireRef.current = innerFire;
     bodyMesh.add(innerFire.root);
@@ -377,6 +377,7 @@ export default function BasicFace({
         lastColor = colorRef.current || '#5B9BF5';
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
+        innerFire.setAvatarColor(lastColor);
       }
 
       bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
