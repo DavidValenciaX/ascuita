@@ -54,7 +54,7 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     z: -0.04,
   },
   bloom: {
-    strength: 0.1,
+    strength: 0.5,
     radius: 0.5,
     threshold: 0.1,
   },
@@ -70,7 +70,7 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     swaySpeed: 5.2,
     taper: 0.96,
     size: 0.3,
-    opacity: 0.1,
+    opacity: 0.5,
   },
   color: {
     threshold1: 0.08,

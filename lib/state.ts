@@ -89,7 +89,7 @@ export type AvatarRenderConfig = {
 
 export const defaultAvatarRenderConfig: AvatarRenderConfig = {
   bodyEmissiveIntensity: 0.3,
-  bodyOpacity: 1.0,
+  bodyOpacity: 0.95,
   bodyTransparent: true,
   bodyDepthWrite: true,
   talkingBounceIntensity: 1,
