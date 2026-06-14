@@ -186,7 +186,7 @@ export function createInnerFireSystem(
     points.geometry = geometry;
   };
 
-  points.renderOrder = 1;
+  points.renderOrder = 0;
   root.add(points);
   syncTransform();
   regenerateParticles();

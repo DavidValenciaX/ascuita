@@ -78,6 +78,8 @@ export const useInnerFire = create<{
 export type AvatarRenderConfig = {
   bodyEmissiveIntensity: number;
   bodyOpacity: number;
+  bodyTransparent: boolean;
+  bodyDepthWrite: boolean;
   talkingBounceIntensity: number;
   sceneExposure: number;
   sceneBloomStrength: number;
@@ -88,6 +90,8 @@ export type AvatarRenderConfig = {
 export const defaultAvatarRenderConfig: AvatarRenderConfig = {
   bodyEmissiveIntensity: 0.3,
   bodyOpacity: 1.0,
+  bodyTransparent: true,
+  bodyDepthWrite: true,
   talkingBounceIntensity: 1,
   sceneExposure: 0.82,
   sceneBloomStrength: 0.1,

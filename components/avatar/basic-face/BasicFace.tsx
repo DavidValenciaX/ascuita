@@ -227,9 +227,9 @@ export default function BasicFace({
       gradientMap,
       emissive: new THREE.Color(initialColor),
       emissiveIntensity: avatarRenderConfigRef.current.bodyEmissiveIntensity,
-      transparent: true,
+      transparent: avatarRenderConfigRef.current.bodyTransparent,
       opacity: avatarRenderConfigRef.current.bodyOpacity,
-      depthWrite: false,
+      depthWrite: avatarRenderConfigRef.current.bodyDepthWrite,
     });
     const eyeMat = new THREE.MeshBasicMaterial({
       color: '#1F2430',
@@ -256,7 +256,8 @@ export default function BasicFace({
 
     // Body
     const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
-    bodyMesh.renderOrder = 0;
+    bodyMesh.renderOrder = 1;
+    bodyMesh.layers.enable(FIRE_BLOOM_LAYER);
     bodyMesh.castShadow = true;
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
@@ -381,7 +382,9 @@ export default function BasicFace({
       }
 
       bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
+      bodyMat.transparent = avatarRenderConfigRef.current.bodyTransparent;
       bodyMat.opacity = avatarRenderConfigRef.current.bodyOpacity;
+      bodyMat.depthWrite = avatarRenderConfigRef.current.bodyDepthWrite;
       renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
       fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
       fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;

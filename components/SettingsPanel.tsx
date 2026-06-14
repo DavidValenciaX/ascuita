@@ -54,7 +54,9 @@ const sliderConfigs: SliderConfig[] = [
 ];
 
 type AvatarSliderConfig = {
-  key: keyof AvatarRenderConfig;
+  key: {
+    [K in keyof AvatarRenderConfig]: AvatarRenderConfig[K] extends number ? K : never;
+  }[keyof AvatarRenderConfig];
   label: string;
   hint: string;
   min: number;
@@ -62,9 +64,18 @@ type AvatarSliderConfig = {
   step: number;
 };
 
+type AvatarToggleConfig = {
+  key: {
+    [K in keyof AvatarRenderConfig]: AvatarRenderConfig[K] extends boolean ? K : never;
+  }[keyof AvatarRenderConfig];
+  label: string;
+  hint: string;
+};
+
 type AvatarSectionConfig = {
   title: string;
   controls: AvatarSliderConfig[];
+  toggles?: AvatarToggleConfig[];
 };
 
 const avatarSectionConfigs: AvatarSectionConfig[] = [
@@ -82,10 +93,22 @@ const avatarSectionConfigs: AvatarSectionConfig[] = [
       {
         key: 'bodyOpacity',
         label: 'Opacidad del cuerpo',
-        hint: 'Ajusta la presencia visual del cascaron del avatar sin tocar el sistema de fuego.',
-        min: 0.2,
+        hint: 'Controla cuanto cubre visualmente el cascaron del avatar a los objetos internos cuando el material es transparente.',
+        min: 0,
         max: 1,
         step: 0.01,
+      },
+    ],
+    toggles: [
+      {
+        key: 'bodyTransparent',
+        label: 'Material transparente',
+        hint: 'Si se desactiva, el material del cuerpo se vuelve opaco y el slider de opacidad deja de influir visualmente.',
+      },
+      {
+        key: 'bodyDepthWrite',
+        label: 'Escribir profundidad',
+        hint: 'Hace que el cuerpo bloquee mejor lo que queda detras o dentro al escribir en el buffer de profundidad.',
       },
     ],
   },
@@ -464,8 +487,18 @@ function AppearanceTab() {
 function AvatarTab() {
   const { config, updateConfig, resetConfig } = useAvatarRender();
 
-  function updateNumber(key: keyof AvatarRenderConfig, value: string) {
+  function updateNumber(
+    key: AvatarSliderConfig['key'],
+    value: string
+  ) {
     updateConfig({ [key]: Number(value) });
+  }
+
+  function updateBoolean(
+    key: AvatarToggleConfig['key'],
+    value: boolean
+  ) {
+    updateConfig({ [key]: value });
   }
 
   return (
@@ -502,6 +535,19 @@ function AvatarTab() {
                     onChange={e => updateNumber(slider.key, e.target.value)}
                   />
                   <small>{slider.hint}</small>
+                </label>
+              ))}
+              {section.toggles?.map(toggle => (
+                <label className="speechAnimationSettings__toggle" key={toggle.key}>
+                  <input
+                    type="checkbox"
+                    checked={config[toggle.key]}
+                    onChange={e => updateBoolean(toggle.key, e.target.checked)}
+                  />
+                  <span>
+                    <strong>{toggle.label}</strong>
+                    <small>{toggle.hint}</small>
+                  </span>
                 </label>
               ))}
             </div>
