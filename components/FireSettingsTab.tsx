@@ -12,7 +12,6 @@ import {
 import { exportFireConfig, importFireConfigFromInput } from './fire-settings-io';
 import {
   FIRE_SETTINGS_SECTIONS,
-  FireSettingsSectionSchema,
   FireSliderSectionSchema,
 } from './fire-settings-schema';
 
