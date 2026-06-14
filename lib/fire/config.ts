@@ -59,7 +59,7 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     threshold: 0.1,
   },
   particles: {
-    count: 1000,
+    count: 2000,
     spawnRadius: 0.1,
     spawnHeight: 1.18,
     velXZ: 0.01,
@@ -69,7 +69,7 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     sway: 0.0038,
     swaySpeed: 5.2,
     taper: 0.96,
-    size: 0.3,
+    size: 0.8,
     opacity: 0.5,
   },
   color: {
@@ -85,10 +85,10 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     midStop: 0.32,
   },
   scale: {
-    idleXZ: 0.92,
-    idleY: 0.98,
-    talkingXZ: 1.05,
-    talkingY: 1.22,
+    idleXZ: 2.0,
+    idleY: 2.0,
+    talkingXZ: 2.05,
+    talkingY: 2.22,
   },
 };
 
