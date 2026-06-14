@@ -86,13 +86,13 @@ export type AvatarRenderConfig = {
 };
 
 export const defaultAvatarRenderConfig: AvatarRenderConfig = {
-  bodyEmissiveIntensity: 0.32,
-  bodyOpacity: 1,
+  bodyEmissiveIntensity: 0.3,
+  bodyOpacity: 1.0,
   talkingBounceIntensity: 1,
   sceneExposure: 0.82,
-  sceneBloomStrength: 0,
-  sceneBloomRadius: 0.35,
-  sceneBloomThreshold: 0.45,
+  sceneBloomStrength: 0.1,
+  sceneBloomRadius: 0.0,
+  sceneBloomThreshold: 0.0,
 };
 
 export const useAvatarRender = create<{

@@ -50,7 +50,7 @@ export type InnerFireConfig = {
 export const defaultInnerFireConfig: InnerFireConfig = {
   transform: {
     x: 0,
-    y: -0.86,
+    y: -0.2,
     z: -0.04,
   },
   bloom: {
@@ -59,18 +59,18 @@ export const defaultInnerFireConfig: InnerFireConfig = {
     threshold: 0.1,
   },
   particles: {
-    count: 1800,
-    spawnRadius: 0.16,
+    count: 1000,
+    spawnRadius: 0.1,
     spawnHeight: 1.18,
-    velXZ: 0.018,
-    velYBase: 0.022,
-    velYRand: 0.032,
-    lifetimeSpeed: 0.018,
+    velXZ: 0.01,
+    velYBase: 0.003,
+    velYRand: 0.003,
+    lifetimeSpeed: 0.01,
     sway: 0.0038,
     swaySpeed: 5.2,
-    taper: 0.962,
-    size: 0.26,
-    opacity: 0.88,
+    taper: 0.96,
+    size: 0.3,
+    opacity: 0.1,
   },
   color: {
     threshold1: 0.08,
