@@ -4,11 +4,18 @@ Este archivo sirve como guia operativa para separar `frontend` y `backend` sin e
 
 ## Fase 0. Preparacion
 
-- [ ] Confirmar que la clave expuesta de Gemini ha sido revocada y reemplazada.
+- [x] Confirmar que la clave expuesta de Gemini ha sido revocada y reemplazada.
 - [ ] Confirmar dominio y subdominio finales.
 - [ ] Confirmar acceso SSH automatizable a la VPS desde GitHub Actions.
 - [ ] Confirmar version de Node en local, CI y VPS.
-- [ ] Confirmar estrategia de ramas y despliegue a produccion.
+- [x] Confirmar estrategia de ramas y despliegue a produccion.
+
+Notas:
+- Frontend final confirmado en `ascuita.web.app`.
+- Subdominio de API pendiente de crear. VPS actual: `149.130.181.250`.
+- Sistema de la VPS confirmado: Ubuntu 24.04.3 LTS ARM64.
+- Node confirmado en local y VPS: `v22.20.0`.
+- Pendiente dejar fijada la version de Node en CI con `actions/setup-node`.
 
 ## Fase 1. Convertir El Repo A Monorepo
 
@@ -22,13 +29,13 @@ Este archivo sirve como guia operativa para separar `frontend` y `backend` sin e
 
 ## Fase 2. Crear El Backend
 
-- [ ] Crear `apps/api`.
-- [ ] Inicializar backend con Node 20, Fastify y WebSocket.
-- [ ] Crear endpoint `GET /health`.
-- [ ] Crear endpoint `WS /live`.
-- [ ] Definir variables de entorno del backend.
-- [ ] Preparar estructura de logs y manejo de errores.
-- [ ] Preparar `pm2` con `ecosystem.config.cjs`.
+- [x] Crear `apps/api`.
+- [x] Inicializar backend con Node 20, Fastify y WebSocket.
+- [x] Crear endpoint `GET /health`.
+- [x] Crear endpoint `WS /live`.
+- [x] Definir variables de entorno del backend.
+- [x] Preparar estructura de logs y manejo de errores.
+- [x] Preparar `pm2` con `ecosystem.config.cjs`.
 
 ## Fase 3. Mover La Integracion Con Gemini
 

@@ -7,9 +7,11 @@
   ],
   "scripts": {
     "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
     "build:web": "npm run build -w apps/web",
+    "build:api": "npm run build -w apps/api",
     "preview:web": "npm run preview -w apps/web",
-    "build": "npm run build:web"
+    "build": "npm run build:web && npm run build:api"
   },
   "engines": {
     "node": ">=20.0.0"
