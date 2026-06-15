@@ -1,0 +1,36 @@
+{
+  "name": "@ascuita/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.1",
+    "classnames": "^2.5.1",
+    "eventemitter3": "^5.0.1",
+    "firebase": "^12.14.0",
+    "lodash": "^4.17.21",
+    "path": "^0.12.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "three": "^0.184.0",
+    "vite": "^6.3.5",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@types/three": "^0.184.1",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  }
+}
