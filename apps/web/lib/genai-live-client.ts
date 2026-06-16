@@ -3,18 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {
-  GoogleGenAI,
+  LiveClientToolResponse,
   LiveConnectConfig,
   LiveServerContent,
   LiveServerMessage,
   LiveServerToolCall,
   LiveServerToolCallCancellation,
   Part,
-  Session,
-  LiveClientToolResponse,
 } from '@google/genai';
 import EventEmitter from 'eventemitter3';
-import { DEFAULT_LIVE_API_MODEL } from './constants';
+import { API_BASE_URL, DEFAULT_LIVE_API_MODEL } from './constants';
 import { difference } from 'lodash';
 import { base64ToArrayBuffer } from './utils';
 
@@ -66,11 +64,74 @@ export interface LiveClientEventTypes {
   turncomplete: () => void;
 }
 
+type OutboundMessage =
+  | {
+      type: 'connect';
+      payload: {
+        config: LiveConnectConfig;
+        model?: string;
+      };
+    }
+  | {
+      type: 'disconnect';
+    }
+  | {
+      type: 'send';
+      payload: {
+        parts: Part | Part[];
+        turnComplete: boolean;
+      };
+    }
+  | {
+      type: 'realtime_input';
+      payload: {
+        chunks: Array<{ mimeType: string; data: string }>;
+      };
+    }
+  | {
+      type: 'tool_response';
+      payload: {
+        toolResponse: LiveClientToolResponse;
+      };
+    };
+
+type InboundMessage =
+  | {
+      type: 'open';
+    }
+  | {
+      type: 'close';
+      payload?: {
+        reason?: string;
+      };
+    }
+  | {
+      type: 'error';
+      payload?: {
+        message?: string;
+      };
+    }
+  | {
+      type: 'pong';
+    }
+  | {
+      type: 'server_message';
+      payload: LiveServerMessage;
+    };
+
+function getWebSocketUrl() {
+  const url = new URL('/live', API_BASE_URL);
+  if (url.protocol === 'https:') {
+    url.protocol = 'wss:';
+  } else if (url.protocol === 'http:') {
+    url.protocol = 'ws:';
+  }
+  return url.toString();
+}
+
 export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   public readonly model: string = DEFAULT_LIVE_API_MODEL;
-
-  protected readonly client: GoogleGenAI;
-  protected session?: Session;
+  protected ws?: WebSocket;
 
   private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
   public get status() {
@@ -79,16 +140,11 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   /**
    * Creates a new GenAILiveClient instance.
-   * @param apiKey - API key for authentication with Google GenAI
    * @param model - Optional model name to override the default model
    */
-  constructor(apiKey: string, model?: string) {
+  constructor(model?: string) {
     super();
     if (model) this.model = model;
-
-    this.client = new GoogleGenAI({
-      apiKey: apiKey,
-    });
   }
 
   public async connect(config: LiveConnectConfig): Promise<boolean> {
@@ -96,35 +152,55 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       return false;
     }
 
+    this.disconnect();
     this._status = 'connecting';
 
-    try {
-      this.session = await this.client.live.connect({
-        model: this.model,
-        config: {
-          ...config,
-        },
-        callbacks: {
-          onopen: this.onOpen.bind(this),
-          onmessage: this.onMessage.bind(this),
-          onerror: this.onError.bind(this),
-          onclose: this.onClose.bind(this),
-        },
-      });
-    } catch (e) {
-      console.error('Error connecting to GenAI Live:', e);
-      this._status = 'disconnected';
-      this.session = undefined;
-      return false;
-    }
+    return new Promise(resolve => {
+      const ws = new WebSocket(getWebSocketUrl());
+      this.ws = ws;
 
-    this._status = 'connected';
-    return true;
+      ws.addEventListener(
+        'open',
+        () => {
+          this.sendMessage({
+            type: 'connect',
+            payload: {
+              config,
+              model: this.model,
+            },
+          });
+          resolve(true);
+        },
+        { once: true }
+      );
+
+      ws.addEventListener('message', event => {
+        this.onSocketMessage(event);
+      });
+
+      ws.addEventListener(
+        'error',
+        () => {
+          this.onError(
+            new ErrorEvent('error', {
+              message: 'Could not connect to Ascuita API WebSocket',
+            })
+          );
+          resolve(false);
+        },
+        { once: true }
+      );
+
+      ws.addEventListener('close', event => {
+        this.onClose(event);
+      });
+    });
   }
 
   public disconnect() {
-    this.session?.close();
-    this.session = undefined;
+    this.sendMessage({ type: 'disconnect' });
+    this.ws?.close();
+    this.ws = undefined;
     this._status = 'disconnected';
 
     this.log('client.close', `Disconnected`);
@@ -132,45 +208,33 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   public async send(parts: Part | Part[], turnComplete: boolean = true) {
-    if (this._status !== 'connected' || !this.session) {
+    if (this._status !== 'connected' || !this.ws) {
       this.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
-    try {
-      await this.session.sendClientContent({ turns: Array.isArray(parts) ? parts : [parts], turnComplete });
-    } catch (e: any) {
-      if (e.message?.includes('CLOSING') || e.message?.includes('CLOSED')) {
-        this.disconnect();
-      } else {
-        console.error('send Error:', e);
-      }
-    }
+
+    this.sendMessage({
+      type: 'send',
+      payload: {
+        parts,
+        turnComplete,
+      },
+    });
     this.log(`client.send`, parts);
   }
 
   public async sendRealtimeInput(chunks: Array<{ mimeType: string; data: string }>) {
-    if (this._status !== 'connected' || !this.session) {
+    if (this._status !== 'connected' || !this.ws) {
       // Don't emit error aggressively here as it might be a race condition during close
-      // this.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
 
-    for (const chunk of chunks) {
-      try {
-        await this.session.sendRealtimeInput(
-          this.model === 'gemini-3.1-flash-live-preview'
-            ? { audio: chunk }
-            : { media: chunk }
-        );
-      } catch (e: any) {
-        if (e.message?.includes('CLOSING') || e.message?.includes('CLOSED')) {
-          this.disconnect();
-          break; // Stop sending
-        } else {
-          console.error('sendRealtimeInput Error:', e);
-        }
-      }
-    }
+    this.sendMessage({
+      type: 'realtime_input',
+      payload: {
+        chunks,
+      },
+    });
 
     let hasAudio = false;
     let hasVideo = false;
@@ -189,7 +253,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   public async sendToolResponse(toolResponse: LiveClientToolResponse) {
-    if (this._status !== 'connected' || !this.session) {
+    if (this._status !== 'connected' || !this.ws) {
       this.emit('error', new ErrorEvent('Client is not connected'));
       return;
     }
@@ -197,20 +261,62 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       toolResponse.functionResponses &&
       toolResponse.functionResponses.length
     ) {
-      try {
-        await this.session.sendToolResponse({
-          functionResponses: toolResponse.functionResponses,
-        });
-      } catch (e: any) {
-        if (e.message?.includes('CLOSING') || e.message?.includes('CLOSED')) {
-          this.disconnect();
-        } else {
-          console.error('sendToolResponse Error:', e);
-        }
-      }
+      this.sendMessage({
+        type: 'tool_response',
+        payload: {
+          toolResponse,
+        },
+      });
     }
 
     this.log(`client.toolResponse`, { toolResponse });
+  }
+
+  protected sendMessage(message: OutboundMessage) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    this.ws.send(JSON.stringify(message));
+  }
+
+  protected onSocketMessage(event: MessageEvent<string>) {
+    try {
+      const message = JSON.parse(event.data) as InboundMessage;
+
+      if (message.type === 'server_message') {
+        this.onMessage(message.payload);
+        return;
+      }
+
+      if (message.type === 'open') {
+        this.onOpen();
+        return;
+      }
+
+      if (message.type === 'close') {
+        this.onProxyClose(message.payload?.reason);
+        return;
+      }
+
+      if (message.type === 'error') {
+        this.onError(
+          new ErrorEvent('error', {
+            message:
+              message.payload?.message || 'Unknown error from Ascuita API',
+          })
+        );
+      }
+    } catch (error) {
+      this.onError(
+        new ErrorEvent('error', {
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Invalid message from Ascuita API',
+        })
+      );
+    }
   }
 
   protected onMessage(message: LiveServerMessage) {
@@ -275,10 +381,9 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   protected onError(e: ErrorEvent) {
     this._status = 'disconnected';
-    this.session = undefined;
     console.error('error:', e);
 
-    const message = `Could not connect to GenAI Live: ${e.message}`;
+    const message = `Could not connect to Ascuita API: ${e.message}`;
     this.log(`server.${e.type}`, message);
     this.emit('error', e);
   }
@@ -290,7 +395,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   protected onClose(e: CloseEvent) {
     this._status = 'disconnected';
-    this.session = undefined;
+    this.ws = undefined;
     let reason = e.reason || '';
     if (reason.toLowerCase().includes('error')) {
       const prelude = 'ERROR]';
@@ -305,6 +410,20 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       `disconnected ${reason ? `with reason: ${reason}` : ``}`
     );
     this.emit('close', e);
+  }
+
+  protected onProxyClose(reason?: string) {
+    this._status = 'disconnected';
+    this.log(
+      'server.proxyclose',
+      `disconnected ${reason ? `with reason: ${reason}` : ''}`
+    );
+    this.emit(
+      'close',
+      new CloseEvent('close', {
+        reason: reason || '',
+      })
+    );
   }
 
   /**

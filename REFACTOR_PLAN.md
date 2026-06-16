@@ -40,11 +40,11 @@ Notas:
 
 ## Fase 3. Mover La Integracion Con Gemini
 
-- [ ] Eliminar el uso de `GEMINI_API_KEY` del frontend.
-- [ ] Eliminar la inyeccion de secretos desde Vite.
-- [ ] Mover la conexion real a Gemini Live al backend.
-- [ ] Crear un cliente WebSocket propio en el frontend para hablar con el backend.
-- [ ] Adaptar `LiveAPIContext` y `use-live-api` al nuevo cliente.
+- [x] Eliminar el uso de `GEMINI_API_KEY` del frontend.
+- [x] Eliminar la inyeccion de secretos desde Vite.
+- [x] Mover la conexion real a Gemini Live al backend.
+- [x] Crear un cliente WebSocket propio en el frontend para hablar con el backend.
+- [x] Adaptar `LiveAPIContext` y `use-live-api` al nuevo cliente.
 - [ ] Validar streaming de audio, texto y eventos.
 
 ## Fase 4. Seguridad

@@ -10,13 +10,17 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
       - name: Install and Build
         run: npm ci && npm run build:web
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
-          DEBUG_MODE: ${{ secrets.DEBUG_MODE }}
           VITE_FIREBASE_CONFIG: ${{ vars.VITE_FIREBASE_CONFIG }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_GEMINI_MODEL: ${{ vars.VITE_GEMINI_MODEL }}
+          VITE_DEBUG_MODE: ${{ vars.VITE_DEBUG_MODE }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
