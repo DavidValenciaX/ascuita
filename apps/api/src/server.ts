@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
-import { getConfig } from './config.js';
+import { getConfig, isAllowedOrigin } from './config.js';
 import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
 
@@ -11,11 +12,12 @@ const app = Fastify({
   logger: {
     level: config.logLevel,
   },
+  trustProxy: true,
 });
 
 await app.register(cors, {
   origin: (origin, callback) => {
-    if (!origin || config.corsOrigin.includes(origin)) {
+    if (isAllowedOrigin(config.corsOrigin, origin)) {
       callback(null, true);
       return;
     }

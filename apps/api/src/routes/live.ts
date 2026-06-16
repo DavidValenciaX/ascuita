@@ -6,6 +6,7 @@ import {
   Session,
 } from '@google/genai';
 import { FastifyPluginAsync } from 'fastify';
+import { getConfig, isAllowedOrigin } from '../config.js';
 
 type ClientMessage =
   | {
@@ -107,6 +108,21 @@ const liveRoute: FastifyPluginAsync = async fastify => {
     '/live',
     { websocket: true },
     (socket, request) => {
+      const config = getConfig();
+      const originHeader =
+        typeof request.headers.origin === 'string'
+          ? request.headers.origin
+          : null;
+
+      if (!isAllowedOrigin(config.corsOrigin, originHeader)) {
+        request.log.warn(
+          { origin: originHeader },
+          'Rejected WebSocket connection from disallowed origin'
+        );
+        socket.close(1008, 'Origin not allowed');
+        return;
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       const defaultModel =
         process.env.GEMINI_MODEL || 'gemini-3.1-flash-live-preview';

@@ -7,7 +7,7 @@ Este archivo sirve como guia operativa para separar `frontend` y `backend` sin e
 - [x] Confirmar que la clave expuesta de Gemini ha sido revocada y reemplazada.
 - [x] Confirmar dominio y subdominio finales.
 - [ ] Confirmar acceso SSH automatizable a la VPS desde GitHub Actions.
-- [ ] Confirmar version de Node en local, CI y VPS.
+- [x] Confirmar version de Node en local, CI y VPS.
 - [x] Confirmar estrategia de ramas y despliegue a produccion.
 
 Notas:
@@ -15,7 +15,7 @@ Notas:
 - API confirmada en `https://ascuita-api.duckdns.org/`. VPS actual: `149.130.181.250`.
 - Sistema de la VPS confirmado: Ubuntu 24.04.3 LTS ARM64.
 - Node confirmado en local y VPS: `v22.20.0`.
-- Pendiente dejar fijada la version de Node en CI con `actions/setup-node`.
+- Node fijado tambien en CI con `actions/setup-node`.
 - Nginx y Certbot ya estan configurados en la VPS.
 
 ## Fase 1. Convertir El Repo A Monorepo
@@ -49,20 +49,20 @@ Notas:
 
 ## Fase 4. Seguridad
 
-- [ ] Guardar `GEMINI_API_KEY` solo en la VPS.
-- [ ] Configurar CORS para permitir solo el dominio del frontend.
-- [ ] Validar cabeceras de proxy y soporte WebSocket en Nginx.
+- [x] Guardar `GEMINI_API_KEY` solo en la VPS.
+- [x] Configurar CORS para permitir solo el dominio del frontend.
+- [x] Validar cabeceras de proxy y soporte WebSocket en Nginx.
 - [ ] Añadir rate limiting o protecciones basicas si hace falta.
-- [ ] Revisar logs para no exponer datos sensibles.
+- [x] Revisar logs para no exponer datos sensibles.
 
 ## Fase 5. Despliegue
 
-- [ ] Crear `deploy-frontend.yml`.
-- [ ] Crear `deploy-backend.yml`.
-- [ ] Mantener despliegues separados por cambios de ruta.
-- [ ] Configurar Nginx como reverse proxy de `api.tudominio.com`.
+- [x] Crear `deploy-frontend.yml`.
+- [x] Crear `deploy-backend.yml`.
+- [x] Mantener despliegues separados por cambios de ruta.
+- [x] Configurar Nginx como reverse proxy de `api.tudominio.com`.
 - [ ] Configurar `pm2` para arranque automatico.
-- [ ] Documentar el proceso de despliegue manual y automatico.
+- [x] Documentar el proceso de despliegue manual y automatico.
 
 ## Fase 6. Verificacion Final
 
