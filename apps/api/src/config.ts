@@ -23,7 +23,7 @@ function parseCorsOrigin(value?: string): string[] {
 export function getConfig(): AppConfig {
   return {
     host: process.env.HOST || '127.0.0.1',
-    port: Number(process.env.PORT || '3001'),
+    port: Number(process.env.PORT || '3000'),
     corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN),
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,

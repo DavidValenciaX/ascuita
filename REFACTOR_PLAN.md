@@ -5,17 +5,18 @@ Este archivo sirve como guia operativa para separar `frontend` y `backend` sin e
 ## Fase 0. Preparacion
 
 - [x] Confirmar que la clave expuesta de Gemini ha sido revocada y reemplazada.
-- [ ] Confirmar dominio y subdominio finales.
+- [x] Confirmar dominio y subdominio finales.
 - [ ] Confirmar acceso SSH automatizable a la VPS desde GitHub Actions.
 - [ ] Confirmar version de Node en local, CI y VPS.
 - [x] Confirmar estrategia de ramas y despliegue a produccion.
 
 Notas:
 - Frontend final confirmado en `ascuita.web.app`.
-- Subdominio de API pendiente de crear. VPS actual: `149.130.181.250`.
+- API confirmada en `https://ascuita-api.duckdns.org/`. VPS actual: `149.130.181.250`.
 - Sistema de la VPS confirmado: Ubuntu 24.04.3 LTS ARM64.
 - Node confirmado en local y VPS: `v22.20.0`.
 - Pendiente dejar fijada la version de Node en CI con `actions/setup-node`.
+- Nginx y Certbot ya estan configurados en la VPS.
 
 ## Fase 1. Convertir El Repo A Monorepo
 
