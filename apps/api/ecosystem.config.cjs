@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'ascuita-api',
-      cwd: '/home/ubuntu/ascuita-api',
+      cwd: '/home/ubuntu/ascuita-api/apps/api',
       script: 'dist/server.js',
       instances: 1,
       exec_mode: 'fork',
