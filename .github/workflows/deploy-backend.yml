@@ -43,5 +43,6 @@ jobs:
             cd /home/ubuntu/ascuita-api
             npm ci
             npm run build:api
-            pm2 startOrReload apps/api/ecosystem.config.cjs --only ascuita-api
+            cd apps/api
+            pm2 startOrReload ecosystem.config.cjs --only ascuita-api
             pm2 save
