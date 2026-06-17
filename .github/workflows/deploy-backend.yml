@@ -44,5 +44,6 @@ jobs:
             npm ci
             npm run build:api
             cd apps/api
-            pm2 startOrReload ecosystem.config.cjs --only ascuita-api
+            pm2 delete ascuita-api || true
+            pm2 start ecosystem.config.cjs --only ascuita-api
             pm2 save
