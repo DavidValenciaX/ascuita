@@ -2,6 +2,11 @@
 
 Ascuita es una aplicación web para crear, probar y conversar con personajes de IA en tiempo real usando Gemini Live API. El proyecto parte del código original publicado por Google, pero ahora incluye cambios importantes en identidad, animación del personaje, configuración, experiencia de usuario y soporte multilenguaje.
 
+Actualmente el repositorio usa una arquitectura `monorepo`:
+
+* `apps/web`: frontend Vite + React desplegado en Firebase Hosting.
+* `apps/api`: backend Node + Fastify + WebSocket desplegado en una VPS y encargado de hablar con Gemini.
+
 ## Características
 
 * **Personaje 3D con Three.js**: el avatar ya no depende de bocas SVG. El cuerpo, ojos, brillo, movimiento y orientación se renderizan como una escena 3D.
@@ -9,7 +14,7 @@ Ascuita es una aplicación web para crear, probar y conversar con personajes de 
 * **Agentes personalizables**: puedes elegir presets, crear agentes propios y ajustar nombre, personalidad, voz y color.
 * **Soporte en español e inglés**: la interfaz cambia de idioma según el navegador y permite alternar idioma desde la configuración.
 * **Panel de configuración de animación**: incluye controles para ajustar sensibilidad, suavizado y comportamiento de la boca.
-* **Gemini Live API**: usa `@google/genai` para la conversación multimodal en tiempo real.
+* **Gemini Live API securizada**: el navegador ya no usa la API key directamente; el backend actúa como proxy seguro hacia Gemini Live.
 
 ## Requisitos
 
@@ -21,47 +26,107 @@ La versión mínima de Node se declara en `package.json`. Aunque Vite puede func
 
 ## Configuración Local
 
-1. Instala las dependencias:
+### 1. Instalar dependencias
 
-    ```bash
-    npm install
-    ```
+```bash
+npm install
+```
 
-2. Crea un archivo `.env.local` en la raíz del proyecto con estas variables:
+### 2. Crear variables del backend
 
-    ```env
-    GEMINI_API_KEY=your_api_key_here
-    GEMINI_MODEL=gemini-3.1-flash-live-preview or gemini-2.5-flash-native-audio-latest
-    DEBUG_MODE=false
-    ```
+Crea `apps/api/.env` con este contenido:
 
-    `DEBUG_MODE=true` muestra información técnica adicional en la interfaz, como el modelo activo.
+```env
+HOST=127.0.0.1
+PORT=3000
+LOG_LEVEL=info
+CORS_ORIGIN=http://localhost:5173
+GEMINI_API_KEY=tu_clave_real
+GEMINI_MODEL=gemini-3.1-flash-live-preview
+```
 
-3. Ejecuta el servidor de desarrollo:
+### 3. Crear variables del frontend
 
-    ```bash
-    npm run dev
-    ```
+Crea `apps/web/.env.local` con este contenido:
 
-4. Abre la URL que muestre Vite, normalmente `http://localhost:5173`.
+```env
+VITE_API_BASE_URL=http://localhost:3000
+VITE_GEMINI_MODEL=gemini-3.1-flash-live-preview
+VITE_DEBUG_MODE=true
+VITE_FIREBASE_CONFIG={"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."}
+```
+
+### 4. Arrancar backend y frontend a la vez
+
+```bash
+npm run dev
+```
+
+Esto levanta:
+
+* backend en `http://localhost:3000`
+* frontend en `http://localhost:5173`
+
+### 5. Arrancar cada servicio por separado
+
+Backend:
+
+```bash
+npm run dev:api
+```
+
+Frontend:
+
+```bash
+npm run dev:web
+```
+
+### 6. Probar builds locales
+
+```bash
+npm run build:api
+npm run build:web
+```
 
 ## Scripts
 
-* `npm run dev`: inicia Vite en modo desarrollo.
-* `npm run build`: genera la versión de producción en `dist`.
-* `npm run preview`: sirve localmente el build de producción.
+* `npm run dev`: inicia backend y frontend a la vez.
+* `npm run dev:api`: inicia el backend en modo desarrollo.
+* `npm run dev:web`: inicia el frontend en modo desarrollo.
+* `npm run build:api`: compila el backend.
+* `npm run build:web`: compila el frontend.
+* `npm run build`: compila frontend y backend.
+* `npm run preview:web`: sirve localmente el build de producción del frontend.
 
 ## Despliegue
 
-Ascuita es una app Vite/React y puede desplegarse en plataformas de hosting estático como Netlify, Vercel o similares.
+La arquitectura de despliegue actual es esta:
 
-Configura el build así:
+* `apps/web` se despliega a Firebase Hosting.
+* `apps/api` se despliega a una VPS Ubuntu con `Nginx + pm2`.
+* `Nginx` expone HTTPS y reenvía tráfico WebSocket al backend Node.
 
-* Build command: `npm run build`
-* Publish directory: `dist`
-* Environment variables: `GEMINI_API_KEY`, `GEMINI_MODEL` y `DEBUG_MODE`
+### Frontend en Firebase
 
-Importante: estas variables se inyectan durante el build de Vite. En esta arquitectura, el cliente del navegador usa la API key para conectarse a los servicios de Google.
+Variables esperadas por el workflow de frontend:
+
+* `VITE_FIREBASE_CONFIG`
+* `VITE_API_BASE_URL`
+* `VITE_GEMINI_MODEL`
+* `VITE_DEBUG_MODE`
+
+### Backend en VPS
+
+Variables esperadas en la VPS para `apps/api/.env`:
+
+* `HOST`
+* `PORT`
+* `LOG_LEVEL`
+* `CORS_ORIGIN`
+* `GEMINI_API_KEY`
+* `GEMINI_MODEL`
+
+Importante: `GEMINI_API_KEY` solo debe existir en el backend y nunca en el build del frontend.
 
 ## Licencia y Atribución
 

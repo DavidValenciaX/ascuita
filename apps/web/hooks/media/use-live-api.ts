@@ -40,15 +40,13 @@ export type UseLiveApiResults = {
 };
 
 export function useLiveApi({
-  apiKey,
   model = DEFAULT_LIVE_API_MODEL,
 }: {
-  apiKey: string;
   model?: string;
 }): UseLiveApiResults {
   const client = useMemo(
-    () => new GenAILiveClient(apiKey, model),
-    [apiKey, model]
+    () => new GenAILiveClient(model),
+    [model]
   );
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);

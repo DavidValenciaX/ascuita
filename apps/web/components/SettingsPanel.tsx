@@ -4,8 +4,11 @@
  */
 import { useState } from 'react';
 import c from 'classnames';
+import FireSettingsTab from './FireSettingsTab';
 import {
+  AvatarRenderConfig,
   SpeechAnimationConfig,
+  useAvatarRender,
   useSpeechAnimation,
   useUI,
   useUser,
@@ -21,7 +24,7 @@ import {
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'appearance' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -48,6 +51,117 @@ const sliderConfigs: SliderConfig[] = [
   { key: 'fallbackScoreBase', label: 'Fallback: puntaje base', hint: 'Solo aplica si el fallback esta activo.', min: 0, max: 0.5, step: 0.01 },
   { key: 'fallbackScoreWeight', label: 'Fallback: peso del volumen', hint: 'Solo aplica si el fallback esta activo.', min: 0, max: 1, step: 0.01 },
   { key: 'fallbackCentroidThreshold', label: 'Fallback: umbral de centroide', hint: 'Frecuencia para decidir entre boca redonda y abierta.', min: 500, max: 3000, step: 50, unit: 'Hz' },
+];
+
+type AvatarSliderConfig = {
+  key: {
+    [K in keyof AvatarRenderConfig]: AvatarRenderConfig[K] extends number ? K : never;
+  }[keyof AvatarRenderConfig];
+  label: string;
+  hint: string;
+  min: number;
+  max: number;
+  step: number;
+};
+
+type AvatarToggleConfig = {
+  key: {
+    [K in keyof AvatarRenderConfig]: AvatarRenderConfig[K] extends boolean ? K : never;
+  }[keyof AvatarRenderConfig];
+  label: string;
+  hint: string;
+};
+
+type AvatarSectionConfig = {
+  title: string;
+  controls: AvatarSliderConfig[];
+  toggles?: AvatarToggleConfig[];
+};
+
+const avatarSectionConfigs: AvatarSectionConfig[] = [
+  {
+    title: 'Material del avatar',
+    controls: [
+      {
+        key: 'bodyEmissiveIntensity',
+        label: 'Emision del cuerpo',
+        hint: 'Controla cuanto brilla el material base del avatar, aparte del fuego interno.',
+        min: 0,
+        max: 1.5,
+        step: 0.01,
+      },
+      {
+        key: 'bodyOpacity',
+        label: 'Opacidad del cuerpo',
+        hint: 'Controla cuanto cubre visualmente el cascaron del avatar a los objetos internos cuando el material es transparente.',
+        min: 0,
+        max: 1,
+        step: 0.01,
+      },
+    ],
+    toggles: [
+      {
+        key: 'bodyTransparent',
+        label: 'Material transparente',
+        hint: 'Si se desactiva, el material del cuerpo se vuelve opaco y el slider de opacidad deja de influir visualmente.',
+      },
+      {
+        key: 'bodyDepthWrite',
+        label: 'Escribir profundidad',
+        hint: 'Hace que el cuerpo bloquee mejor lo que queda detras o dentro al escribir en el buffer de profundidad.',
+      },
+    ],
+  },
+  {
+    title: 'Movimiento al hablar',
+    controls: [
+      {
+        key: 'talkingBounceIntensity',
+        label: 'Intensidad del bounce',
+        hint: 'Escala cuanto se deforma el cuerpo cuando el avatar esta hablando.',
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+    ],
+  },
+  {
+    title: 'Postprocesado global',
+    controls: [
+      {
+        key: 'sceneExposure',
+        label: 'Exposicion de escena',
+        hint: 'Ajusta la exposicion general del render del avatar y del entorno.',
+        min: 0.3,
+        max: 1.6,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomStrength',
+        label: 'Bloom global: fuerza',
+        hint: 'Bloom adicional de escena, separado del bloom del fuego interno.',
+        min: 0,
+        max: 2,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomRadius',
+        label: 'Bloom global: radio',
+        hint: 'Abre o concentra el halo del postprocesado global de escena.',
+        min: 0,
+        max: 3,
+        step: 0.01,
+      },
+      {
+        key: 'sceneBloomThreshold',
+        label: 'Bloom global: umbral',
+        hint: 'Define cuan brillante debe ser una zona para entrar al bloom global.',
+        min: 0,
+        max: 1,
+        step: 0.01,
+      },
+    ],
+  },
 ];
 
 function formatValue(value: number, unit = '') {
@@ -370,6 +484,80 @@ function AppearanceTab() {
   );
 }
 
+function AvatarTab() {
+  const { config, updateConfig, resetConfig } = useAvatarRender();
+
+  function updateNumber(
+    key: AvatarSliderConfig['key'],
+    value: string
+  ) {
+    updateConfig({ [key]: Number(value) });
+  }
+
+  function updateBoolean(
+    key: AvatarToggleConfig['key'],
+    value: boolean
+  ) {
+    updateConfig({ [key]: value });
+  }
+
+  return (
+    <div className="settingsPanel__tab">
+      <div className="settingsPanel__tabHeader">
+        <div>
+          <h2>Avatar</h2>
+          <p className="settingsPanel__desc">
+            Ajustes del cuerpo y del render del avatar, separados del fuego interno.
+          </p>
+        </div>
+        <button type="button" className="button" onClick={resetConfig}>
+          Restaurar
+        </button>
+      </div>
+
+      <div className="settingsPanel__avatarSections">
+        {avatarSectionConfigs.map(section => (
+          <div className="settingsPanel__fireSection" key={section.title}>
+            <div className="settingsPanel__fireSectionTitle">{section.title}</div>
+            <div className="settingsPanel__fireGrid">
+              {section.controls.map(slider => (
+                <label className="settingsPanel__fireControl" key={slider.key}>
+                  <span>
+                    <strong>{slider.label}</strong>
+                    <output>{formatValue(config[slider.key])}</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={slider.min}
+                    max={slider.max}
+                    step={slider.step}
+                    value={config[slider.key]}
+                    onChange={e => updateNumber(slider.key, e.target.value)}
+                  />
+                  <small>{slider.hint}</small>
+                </label>
+              ))}
+              {section.toggles?.map(toggle => (
+                <label className="speechAnimationSettings__toggle" key={toggle.key}>
+                  <input
+                    type="checkbox"
+                    checked={config[toggle.key]}
+                    onChange={e => updateBoolean(toggle.key, e.target.checked)}
+                  />
+                  <span>
+                    <strong>{toggle.label}</strong>
+                    <small>{toggle.hint}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LanguageTab() {
   const { language, setLanguage, t } = useTranslation();
 
@@ -407,6 +595,8 @@ export default function SettingsPanel() {
     ['profile', 'person', t('tabProfile')],
     ['agents', 'group', t('tabAgents')],
     ['speech', 'graphic_eq', t('tabSpeech')],
+    ['fire', 'local_fire_department', 'Fuego'],
+    ['avatar', 'smart_toy', 'Avatar'],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
   ];
@@ -440,6 +630,8 @@ export default function SettingsPanel() {
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
+          {activeTab === 'fire' && <FireSettingsTab />}
+          {activeTab === 'avatar' && <AvatarTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'language' && <LanguageTab />}
         </div>

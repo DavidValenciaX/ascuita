@@ -4,6 +4,14 @@
 */
 import { create } from 'zustand';
 import { Agent, Ascuita } from './presets/agents';
+import {
+  cloneInnerFireConfig,
+  defaultInnerFireConfig,
+  DeepPartial,
+  InnerFireConfig,
+  mergeInnerFireConfig,
+  normalizeInnerFireConfig,
+} from './fire/config';
 
 /**
  * Speech animation
@@ -49,6 +57,57 @@ export const useSpeechAnimation = create<{
   updateConfig: adjustments =>
     set(state => ({ config: { ...state.config, ...adjustments } })),
   resetConfig: () => set({ config: defaultSpeechAnimationConfig }),
+}));
+
+/**
+ * Inner fire
+ */
+export const useInnerFire = create<{
+  config: InnerFireConfig;
+  updateConfig: (adjustments: DeepPartial<InnerFireConfig>) => void;
+  replaceConfig: (config: InnerFireConfig) => void;
+  resetConfig: () => void;
+}>(set => ({
+  config: cloneInnerFireConfig(defaultInnerFireConfig),
+  updateConfig: adjustments =>
+    set(state => ({ config: mergeInnerFireConfig(state.config, adjustments) })),
+  replaceConfig: config => set({ config: normalizeInnerFireConfig(config) }),
+  resetConfig: () => set({ config: cloneInnerFireConfig(defaultInnerFireConfig) }),
+}));
+
+export type AvatarRenderConfig = {
+  bodyEmissiveIntensity: number;
+  bodyOpacity: number;
+  bodyTransparent: boolean;
+  bodyDepthWrite: boolean;
+  talkingBounceIntensity: number;
+  sceneExposure: number;
+  sceneBloomStrength: number;
+  sceneBloomRadius: number;
+  sceneBloomThreshold: number;
+};
+
+export const defaultAvatarRenderConfig: AvatarRenderConfig = {
+  bodyEmissiveIntensity: 0.1,
+  bodyOpacity: 0.99,
+  bodyTransparent: true,
+  bodyDepthWrite: true,
+  talkingBounceIntensity: 1,
+  sceneExposure: 0.82,
+  sceneBloomStrength: 0.1,
+  sceneBloomRadius: 0.0,
+  sceneBloomThreshold: 0.0,
+};
+
+export const useAvatarRender = create<{
+  config: AvatarRenderConfig;
+  updateConfig: (adjustments: Partial<AvatarRenderConfig>) => void;
+  resetConfig: () => void;
+}>(set => ({
+  config: defaultAvatarRenderConfig,
+  updateConfig: adjustments =>
+    set(state => ({ config: { ...state.config, ...adjustments } })),
+  resetConfig: () => set({ config: defaultAvatarRenderConfig }),
 }));
 
 /**

@@ -728,13 +728,15 @@ header:hover .createButton {
 }
 
 .speechAnimationSettings__toggle strong,
-.speechAnimationSettings__control strong {
+.speechAnimationSettings__control strong,
+.settingsPanel__fireControl strong {
   color: white;
   font-size: 14px;
 }
 
 .speechAnimationSettings__toggle small,
-.speechAnimationSettings__control small {
+.speechAnimationSettings__control small,
+.settingsPanel__fireControl small {
   color: var(--gray-300);
   font-size: 12px;
   line-height: 1.35;
@@ -746,7 +748,9 @@ header:hover .createButton {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.speechAnimationSettings__control {
+.speechAnimationSettings__control,
+.settingsPanel__fireControl {
+  background: transparent;
   border: 1px solid var(--gray-800);
   border-radius: 8px;
   display: flex;
@@ -755,7 +759,8 @@ header:hover .createButton {
   padding: 14px;
 }
 
-.speechAnimationSettings__control span {
+.speechAnimationSettings__control span,
+.settingsPanel__fireControl span {
   align-items: center;
   display: flex;
   flex-direction: row;
@@ -763,7 +768,8 @@ header:hover .createButton {
   justify-content: space-between;
 }
 
-.speechAnimationSettings__control output {
+.speechAnimationSettings__control output,
+.settingsPanel__fireControl output {
   color: var(--Blue-400);
   font-family: monospace;
   font-size: 13px;
@@ -1543,6 +1549,68 @@ input[type='range'] {
   font-size: 15px;
 }
 
+.settingsPanel__fireSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settingsPanel__fireSectionTitle {
+  color: var(--Blue-400);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settingsPanel__fireGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settingsPanel__fireGrid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settingsPanel__fireControl select {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--gray-800);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+.settingsPanel__fireControl input[type='range'] {
+  accent-color: var(--text);
+}
+
+.settingsPanel__fireActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.settingsPanel__fireActions .button {
+  background: var(--Neutral-20);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settingsPanel__fireActions .button:hover {
+  background: rgba(255, 148, 64, 0.12);
+  border-color: rgba(255, 148, 64, 0.28);
+  color: white;
+}
+
+.settingsPanel__avatarSections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 @media (max-width: 540px) {
   .settingsPanel__nav {
     min-width: 52px;
@@ -1554,6 +1622,11 @@ input[type='range'] {
 
   .settingsPanel__content {
     padding: 20px 16px;
+  }
+
+  .settingsPanel__fireGrid,
+  .settingsPanel__fireGrid--three {
+    grid-template-columns: 1fr;
   }
 }
 

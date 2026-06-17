@@ -18,17 +18,22 @@
  * limitations under the License.
  */
 
+const DEFAULT_API_BASE_URL = 'https://ascuita-api.duckdns.org';
+
 /**
- * Default Live API model to use
+ * Public URL used by the frontend to reach the backend proxy.
+ */
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+
+/**
+ * Default Live API model to request through the backend.
  */
 export const DEFAULT_LIVE_API_MODEL =
-  process.env.GEMINI_MODEL ||
-  process.env.MODEL ||
-  'gemini-3.1-flash-live-preview';
+  import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-live-preview';
 
 /**
  * Enables debug-only UI details.
  */
-export const DEBUG_MODE =
-  process.env.DEBUG_MODE === 'true' || process.env.DEBUG === 'true';
+export const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';
 

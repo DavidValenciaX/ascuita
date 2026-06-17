@@ -28,13 +28,6 @@ import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
 import { useUI } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
 
-const API_KEY = process.env.GEMINI_API_KEY as string;
-if (typeof API_KEY !== 'string') {
-  throw new Error(
-    'Missing required environment variable: GEMINI_API_KEY'
-  );
-}
-
 /**
  * Main application component that provides a streaming interface for Live API.
  * Manages video streaming state and provides controls for webcam/screen capture.
@@ -45,7 +38,7 @@ function App() {
   
   return (
     <div className="App">
-      <LiveAPIProvider apiKey={API_KEY} model={DEFAULT_LIVE_API_MODEL}>
+      <LiveAPIProvider model={DEFAULT_LIVE_API_MODEL}>
         <ErrorScreen />
         <Header />
 

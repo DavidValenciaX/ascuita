@@ -6,6 +6,7 @@ import { type RefObject, useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { drawFriendlyMouth, getMouthSignature } from '../../../hooks/avatar/mouth-config';
@@ -13,6 +14,8 @@ import useFace from '../../../hooks/avatar/use-face';
 import useHover from '../../../hooks/avatar/use-hover';
 import useTilt from '../../../hooks/avatar/use-tilt';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
+import { createInnerFireSystem, type InnerFireSystem } from '@/lib/fire/inner-fire';
+import { useAvatarRender, useInnerFire } from '@/lib/state';
 import {
   SceneEnvironmentTheme,
   setupSceneEnvironment,
@@ -23,16 +26,7 @@ const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
 
 // Amount of delay between end of audio output and setting talking state to false
 const TALKING_STATE_COOLDOWN_MS = 2000;
-
-const BODY_EMISSIVE_INTENSITY = 0.32;
-const BODY_OPACITY = 1;
-const BLOOM_STRENGTH = 0.1;
-const BLOOM_RADIUS = 0.5;
-const BLOOM_THRESHOLD = 0.1;
-const GLOW_WHITE_MIX = 0.4;
-const GLOW_IDLE_OPACITY = 0.2;
-const GLOW_PULSE_OPACITY = 0.08;
-const GLOW_TALKING_OPACITY = 0.07;
+const FIRE_BLOOM_LAYER = 1;
 
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
@@ -55,32 +49,6 @@ function buildGradientMap(): THREE.DataTexture {
   return tex;
 }
 
-function buildGlowTexture(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  // Se aumenta la resolución para un difuminado de mejor calidad
-  canvas.width = 256; 
-  canvas.height = 256;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-
-  // Centro x, Centro y, Radio interior, Centro x, Centro y, Radio exterior
-  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  
-  // Modificando estos valores controlas la fuerza del centro y la suavidad del halo
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.9)'); // núcleo "gordo"
-  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
-  gradient.addColorStop(0.45, 'rgba(255, 255, 255, 0.2)');
-  gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.1)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 256, 256);
-
-  return canvas;
-}
-
 export default function BasicFace({
   canvasRef,
   radius: _radius = 250,
@@ -89,6 +57,9 @@ export default function BasicFace({
 }: BasicFaceProps) {
   const timeoutRef = useRef<NodeJS.Timeout>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const innerFireRef = useRef<InnerFireSystem | null>(null);
+  const innerFireConfig = useInnerFire(state => state.config);
+  const avatarRenderConfig = useAvatarRender(state => state.config);
 
   // Audio output volume
   const { volume } = useLiveAPIContext();
@@ -108,7 +79,8 @@ export default function BasicFace({
   // Three.js renderer & camera refs for resize updates without rebuilding the scene
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const composerRef = useRef<EffectComposer | null>(null);
+  const finalComposerRef = useRef<EffectComposer | null>(null);
+  const fireBloomComposerRef = useRef<EffectComposer | null>(null);
 
   // Synchronize dynamic variables with refs to feed into the Three.js loop without closures going stale
   const eyeScaleRef = useRef(eyeScale);
@@ -117,6 +89,8 @@ export default function BasicFace({
   const tiltAngleRef = useRef(tiltAngle);
   const isTalkingRef = useRef(isTalking);
   const mouthShapeRef = useRef(mouthShape);
+  const innerFireConfigRef = useRef(innerFireConfig);
+  const avatarRenderConfigRef = useRef(avatarRenderConfig);
 
   useEffect(() => { eyeScaleRef.current = eyeScale; }, [eyeScale]);
   useEffect(() => { colorRef.current = color; }, [color]);
@@ -124,6 +98,8 @@ export default function BasicFace({
   useEffect(() => { tiltAngleRef.current = tiltAngle; }, [tiltAngle]);
   useEffect(() => { isTalkingRef.current = isTalking; }, [isTalking]);
   useEffect(() => { mouthShapeRef.current = mouthShape; }, [mouthShape]);
+  useEffect(() => { innerFireConfigRef.current = innerFireConfig; }, [innerFireConfig]);
+  useEffect(() => { avatarRenderConfigRef.current = avatarRenderConfig; }, [avatarRenderConfig]);
 
   // Detect whether the agent is talking based on audio output volume
   useEffect(() => {
@@ -146,7 +122,8 @@ export default function BasicFace({
     const camera = cameraRef.current;
     if (renderer && camera) {
       renderer.setSize(canvasWidth, canvasHeight, false);
-      composerRef.current?.setSize(canvasWidth, canvasHeight);
+      finalComposerRef.current?.setSize(canvasWidth, canvasHeight);
+      fireBloomComposerRef.current?.setSize(canvasWidth, canvasHeight);
       camera.aspect = canvasWidth / canvasHeight;
       camera.updateProjectionMatrix();
     }
@@ -176,7 +153,7 @@ export default function BasicFace({
     renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.82;
+    renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
@@ -188,16 +165,57 @@ export default function BasicFace({
     // body + additive glow sprite), leaving the dim room walls untouched.
     const composer = new EffectComposer(renderer);
     composer.setSize(canvasWidth, canvasHeight);
-    composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(
+    const finalRenderPass = new RenderPass(scene, camera);
+    const fireBloomPass = new UnrealBloomPass(
       new THREE.Vector2(canvasWidth, canvasHeight),
-      BLOOM_STRENGTH,
-      BLOOM_RADIUS,
-      BLOOM_THRESHOLD
+      innerFireConfigRef.current.bloom.strength,
+      innerFireConfigRef.current.bloom.radius,
+      innerFireConfigRef.current.bloom.threshold
     );
-    composer.addPass(bloomPass);
+    const fireBloomComposer = new EffectComposer(renderer);
+    fireBloomComposer.renderToScreen = false;
+    fireBloomComposer.setSize(canvasWidth, canvasHeight);
+    fireBloomComposer.addPass(new RenderPass(scene, camera));
+    fireBloomComposer.addPass(fireBloomPass);
+
+    const fireBloomMixPass = new ShaderPass(
+      new THREE.ShaderMaterial({
+        uniforms: {
+          baseTexture: { value: null },
+          bloomTexture: { value: fireBloomComposer.renderTarget2.texture },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D baseTexture;
+          uniform sampler2D bloomTexture;
+          varying vec2 vUv;
+
+          void main() {
+            gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv);
+          }
+        `,
+      }),
+      'baseTexture'
+    );
+    const sceneBloomPass = new UnrealBloomPass(
+      new THREE.Vector2(canvasWidth, canvasHeight),
+      avatarRenderConfigRef.current.sceneBloomStrength,
+      avatarRenderConfigRef.current.sceneBloomRadius,
+      avatarRenderConfigRef.current.sceneBloomThreshold
+    );
+    composer.addPass(finalRenderPass);
+    composer.addPass(fireBloomMixPass);
+    composer.addPass(sceneBloomPass);
     composer.addPass(new OutputPass());
-    composerRef.current = composer;
+    finalComposerRef.current = composer;
+    fireBloomComposerRef.current = fireBloomComposer;
 
     // ── 2. Toon shading gradient map ────────────────────────────────────────
     const gradientMap = buildGradientMap();
@@ -208,10 +226,10 @@ export default function BasicFace({
       color: initialColor,
       gradientMap,
       emissive: new THREE.Color(initialColor),
-      emissiveIntensity: BODY_EMISSIVE_INTENSITY,
-      transparent: true,
-      opacity: BODY_OPACITY,
-      depthWrite: false,
+      emissiveIntensity: avatarRenderConfigRef.current.bodyEmissiveIntensity,
+      transparent: avatarRenderConfigRef.current.bodyTransparent,
+      opacity: avatarRenderConfigRef.current.bodyOpacity,
+      depthWrite: avatarRenderConfigRef.current.bodyDepthWrite,
     });
     const eyeMat = new THREE.MeshBasicMaterial({
       color: '#1F2430',
@@ -223,19 +241,6 @@ export default function BasicFace({
       color: '#FFFFFF',
       transparent: true,
       opacity: 1,
-      depthWrite: false,
-    });
-
-    const glowTexture = new THREE.CanvasTexture(buildGlowTexture());
-    glowTexture.colorSpace = THREE.SRGBColorSpace;
-    const initialGlowColor = new THREE.Color(initialColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
-
-    const innerGlowMat = new THREE.SpriteMaterial({
-      map: glowTexture,
-      color: initialGlowColor,
-      transparent: true,
-      opacity: GLOW_IDLE_OPACITY,
-      blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
@@ -251,16 +256,16 @@ export default function BasicFace({
 
     // Body
     const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
-    bodyMesh.renderOrder = 0;
+    bodyMesh.renderOrder = 1;
+    bodyMesh.layers.enable(FIRE_BLOOM_LAYER);
     bodyMesh.castShadow = true;
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
-    const innerGlow = new THREE.Sprite(innerGlowMat);
-    innerGlow.position.set(0, -0.08, -0.12);
-    innerGlow.renderOrder = 1;
-    innerGlow.scale.set(2.2, 2.2, 1);
-    bodyMesh.add(innerGlow);
+    const innerFire = createInnerFireSystem(innerFireConfig, initialColor);
+    innerFire.points.layers.enable(FIRE_BLOOM_LAYER);
+    innerFireRef.current = innerFire;
+    bodyMesh.add(innerFire.root);
 
     // Soft black eyes with tiny highlights
     const leftEyePivot = new THREE.Group();
@@ -363,8 +368,6 @@ export default function BasicFace({
     let animationId: number;
     let lastMouthSignature = '';
     let lastColor = '';
-    const glowColor = new THREE.Color(initialColor);
-    const glowTint = new THREE.Color(initialColor);
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -375,10 +378,20 @@ export default function BasicFace({
         lastColor = colorRef.current || '#5B9BF5';
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
-        glowColor.set(lastColor);
-        glowTint.copy(glowColor).lerp(new THREE.Color('#FFFFFF'), GLOW_WHITE_MIX);
-        innerGlowMat.color.copy(glowTint);
+        innerFire.setAvatarColor(lastColor);
       }
+
+      bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
+      bodyMat.transparent = avatarRenderConfigRef.current.bodyTransparent;
+      bodyMat.opacity = avatarRenderConfigRef.current.bodyOpacity;
+      bodyMat.depthWrite = avatarRenderConfigRef.current.bodyDepthWrite;
+      renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
+      fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
+      fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;
+      fireBloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
+      sceneBloomPass.strength = avatarRenderConfigRef.current.sceneBloomStrength;
+      sceneBloomPass.radius = avatarRenderConfigRef.current.sceneBloomRadius;
+      sceneBloomPass.threshold = avatarRenderConfigRef.current.sceneBloomThreshold;
 
       // Eye blink — squash both eyes vertically
       const currentEyeScale = eyeScaleRef.current;
@@ -422,14 +435,14 @@ export default function BasicFace({
       // Hover bobbing
       const hoverY = (hoverPositionRef.current / 10) * 0.18;
       characterGroup.position.y = hoverY + Math.sin(elapsedSeconds * 1.8) * 0.035;
-      const speechBounce = isTalkingRef.current ? Math.sin(elapsedSeconds * 12) * 0.018 : 0;
+      const speechBounce = isTalkingRef.current
+        ? Math.sin(elapsedSeconds * 12) * 0.018 * avatarRenderConfigRef.current.talkingBounceIntensity
+        : 0;
       bodyMesh.scale.set(1.04 + speechBounce, 1.15 - speechBounce * 0.45, 0.88);
 
-      const glowPulseSpeed = isTalkingRef.current ? 7.8 : 3.4;
-      const glowPulse = 0.5 + 0.5 * Math.sin(elapsedSeconds * glowPulseSpeed);
-      const glowStrength = isTalkingRef.current ? 1.0 : 0.64;
-      innerGlow.scale.setScalar(3.0 + glowPulse * 0.55 + glowStrength * 0.12);
-      innerGlowMat.opacity = GLOW_IDLE_OPACITY + glowPulse * GLOW_PULSE_OPACITY + glowStrength * GLOW_TALKING_OPACITY;
+      // Fire animation inside the body core.
+      const isTalking = isTalkingRef.current;
+      innerFire.update(elapsedSeconds, isTalking);
 
       // Head gently turns toward cursor
       if (document.body.classList.contains('cursor-hidden')) {
@@ -443,6 +456,10 @@ export default function BasicFace({
       const targetTilt = (tiltAngleRef.current * Math.PI) / 180;
       characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, 0.1);
 
+      const previousCameraLayersMask = camera.layers.mask;
+      camera.layers.set(FIRE_BLOOM_LAYER);
+      fireBloomComposer.render();
+      camera.layers.mask = previousCameraLayersMask;
       composer.render();
     };
 
@@ -460,16 +477,23 @@ export default function BasicFace({
       eyeGeom.dispose(); eyeMat.dispose();
       eyeHighlightGeom.dispose(); eyeHighlightMat.dispose();
       mouthGeom.dispose(); mouthMat.dispose();
-      glowTexture.dispose();
+      innerFire.dispose();
+      innerFireRef.current = null;
       mouthTexture.dispose();
       gradientMap.dispose();
-      innerGlowMat.dispose();
-      bloomPass.dispose();
+      fireBloomPass.dispose();
+      sceneBloomPass.dispose();
       composer.dispose();
-      composerRef.current = null;
+      fireBloomComposer.dispose();
+      finalComposerRef.current = null;
+      fireBloomComposerRef.current = null;
       renderer.dispose();
     };
   }, [sceneTheme]);
+
+  useEffect(() => {
+    innerFireRef.current?.replaceConfig(innerFireConfig);
+  }, [innerFireConfig]);
 
   useEffect(() => {
     containerRef.current?.style.setProperty('--avatar-glow-color', color || '#5B9BF5');
