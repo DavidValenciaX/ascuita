@@ -25,7 +25,10 @@ type FireVelocity = {
   z: number;
 };
 
-function buildFireSpriteTexture(config: InnerFireConfig): THREE.CanvasTexture {
+function buildFireSpriteTexture(
+  config: InnerFireConfig,
+  avatarColor: string
+): THREE.CanvasTexture {
   const textureCanvas = document.createElement('canvas');
   textureCanvas.width = config.texture.size;
   textureCanvas.height = config.texture.size;
@@ -35,11 +38,42 @@ function buildFireSpriteTexture(config: InnerFireConfig): THREE.CanvasTexture {
     throw new Error('Could not create fire sprite texture.');
   }
 
+  const spriteBaseColor = new THREE.Color(avatarColor || DEFAULT_AVATAR_FIRE_COLOR);
+  const spriteHsl: THREE.HSL = { h: 0, s: 0, l: 0 };
+  spriteBaseColor.getHSL(spriteHsl);
+
+  const hue = spriteHsl.h;
+  const saturation = THREE.MathUtils.clamp(Math.max(spriteHsl.s, 0.5), 0, 1);
+  const lightness = THREE.MathUtils.clamp(spriteHsl.l, 0.28, 0.62);
+  const spriteCoreColor = new THREE.Color().setHSL(
+    hue,
+    THREE.MathUtils.clamp(saturation * 0.92, 0, 1),
+    THREE.MathUtils.clamp(lightness + 0.08, 0.4, 0.68)
+  );
+  const spriteMidColor = new THREE.Color().setHSL(
+    hue,
+    THREE.MathUtils.clamp(saturation * 0.98, 0, 1),
+    THREE.MathUtils.clamp(lightness + 0.02, 0.34, 0.58)
+  );
+  const spriteEdgeColor = new THREE.Color().setHSL(
+    hue,
+    THREE.MathUtils.clamp(saturation * 0.9, 0, 1),
+    THREE.MathUtils.clamp(lightness - 0.1, 0.16, 0.4)
+  );
   const center = config.texture.size / 2;
   const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-  gradient.addColorStop(0, `rgba(255,255,255,${config.texture.coreOpacity})`);
-  gradient.addColorStop(config.texture.midStop, `rgba(255,255,255,${config.texture.midOpacity})`);
-  gradient.addColorStop(1, `rgba(255,255,255,${config.texture.edgeOpacity})`);
+  gradient.addColorStop(
+    0,
+    `rgba(${Math.round(spriteCoreColor.r * 255)},${Math.round(spriteCoreColor.g * 255)},${Math.round(spriteCoreColor.b * 255)},${config.texture.coreOpacity})`
+  );
+  gradient.addColorStop(
+    config.texture.midStop,
+    `rgba(${Math.round(spriteMidColor.r * 255)},${Math.round(spriteMidColor.g * 255)},${Math.round(spriteMidColor.b * 255)},${config.texture.midOpacity})`
+  );
+  gradient.addColorStop(
+    1,
+    `rgba(${Math.round(spriteEdgeColor.r * 255)},${Math.round(spriteEdgeColor.g * 255)},${Math.round(spriteEdgeColor.b * 255)},${config.texture.edgeOpacity})`
+  );
   context.fillStyle = gradient;
   context.fillRect(0, 0, config.texture.size, config.texture.size);
 
@@ -60,8 +94,16 @@ function getMonochromeFireStops(
   const saturation = THREE.MathUtils.clamp(Math.max(scratchHsl.s, 0.45), 0, 1);
   const midLightness = THREE.MathUtils.clamp(Math.max(scratchHsl.l, 0.44), 0, 1);
 
-  targetStops[0].setHSL(hue, saturation * 0.35, THREE.MathUtils.clamp(midLightness + 0.42, 0.74, 0.96));
-  targetStops[1].setHSL(hue, saturation * 0.7, THREE.MathUtils.clamp(midLightness + 0.18, 0.56, 0.82));
+  targetStops[0].setHSL(
+    hue,
+    THREE.MathUtils.clamp(saturation * 0.88, 0, 1),
+    THREE.MathUtils.clamp(midLightness + 0.12, 0.46, 0.7)
+  );
+  targetStops[1].setHSL(
+    hue,
+    THREE.MathUtils.clamp(saturation * 0.96, 0, 1),
+    THREE.MathUtils.clamp(midLightness + 0.05, 0.42, 0.66)
+  );
   targetStops[2].setHSL(hue, saturation, THREE.MathUtils.clamp(midLightness, 0.4, 0.68));
   targetStops[3].setHSL(hue, saturation * 0.9, THREE.MathUtils.clamp(midLightness - 0.2, 0.18, 0.5));
   targetStops[4].setHSL(hue, saturation * 0.75, THREE.MathUtils.clamp(midLightness - 0.38, 0.04, 0.28));
@@ -126,7 +168,7 @@ export function createInnerFireSystem(
   const paletteStops = Array.from({ length: 5 }, () => new THREE.Color());
   const hslScratch: THREE.HSL = { h: 0, s: 0, l: 0 };
   const root = new THREE.Group();
-  let texture = buildFireSpriteTexture(config);
+  let texture = buildFireSpriteTexture(config, avatarColor);
   let material = new THREE.PointsMaterial({
     size: config.particles.size,
     map: texture,
@@ -163,7 +205,7 @@ export function createInnerFireSystem(
 
   const refreshTexture = () => {
     texture.dispose();
-    texture = buildFireSpriteTexture(config);
+    texture = buildFireSpriteTexture(config, avatarColor);
     material.map = texture;
     material.needsUpdate = true;
   };
@@ -195,7 +237,11 @@ export function createInnerFireSystem(
     root,
     points,
     setAvatarColor(nextAvatarColor) {
-      avatarColor = nextAvatarColor || DEFAULT_AVATAR_FIRE_COLOR;
+      const resolvedAvatarColor = nextAvatarColor || DEFAULT_AVATAR_FIRE_COLOR;
+      if (resolvedAvatarColor === avatarColor) return;
+
+      avatarColor = resolvedAvatarColor;
+      refreshTexture();
     },
     applyConfig(overrides) {
       const previousConfig = config;
