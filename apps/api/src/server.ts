@@ -1,10 +1,34 @@
-import 'dotenv/config';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
+import dotenv from 'dotenv';
 import Fastify from 'fastify';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getConfig, isAllowedOrigin } from './config.js';
 import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const apiDir = path.resolve(moduleDir, '..');
+const repoRootDir = path.resolve(apiDir, '..', '..');
+
+const envCandidates = Array.from(
+  new Set([
+    path.join(process.cwd(), '.env.local'),
+    path.join(process.cwd(), '.env'),
+    path.join(apiDir, '.env.local'),
+    path.join(apiDir, '.env'),
+    path.join(repoRootDir, '.env.local'),
+    path.join(repoRootDir, '.env'),
+  ])
+);
+
+for (const envPath of envCandidates) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  }
+}
 
 const config = getConfig();
 const httpRequestRate = new Map<string, { count: number; resetAt: number }>();

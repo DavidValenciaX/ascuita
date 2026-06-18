@@ -55,6 +55,7 @@ export const translations: Translations = {
         sceneThemeDark: 'Dark studio: the cozy space.',
         // ControlTray
         connecting: 'Connecting',
+        connectionError: 'Connection error',
         streaming: 'Streaming',
         // ErrorScreen
         errorGeneric: 'Something went wrong. Please try again.',
@@ -104,6 +105,7 @@ export const translations: Translations = {
         sceneThemeDark: 'Estudio oscuro: el espacio acogedor.',
         // ControlTray
         connecting: 'Conectando',
+        connectionError: 'Error de conexion',
         streaming: 'Transmitiendo',
         // ErrorScreen
         errorGeneric: 'Algo salió mal. Por favor, inténtalo de nuevo.',

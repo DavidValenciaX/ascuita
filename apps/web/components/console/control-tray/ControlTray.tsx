@@ -37,7 +37,8 @@ function ControlTray({ children }: ControlTrayProps) {
   const reconnectAttemptRef = useRef(0);
 
   const { showSettingsPanel } = useUI();
-  const { client, connected, connecting, connect, disconnect } = useLiveAPIContext();
+  const { client, connected, connecting, fatalError, connect, disconnect } =
+    useLiveAPIContext();
   const { t } = useTranslation();
 
   // Stop the current agent when the settings panel is open
@@ -59,7 +60,7 @@ function ControlTray({ children }: ControlTrayProps) {
   }, [connected]);
 
   useEffect(() => {
-    if (showSettingsPanel || connected || connecting) {
+    if (showSettingsPanel || connected || connecting || fatalError) {
       return;
     }
 
@@ -78,7 +79,7 @@ function ControlTray({ children }: ControlTrayProps) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [showSettingsPanel, connected, connecting, connect]);
+  }, [showSettingsPanel, connected, connecting, fatalError, connect]);
 
   useEffect(() => {
     const onData = (base64: string) => {
@@ -120,10 +121,15 @@ function ControlTray({ children }: ControlTrayProps) {
           className={cn('connection-status-dot', {
             connected,
             connecting,
+            error: Boolean(fatalError),
           })}
         />
         <span className="text-indicator">
-          {connected ? t('streaming') : t('connecting')}
+          {connected
+            ? t('streaming')
+            : fatalError
+              ? t('connectionError')
+              : t('connecting')}
         </span>
       </div>
     </section>

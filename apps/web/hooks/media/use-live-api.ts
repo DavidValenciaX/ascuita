@@ -35,6 +35,7 @@ export type UseLiveApiResults = {
   disconnect: () => void;
   connected: boolean;
   connecting: boolean;
+  fatalError: string | null;
 
   volume: number;
   audioStreamer: AudioStreamer | null;
@@ -55,6 +56,7 @@ export function useLiveApi({
   const [volume, setVolume] = useState(0);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [fatalError, setFatalError] = useState<string | null>(null);
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
 
@@ -80,6 +82,7 @@ export function useLiveApi({
 
   useEffect(() => {
     const onSetupComplete = () => {
+      setFatalError(null);
       setConnecting(false);
       setConnected(true);
     };
@@ -93,7 +96,12 @@ export function useLiveApi({
       setConnecting(true);
     };
 
-    const onError = () => {
+    const onError = (error: ErrorEvent) => {
+      if (
+        error.message?.includes('GEMINI_API_KEY is missing on the backend')
+      ) {
+        setFatalError(error.message);
+      }
       setConnecting(false);
     };
 
@@ -133,6 +141,7 @@ export function useLiveApi({
       throw new Error('config has not been set');
     }
     client.disconnect();
+    setFatalError(null);
     setConnecting(true);
     await client.connect(config);
   }, [client, setConnected, config]);
@@ -150,6 +159,7 @@ export function useLiveApi({
     connect,
     connected,
     connecting,
+    fatalError,
     disconnect,
     volume,
     audioStreamer,

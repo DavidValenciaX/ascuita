@@ -500,6 +500,11 @@ header:hover .createButton {
   box-shadow: 0 0 0 6px rgba(46, 117, 243, 0.12);
 }
 
+.control-tray .connection-container .connection-status-dot.error {
+  background: var(--Red-500);
+  box-shadow: 0 0 0 6px rgba(229, 57, 53, 0.14);
+}
+
 .actions-nav {
   background: var(--Neutral-5);
   border: 1px solid var(--Neutral-30);
