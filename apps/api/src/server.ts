@@ -7,6 +7,43 @@ import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
 
 const config = getConfig();
+const httpRequestRate = new Map<string, { count: number; resetAt: number }>();
+
+function getClientKey(ip: string) {
+  return ip || 'unknown';
+}
+
+function securityHeaders() {
+  return {
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'referrer-policy': 'strict-origin-when-cross-origin',
+    'cross-origin-resource-policy': 'same-site',
+    'permissions-policy': 'microphone=(self)',
+    'cache-control': 'no-store',
+  };
+}
+
+function isRateLimited(ip: string) {
+  const now = Date.now();
+  const key = getClientKey(ip);
+  const existing = httpRequestRate.get(key);
+
+  if (!existing || existing.resetAt <= now) {
+    httpRequestRate.set(key, {
+      count: 1,
+      resetAt: now + config.httpRateLimitWindowMs,
+    });
+    return false;
+  }
+
+  if (existing.count >= config.httpRateLimitMaxRequests) {
+    return true;
+  }
+
+  existing.count += 1;
+  return false;
+}
 
 const app = Fastify({
   logger: {
@@ -25,6 +62,17 @@ await app.register(cors, {
     callback(new Error(`Origin not allowed: ${origin}`), false);
   },
   credentials: true,
+});
+
+app.addHook('onRequest', async (request, reply) => {
+  reply.headers(securityHeaders());
+
+  if (isRateLimited(request.ip)) {
+    return reply.status(429).send({
+      ok: false,
+      error: 'Too many requests',
+    });
+  }
 });
 
 await app.register(websocket);

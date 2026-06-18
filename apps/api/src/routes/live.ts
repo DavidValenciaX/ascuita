@@ -50,6 +50,14 @@ type ConnectMessage = Extract<ClientMessage, { type: 'connect' }>;
 type SendMessage = Extract<ClientMessage, { type: 'send' }>;
 type RealtimeInputMessage = Extract<ClientMessage, { type: 'realtime_input' }>;
 type ToolResponseMessage = Extract<ClientMessage, { type: 'tool_response' }>;
+type CounterState = {
+  count: number;
+  resetAt: number;
+};
+
+const wsConnectAttempts = new Map<string, CounterState>();
+const wsMessageCounts = new Map<string, CounterState>();
+const wsActiveConnections = new Map<string, number>();
 
 function safeJsonParse(raw: Buffer): ClientMessage {
   try {
@@ -65,6 +73,47 @@ function getErrorMessage(error: unknown) {
   }
 
   return String(error);
+}
+
+function getClientKey(ip: string) {
+  return ip || 'unknown';
+}
+
+function incrementCounter(
+  map: Map<string, CounterState>,
+  key: string,
+  windowMs: number
+) {
+  const now = Date.now();
+  const current = map.get(key);
+
+  if (!current || current.resetAt <= now) {
+    const nextState = {
+      count: 1,
+      resetAt: now + windowMs,
+    };
+    map.set(key, nextState);
+    return nextState;
+  }
+
+  current.count += 1;
+  return current;
+}
+
+function getPayloadSize(raw: unknown) {
+  if (typeof raw === 'string') {
+    return Buffer.byteLength(raw);
+  }
+
+  if (Buffer.isBuffer(raw)) {
+    return raw.byteLength;
+  }
+
+  if (raw instanceof ArrayBuffer) {
+    return raw.byteLength;
+  }
+
+  return Buffer.byteLength(String(raw));
 }
 
 function isConnectMessage(message: ClientMessage): message is ConnectMessage {
@@ -109,6 +158,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
     { websocket: true },
     (socket, request) => {
       const config = getConfig();
+      const clientKey = getClientKey(request.ip);
       const originHeader =
         typeof request.headers.origin === 'string'
           ? request.headers.origin
@@ -122,6 +172,35 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         socket.close(1008, 'Origin not allowed');
         return;
       }
+
+      const connectAttemptState = incrementCounter(
+        wsConnectAttempts,
+        clientKey,
+        config.wsConnectWindowMs
+      );
+
+      if (
+        connectAttemptState.count > config.wsMaxConnectAttemptsPerIp
+      ) {
+        request.log.warn(
+          { ip: request.ip },
+          'Rejected WebSocket connection due to connect rate limit'
+        );
+        socket.close(1008, 'Too many connection attempts');
+        return;
+      }
+
+      const activeConnections = wsActiveConnections.get(clientKey) || 0;
+      if (activeConnections >= config.wsMaxConcurrentConnectionsPerIp) {
+        request.log.warn(
+          { ip: request.ip },
+          'Rejected WebSocket connection due to concurrent connection limit'
+        );
+        socket.close(1008, 'Too many concurrent connections');
+        return;
+      }
+
+      wsActiveConnections.set(clientKey, activeConnections + 1);
 
       const apiKey = process.env.GEMINI_API_KEY;
       const defaultModel =
@@ -157,6 +236,30 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('message', async (raw: unknown) => {
+        if (getPayloadSize(raw) > config.wsMaxPayloadBytes) {
+          request.log.warn(
+            { ip: request.ip },
+            'Closing WebSocket connection due to oversized payload'
+          );
+          socket.close(1009, 'Payload too large');
+          return;
+        }
+
+        const messageRateState = incrementCounter(
+          wsMessageCounts,
+          clientKey,
+          config.wsMessageWindowMs
+        );
+
+        if (messageRateState.count > config.wsMaxMessagesPerWindow) {
+          request.log.warn(
+            { ip: request.ip },
+            'Closing WebSocket connection due to message rate limit'
+          );
+          socket.close(1008, 'Too many messages');
+          return;
+        }
+
         const message = safeJsonParse(toBuffer(raw));
 
         if (message.type === 'ping') {
@@ -299,6 +402,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('close', () => {
+        const remainingConnections = (wsActiveConnections.get(clientKey) || 1) - 1;
+        if (remainingConnections > 0) {
+          wsActiveConnections.set(clientKey, remainingConnections);
+        } else {
+          wsActiveConnections.delete(clientKey);
+        }
         closeSession();
         request.log.info('WebSocket client disconnected from /live');
       });

@@ -15,6 +15,7 @@ import { useLanguage } from '@/lib/i18n';
 export default function AgentAvatar() {
   const { client, connected, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
+  const greetedRef = useRef(false);
   const user = useUser();
   const { current, update: updateAgent } = useAgent();
   const { sceneTheme } = useUI();
@@ -88,19 +89,31 @@ export default function AgentAvatar() {
   // Initiate the session when the Live API connection is established
   // Instruct the model to send an initial greeting message
   useEffect(() => {
-    const beginSession = async () => {
-      if (!connected) return;
+    if (!connected) {
+      greetedRef.current = false;
+      return;
+    }
+
+    if (greetedRef.current) {
+      return;
+    }
+
+    const beginSession = window.setTimeout(() => {
       const agentName = current.name || 'Ascuita';
+      greetedRef.current = true;
       client.send(
         {
           text: language === 'es'
-            ? `Saluda al usuario y preséntate como ${agentName}, explicando tu rol.`
+            ? `Saluda al usuario y presentate como ${agentName}, explicando tu rol.`
             : `Greet the user and introduce yourself as ${agentName} and your role.`,
         },
         true
       );
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(beginSession);
     };
-    beginSession();
   }, [client, connected, current, language]);
 
   return (

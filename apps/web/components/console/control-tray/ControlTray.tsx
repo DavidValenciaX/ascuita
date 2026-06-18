@@ -34,24 +34,51 @@ export type ControlTrayProps = {
 function ControlTray({ children }: ControlTrayProps) {
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
-  const connectButtonRef = useRef<HTMLButtonElement>(null);
+  const reconnectAttemptRef = useRef(0);
 
   const { showSettingsPanel } = useUI();
-  const { client, connected, connect, disconnect } = useLiveAPIContext();
+  const { client, connected, connecting, connect, disconnect } = useLiveAPIContext();
   const { t } = useTranslation();
 
   // Stop the current agent when the settings panel is open
   useEffect(() => {
-    if (showSettingsPanel) {
-      if (connected) disconnect();
+    if (!showSettingsPanel) {
+      return;
+    }
+
+    reconnectAttemptRef.current = 0;
+    if (connected) {
+      disconnect();
     }
   }, [showSettingsPanel, connected, disconnect]);
 
   useEffect(() => {
-    if (!connected && connectButtonRef.current) {
-      connectButtonRef.current.focus();
+    if (connected) {
+      reconnectAttemptRef.current = 0;
     }
   }, [connected]);
+
+  useEffect(() => {
+    if (showSettingsPanel || connected || connecting) {
+      return;
+    }
+
+    const retryDelay =
+      reconnectAttemptRef.current === 0
+        ? 1400
+        : Math.min(10_000, reconnectAttemptRef.current * 2000);
+
+    const timeoutId = window.setTimeout(() => {
+      reconnectAttemptRef.current += 1;
+      connect().catch(error => {
+        console.error('Error auto-connecting live session:', error);
+      });
+    }, retryDelay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showSettingsPanel, connected, connecting, connect]);
 
   useEffect(() => {
     const onData = (base64: string) => {
@@ -89,18 +116,15 @@ function ControlTray({ children }: ControlTrayProps) {
       </nav>
 
       <div className={cn('connection-container', { connected })}>
-        <div className="connection-button-container">
-          <button type="button"
-            ref={connectButtonRef}
-            className={cn('action-button connect-toggle', { connected })}
-            onClick={connected ? disconnect : connect}
-          >
-            <span className="material-symbols-outlined filled">
-              {connected ? 'pause' : 'play_arrow'}
-            </span>
-          </button>
-        </div>
-        <span className="text-indicator">{t('streaming')}</span>
+        <span
+          className={cn('connection-status-dot', {
+            connected,
+            connecting,
+          })}
+        />
+        <span className="text-indicator">
+          {connected ? t('streaming') : t('connecting')}
+        </span>
       </div>
     </section>
   );

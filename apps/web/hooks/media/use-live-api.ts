@@ -34,6 +34,7 @@ export type UseLiveApiResults = {
   connect: () => Promise<void>;
   disconnect: () => void;
   connected: boolean;
+  connecting: boolean;
 
   volume: number;
   audioStreamer: AudioStreamer | null;
@@ -53,6 +54,7 @@ export function useLiveApi({
 
   const [volume, setVolume] = useState(0);
   const [connected, setConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
 
@@ -78,11 +80,21 @@ export function useLiveApi({
 
   useEffect(() => {
     const onSetupComplete = () => {
+      setConnecting(false);
       setConnected(true);
     };
 
     const onClose = () => {
+      setConnecting(false);
       setConnected(false);
+    };
+
+    const onOpen = () => {
+      setConnecting(true);
+    };
+
+    const onError = () => {
+      setConnecting(false);
     };
 
     const stopAudioStreamer = () => {
@@ -99,14 +111,18 @@ export function useLiveApi({
 
     // Bind event listeners
     client.on('setupcomplete', onSetupComplete);
+    client.on('open', onOpen);
     client.on('close', onClose);
+    client.on('error', onError);
     client.on('interrupted', stopAudioStreamer);
     client.on('audio', onAudio);
 
     return () => {
       // Clean up event listeners
       client.off('setupcomplete', onSetupComplete);
+      client.off('open', onOpen);
       client.off('close', onClose);
+      client.off('error', onError);
       client.off('interrupted', stopAudioStreamer);
       client.off('audio', onAudio);
     };
@@ -117,11 +133,13 @@ export function useLiveApi({
       throw new Error('config has not been set');
     }
     client.disconnect();
+    setConnecting(true);
     await client.connect(config);
   }, [client, setConnected, config]);
 
   const disconnect = useCallback(async () => {
     client.disconnect();
+    setConnecting(false);
     setConnected(false);
   }, [setConnected, client]);
 
@@ -131,6 +149,7 @@ export function useLiveApi({
     setConfig,
     connect,
     connected,
+    connecting,
     disconnect,
     volume,
     audioStreamer,

@@ -463,10 +463,10 @@ header:hover .createButton {
 
 .control-tray .connection-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: center;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .control-tray .connection-container .connection-button-container {
@@ -482,8 +482,22 @@ header:hover .createButton {
   user-select: none;
 }
 
-.control-tray .connection-container:not(.connected) .text-indicator {
-  opacity: 0;
+.control-tray .connection-container .connection-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--Neutral-30);
+  opacity: 0.8;
+}
+
+.control-tray .connection-container .connection-status-dot.connecting {
+  background: var(--Blue-500);
+  animation: opacity-pulse 1.2s ease-in-out infinite;
+}
+
+.control-tray .connection-container .connection-status-dot.connected {
+  background: var(--Blue-500);
+  box-shadow: 0 0 0 6px rgba(46, 117, 243, 0.12);
 }
 
 .actions-nav {

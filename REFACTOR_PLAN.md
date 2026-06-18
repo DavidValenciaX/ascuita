@@ -6,11 +6,12 @@ Este archivo sirve como guia operativa para separar `frontend` y `backend` sin e
 
 - [x] Confirmar que la clave expuesta de Gemini ha sido revocada y reemplazada.
 - [x] Confirmar dominio y subdominio finales.
-- [ ] Confirmar acceso SSH automatizable a la VPS desde GitHub Actions.
+- [x] Confirmar acceso SSH automatizable a la VPS desde GitHub Actions.
 - [x] Confirmar version de Node en local, CI y VPS.
 - [x] Confirmar estrategia de ramas y despliegue a produccion.
 
 Notas:
+
 - Frontend final confirmado en `ascuita.web.app`.
 - API confirmada en `https://ascuita-api.duckdns.org/`. VPS actual: `149.130.181.250`.
 - Sistema de la VPS confirmado: Ubuntu 24.04.3 LTS ARM64.
@@ -45,14 +46,14 @@ Notas:
 - [x] Mover la conexion real a Gemini Live al backend.
 - [x] Crear un cliente WebSocket propio en el frontend para hablar con el backend.
 - [x] Adaptar `LiveAPIContext` y `use-live-api` al nuevo cliente.
-- [ ] Validar streaming de audio, texto y eventos.
+- [x] Validar streaming de audio, texto y eventos.
 
 ## Fase 4. Seguridad
 
 - [x] Guardar `GEMINI_API_KEY` solo en la VPS.
 - [x] Configurar CORS para permitir solo el dominio del frontend.
 - [x] Validar cabeceras de proxy y soporte WebSocket en Nginx.
-- [ ] Añadir rate limiting o protecciones basicas si hace falta.
+- [x] Añadir rate limiting o protecciones basicas si hace falta.
 - [x] Revisar logs para no exponer datos sensibles.
 
 ## Fase 5. Despliegue
@@ -61,17 +62,17 @@ Notas:
 - [x] Crear `deploy-backend.yml`.
 - [x] Mantener despliegues separados por cambios de ruta.
 - [x] Configurar Nginx como reverse proxy de `api.tudominio.com`.
-- [ ] Configurar `pm2` para arranque automatico.
+- [x] Configurar `pm2` para arranque automatico.
 - [x] Documentar el proceso de despliegue manual y automatico.
 
 ## Fase 6. Verificacion Final
 
-- [ ] Probar frontend en Firebase con backend remoto.
-- [ ] Probar reconexion WebSocket y errores de red.
-- [ ] Probar reinicio del backend con `pm2`.
-- [ ] Confirmar que el bundle del frontend no contiene `GEMINI_API_KEY`.
-- [ ] Revocar definitivamente cualquier credencial anterior comprometida.
-- [ ] Actualizar `README.md` con la nueva arquitectura.
+- [x] Probar frontend en Firebase con backend remoto.
+- [x] Probar reconexion WebSocket y errores de red.
+- [x] Probar reinicio del backend con `pm2`.
+- [x] Confirmar que el bundle del frontend no contiene `GEMINI_API_KEY`.
+- [x] Revocar definitivamente cualquier credencial anterior comprometida.
+- [x] Actualizar `README.md` con la nueva arquitectura.
 
 ## Notas De Seguimiento
 

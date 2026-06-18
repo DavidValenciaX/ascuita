@@ -5,6 +5,14 @@ type AppConfig = {
   geminiApiKey?: string;
   geminiModel: string;
   logLevel: string;
+  httpRateLimitWindowMs: number;
+  httpRateLimitMaxRequests: number;
+  wsConnectWindowMs: number;
+  wsMaxConnectAttemptsPerIp: number;
+  wsMaxConcurrentConnectionsPerIp: number;
+  wsMessageWindowMs: number;
+  wsMaxMessagesPerWindow: number;
+  wsMaxPayloadBytes: number;
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
@@ -38,6 +46,11 @@ export function isAllowedOrigin(
   return allowedOrigins.includes(origin);
 }
 
+function parseNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export function getConfig(): AppConfig {
   return {
     host: process.env.HOST || '127.0.0.1',
@@ -46,5 +59,37 @@ export function getConfig(): AppConfig {
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     logLevel: process.env.LOG_LEVEL || 'info',
+    httpRateLimitWindowMs: parseNumber(
+      process.env.HTTP_RATE_LIMIT_WINDOW_MS,
+      60_000
+    ),
+    httpRateLimitMaxRequests: parseNumber(
+      process.env.HTTP_RATE_LIMIT_MAX_REQUESTS,
+      300
+    ),
+    wsConnectWindowMs: parseNumber(
+      process.env.WS_CONNECT_WINDOW_MS,
+      300_000
+    ),
+    wsMaxConnectAttemptsPerIp: parseNumber(
+      process.env.WS_MAX_CONNECT_ATTEMPTS_PER_IP,
+      20
+    ),
+    wsMaxConcurrentConnectionsPerIp: parseNumber(
+      process.env.WS_MAX_CONCURRENT_CONNECTIONS_PER_IP,
+      3
+    ),
+    wsMessageWindowMs: parseNumber(
+      process.env.WS_MESSAGE_WINDOW_MS,
+      60_000
+    ),
+    wsMaxMessagesPerWindow: parseNumber(
+      process.env.WS_MAX_MESSAGES_PER_WINDOW,
+      2400
+    ),
+    wsMaxPayloadBytes: parseNumber(
+      process.env.WS_MAX_PAYLOAD_BYTES,
+      262_144
+    ),
   };
 }

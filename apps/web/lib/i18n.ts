@@ -54,6 +54,7 @@ export const translations: Translations = {
         sceneThemeLight: 'Light studio: soft, bright, and warm.',
         sceneThemeDark: 'Dark studio: the cozy space.',
         // ControlTray
+        connecting: 'Connecting',
         streaming: 'Streaming',
         // ErrorScreen
         errorGeneric: 'Something went wrong. Please try again.',
@@ -102,6 +103,7 @@ export const translations: Translations = {
         sceneThemeLight: 'Estudio claro: suave, luminoso y calido.',
         sceneThemeDark: 'Estudio oscuro: el espacio acogedor.',
         // ControlTray
+        connecting: 'Conectando',
         streaming: 'Transmitiendo',
         // ErrorScreen
         errorGeneric: 'Algo salió mal. Por favor, inténtalo de nuevo.',
