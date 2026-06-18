@@ -121,9 +121,15 @@ function ControlTray({ children }: ControlTrayProps) {
   return (
     <section className="control-tray">
       <nav className={cn('actions-nav', { disabled: !connected })}>
-        <button type="button"
-          className={cn('action-button mic-button')}
+        <button
+          type="button"
+          className={cn('action-button mic-button', {
+            muted,
+            active: connected && !muted,
+          })}
           onClick={() => setMuted(!muted)}
+          aria-label={muted ? 'Unmute microphone' : 'Mute microphone'}
+          aria-pressed={muted}
         >
           {!muted ? (
             <span className="material-symbols-outlined filled">mic</span>
