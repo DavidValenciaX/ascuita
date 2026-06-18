@@ -56,7 +56,17 @@ export const translations: Translations = {
         // ControlTray
         connecting: 'Connecting',
         connectionError: 'Connection error',
+        preparingGreeting: 'Preparing greeting',
+        signInRequired: 'Sign in required',
         streaming: 'Streaming',
+        continueWithGoogle: 'Continue with Google',
+        signingIn: 'Signing in...',
+        trialEndedEyebrow: 'Free access finished',
+        trialEndedTitle: 'Sign in to keep talking',
+        trialEndedBody:
+            'The free minute has ended. Sign in with Google to continue talking with the avatar.',
+        trialEndedHint:
+            'You do not need a database for this basic gate, only Firebase Auth enabled with Google provider.',
         // ErrorScreen
         errorGeneric: 'Something went wrong. Please try again.',
         errorQuota:
@@ -106,7 +116,17 @@ export const translations: Translations = {
         // ControlTray
         connecting: 'Conectando',
         connectionError: 'Error de conexion',
+        preparingGreeting: 'Preparando saludo',
+        signInRequired: 'Inicia sesion para continuar',
         streaming: 'Transmitiendo',
+        continueWithGoogle: 'Continuar con Google',
+        signingIn: 'Iniciando sesion...',
+        trialEndedEyebrow: 'Acceso gratuito terminado',
+        trialEndedTitle: 'Inicia sesion para seguir hablando',
+        trialEndedBody:
+            'El minuto gratuito ya termino. Inicia sesion con Google para seguir conversando con el avatar.',
+        trialEndedHint:
+            'Para esta barrera basica no necesitas base de datos, solo Firebase Auth con Google activado.',
         // ErrorScreen
         errorGeneric: 'Algo salió mal. Por favor, inténtalo de nuevo.',
         errorQuota:

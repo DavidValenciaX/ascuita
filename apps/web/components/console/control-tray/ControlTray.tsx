@@ -24,7 +24,7 @@ import { memo, ReactNode, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
 
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
-import { useUI } from '@/lib/state';
+import { useAuthGate, useUI } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
 
 export type ControlTrayProps = {
@@ -37,6 +37,8 @@ function ControlTray({ children }: ControlTrayProps) {
   const reconnectAttemptRef = useRef(0);
 
   const { showSettingsPanel } = useUI();
+  const { authReady, trialExpired, isAuthenticated, introPlaying } =
+    useAuthGate();
   const { client, connected, connecting, fatalError, connect, disconnect } =
     useLiveAPIContext();
   const { t } = useTranslation();
@@ -60,7 +62,14 @@ function ControlTray({ children }: ControlTrayProps) {
   }, [connected]);
 
   useEffect(() => {
-    if (showSettingsPanel || connected || connecting || fatalError) {
+    if (
+      showSettingsPanel ||
+      !authReady ||
+      connected ||
+      connecting ||
+      fatalError ||
+      (trialExpired && !isAuthenticated)
+    ) {
       return;
     }
 
@@ -79,7 +88,16 @@ function ControlTray({ children }: ControlTrayProps) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [showSettingsPanel, connected, connecting, fatalError, connect]);
+  }, [
+    showSettingsPanel,
+    authReady,
+    connected,
+    connecting,
+    fatalError,
+    trialExpired,
+    isAuthenticated,
+    connect,
+  ]);
 
   useEffect(() => {
     const onData = (base64: string) => {
@@ -90,7 +108,7 @@ function ControlTray({ children }: ControlTrayProps) {
         },
       ]);
     };
-    if (connected && !muted && audioRecorder) {
+    if (connected && !muted && !introPlaying && audioRecorder) {
       audioRecorder.on('data', onData).start();
     } else {
       audioRecorder.stop();
@@ -98,7 +116,7 @@ function ControlTray({ children }: ControlTrayProps) {
     return () => {
       audioRecorder.off('data', onData);
     };
-  }, [connected, client, muted, audioRecorder]);
+  }, [connected, client, muted, introPlaying, audioRecorder]);
 
   return (
     <section className="control-tray">
@@ -125,11 +143,15 @@ function ControlTray({ children }: ControlTrayProps) {
           })}
         />
         <span className="text-indicator">
-          {connected
-            ? t('streaming')
+          {trialExpired && !isAuthenticated
+            ? t('signInRequired')
             : fatalError
               ? t('connectionError')
-              : t('connecting')}
+              : introPlaying
+                ? t('preparingGreeting')
+                : connected
+                  ? t('streaming')
+                  : t('connecting')}
         </span>
       </div>
     </section>

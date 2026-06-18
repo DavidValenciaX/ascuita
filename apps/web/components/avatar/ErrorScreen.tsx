@@ -41,6 +41,10 @@ export default function ErrorScreen() {
     tryAgainOption = false;
   }
 
+  if (error?.message?.includes('TRIAL_EXPIRED')) {
+    return <div className="error-screen--hidden" />;
+  }
+
   if (!error) {
     return <div className="error-screen--hidden" />;
   }

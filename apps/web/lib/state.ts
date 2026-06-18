@@ -197,3 +197,37 @@ export const useUI = create<{
   sceneTheme: 'dark',
   setSceneTheme: (theme: SceneTheme) => set({ sceneTheme: theme }),
 }));
+
+export const useAuthGate = create<{
+  authReady: boolean;
+  authToken: string | null;
+  isAuthenticated: boolean;
+  userName: string;
+  trialExpired: boolean;
+  introPlaying: boolean;
+  setAuthState: (state: {
+    authReady: boolean;
+    authToken: string | null;
+    isAuthenticated: boolean;
+    userName?: string;
+  }) => void;
+  setTrialExpired: (expired: boolean) => void;
+  setIntroPlaying: (playing: boolean) => void;
+}>(set => ({
+  authReady: false,
+  authToken: null,
+  isAuthenticated: false,
+  userName: '',
+  trialExpired: false,
+  introPlaying: false,
+  setAuthState: state =>
+    set(prev => ({
+      authReady: state.authReady,
+      authToken: state.authToken,
+      isAuthenticated: state.isAuthenticated,
+      userName: state.userName || '',
+      trialExpired: state.isAuthenticated ? false : prev.trialExpired,
+    })),
+  setTrialExpired: expired => set({ trialExpired: expired }),
+  setIntroPlaying: playing => set({ introPlaying: playing }),
+}));

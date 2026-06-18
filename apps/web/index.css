@@ -467,6 +467,15 @@ header:hover .createButton {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(64, 69, 71, 0.85);
+  background:
+    linear-gradient(180deg, rgba(22, 26, 28, 0.9), rgba(9, 12, 13, 0.92));
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .control-tray .connection-container .connection-button-container {
@@ -478,8 +487,11 @@ header:hover .createButton {
 
 .control-tray .connection-container .text-indicator {
   font-size: 11px;
-  color: var(--Blue-500);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #b9d4ff;
   user-select: none;
+  min-width: 112px;
 }
 
 .control-tray .connection-container .connection-status-dot {
@@ -488,16 +500,21 @@ header:hover .createButton {
   border-radius: 50%;
   background: var(--Neutral-30);
   opacity: 0.8;
+  box-shadow: 0 0 0 0 rgba(46, 117, 243, 0.18);
 }
 
 .control-tray .connection-container .connection-status-dot.connecting {
   background: var(--Blue-500);
-  animation: opacity-pulse 1.2s ease-in-out infinite;
+  animation:
+    opacity-pulse 1.2s ease-in-out infinite,
+    status-ring 1.8s ease-out infinite;
 }
 
 .control-tray .connection-container .connection-status-dot.connected {
   background: var(--Blue-500);
-  box-shadow: 0 0 0 6px rgba(46, 117, 243, 0.12);
+  box-shadow:
+    0 0 0 6px rgba(46, 117, 243, 0.12),
+    0 0 18px rgba(46, 117, 243, 0.3);
 }
 
 .control-tray .connection-container .connection-status-dot.error {
@@ -535,6 +552,16 @@ header:hover .createButton {
 
   100% {
     opacity: 0.9;
+  }
+}
+
+@keyframes status-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 117, 243, 0.22);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px rgba(46, 117, 243, 0);
   }
 }
 
@@ -611,6 +638,50 @@ header:hover .createButton {
 
 .modalShroud .modal h2 {
   margin-bottom: 20px;
+}
+
+.authGateModal {
+  backdrop-filter: blur(8px);
+  background: rgba(2, 5, 8, 0.42);
+}
+
+.authGateModal__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+}
+
+.authGateModal__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #82b5ff;
+}
+
+.authGateModal__text,
+.authGateModal__hint,
+.authGateModal__error {
+  color: var(--gray-300);
+  line-height: 1.5;
+}
+
+.authGateModal__hint {
+  font-size: 13px;
+  color: var(--gray-400);
+}
+
+.authGateModal__error {
+  color: #ff8c82;
+}
+
+.authGateModal__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
 }
 
 .modalClose {

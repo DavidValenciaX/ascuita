@@ -5,6 +5,8 @@ type AppConfig = {
   geminiApiKey?: string;
   geminiModel: string;
   logLevel: string;
+  securityLogDir: string;
+  securityLogRetentionDays: number;
   httpRateLimitWindowMs: number;
   httpRateLimitMaxRequests: number;
   wsConnectWindowMs: number;
@@ -13,6 +15,10 @@ type AppConfig = {
   wsMessageWindowMs: number;
   wsMaxMessagesPerWindow: number;
   wsMaxPayloadBytes: number;
+  wsAudioByteWindowMs: number;
+  wsMaxAudioBytesPerWindow: number;
+  wsTemporaryBlockDurationMs: number;
+  freeTrialDurationMs: number;
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
@@ -59,6 +65,11 @@ export function getConfig(): AppConfig {
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     logLevel: process.env.LOG_LEVEL || 'info',
+    securityLogDir: process.env.SECURITY_LOG_DIR || 'logs/security',
+    securityLogRetentionDays: parseNumber(
+      process.env.SECURITY_LOG_RETENTION_DAYS,
+      3
+    ),
     httpRateLimitWindowMs: parseNumber(
       process.env.HTTP_RATE_LIMIT_WINDOW_MS,
       60_000
@@ -90,6 +101,22 @@ export function getConfig(): AppConfig {
     wsMaxPayloadBytes: parseNumber(
       process.env.WS_MAX_PAYLOAD_BYTES,
       262_144
+    ),
+    wsAudioByteWindowMs: parseNumber(
+      process.env.WS_AUDIO_BYTE_WINDOW_MS,
+      60_000
+    ),
+    wsMaxAudioBytesPerWindow: parseNumber(
+      process.env.WS_MAX_AUDIO_BYTES_PER_WINDOW,
+      7_500_000
+    ),
+    wsTemporaryBlockDurationMs: parseNumber(
+      process.env.WS_TEMPORARY_BLOCK_DURATION_MS,
+      15 * 60_000
+    ),
+    freeTrialDurationMs: parseNumber(
+      process.env.FREE_TRIAL_DURATION_MS,
+      60_000
     ),
   };
 }

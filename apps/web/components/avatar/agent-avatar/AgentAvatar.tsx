@@ -9,7 +9,7 @@ import { LiveServerToolCall } from '@google/genai';
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createSystemInstructions } from '@/lib/prompts';
-import { useAgent, useUI, useUser } from '@/lib/state';
+import { useAgent, useAuthGate, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 
 export default function AgentAvatar() {
@@ -17,6 +17,7 @@ export default function AgentAvatar() {
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
   const user = useUser();
+  const { setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
   const { sceneTheme } = useUI();
   const { language } = useLanguage();
@@ -91,6 +92,7 @@ export default function AgentAvatar() {
   useEffect(() => {
     if (!connected) {
       greetedRef.current = false;
+      setIntroPlaying(false);
       return;
     }
 
@@ -101,20 +103,35 @@ export default function AgentAvatar() {
     const beginSession = window.setTimeout(() => {
       const agentName = current.name || 'Ascuita';
       greetedRef.current = true;
+      setIntroPlaying(true);
       client.send(
         {
           text: language === 'es'
-            ? `Saluda al usuario y presentate como ${agentName}, explicando tu rol.`
-            : `Greet the user and introduce yourself as ${agentName} and your role.`,
+            ? `Saluda al usuario de forma calida y natural. Presentate como ${agentName}, explica tu rol en una sola idea corta y termina con una pregunta sencilla para invitar a conversar.`
+            : `Greet the user warmly and naturally. Introduce yourself as ${agentName}, explain your role in one short idea, and end with a simple question that invites conversation.`,
         },
         true
       );
-    }, 1200);
+    }, 1800);
 
     return () => {
       window.clearTimeout(beginSession);
     };
-  }, [client, connected, current, language]);
+  }, [client, connected, current, language, setIntroPlaying]);
+
+  useEffect(() => {
+    const handleTurnComplete = () => {
+      setIntroPlaying(false);
+    };
+
+    client.on('turncomplete', handleTurnComplete);
+    client.on('interrupted', handleTurnComplete);
+
+    return () => {
+      client.off('turncomplete', handleTurnComplete);
+      client.off('interrupted', handleTurnComplete);
+    };
+  }, [client, setIntroPlaying]);
 
   return (
     <div className="agent-avatar">

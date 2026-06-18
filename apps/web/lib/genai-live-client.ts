@@ -70,6 +70,7 @@ type OutboundMessage =
       payload: {
         config: LiveConnectConfig;
         model?: string;
+        authToken?: string | null;
       };
     }
   | {
@@ -147,7 +148,10 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     if (model) this.model = model;
   }
 
-  public async connect(config: LiveConnectConfig): Promise<boolean> {
+  public async connect(
+    config: LiveConnectConfig,
+    authToken?: string | null
+  ): Promise<boolean> {
     if (this._status === 'connected' || this._status === 'connecting') {
       return false;
     }
@@ -167,6 +171,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
             payload: {
               config,
               model: this.model,
+              authToken,
             },
           });
           resolve(true);

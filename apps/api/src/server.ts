@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getConfig, isAllowedOrigin } from './config.js';
+import { appendAbuseLog } from './lib/abuse-log.js';
+import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
 import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
 
@@ -69,6 +71,23 @@ function isRateLimited(ip: string) {
   return false;
 }
 
+function logSecurityEvent(
+  ip: string,
+  reason: string,
+  metadata?: Record<string, unknown>
+) {
+  appendAbuseLog(
+    path.resolve(process.cwd(), config.securityLogDir),
+    config.securityLogRetentionDays,
+    {
+      type: 'http.rate_limit',
+      ip,
+      reason,
+      metadata,
+    }
+  );
+}
+
 const app = Fastify({
   logger: {
     level: config.logLevel,
@@ -92,6 +111,10 @@ app.addHook('onRequest', async (request, reply) => {
   reply.headers(securityHeaders());
 
   if (isRateLimited(request.ip)) {
+    logSecurityEvent(request.ip, 'too_many_http_requests', {
+      path: request.url,
+      method: request.method,
+    });
     return reply.status(429).send({
       ok: false,
       error: 'Too many requests',
@@ -126,6 +149,9 @@ const start = async () => {
         corsOrigin: config.corsOrigin,
         geminiConfigured: Boolean(config.geminiApiKey),
         geminiModel: config.geminiModel,
+        firebaseAdminConfigured: isFirebaseAdminConfigured(),
+        securityLogDir: path.resolve(process.cwd(), config.securityLogDir),
+        securityLogRetentionDays: config.securityLogRetentionDays,
       },
       'Ascuita API started'
     );

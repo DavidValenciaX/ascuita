@@ -19,14 +19,17 @@
  */
 
 import ControlTray from '@/components/console/control-tray/ControlTray';
+import AuthGateModal from '@/components/AuthGateModal';
 import ErrorScreen from '@/components/avatar/ErrorScreen';
 import AgentAvatar from '@/components/avatar/agent-avatar/AgentAvatar';
 import Header from '@/components/Header';
 import SettingsPanel from '@/components/SettingsPanel';
 import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
 import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
-import { useUI } from '@/lib/state';
+import { useAuthGate, useUI } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
+import { useEffect } from 'react';
+import { auth, onAuthStateChanged } from './firebase';
 
 /**
  * Main application component that provides a streaming interface for Live API.
@@ -34,12 +37,31 @@ import { useIdleCursor } from '@/hooks/useIdleCursor';
  */
 function App() {
   const { showSettingsPanel } = useUI();
+  const authToken = useAuthGate(state => state.authToken);
+  const setAuthState = useAuthGate(state => state.setAuthState);
   useIdleCursor();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      const token = user ? await user.getIdToken() : null;
+      setAuthState({
+        authReady: true,
+        authToken: token,
+        isAuthenticated: Boolean(user),
+        userName: user?.displayName || '',
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [setAuthState]);
   
   return (
     <div className="App">
-      <LiveAPIProvider model={DEFAULT_LIVE_API_MODEL}>
+      <LiveAPIProvider model={DEFAULT_LIVE_API_MODEL} authToken={authToken}>
         <ErrorScreen />
+        <AuthGateModal />
         <Header />
 
         {showSettingsPanel && <SettingsPanel />}

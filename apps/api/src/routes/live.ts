@@ -6,7 +6,13 @@ import {
   Session,
 } from '@google/genai';
 import { FastifyPluginAsync } from 'fastify';
+import path from 'node:path';
 import { getConfig, isAllowedOrigin } from '../config.js';
+import { appendAbuseLog } from '../lib/abuse-log.js';
+import {
+  isFirebaseAdminConfigured,
+  verifyFirebaseIdToken,
+} from '../lib/firebase-admin.js';
 
 type ClientMessage =
   | {
@@ -14,6 +20,7 @@ type ClientMessage =
       payload: {
         config: LiveConnectConfig;
         model?: string;
+        authToken?: string | null;
       };
     }
   | {
@@ -58,6 +65,8 @@ type CounterState = {
 const wsConnectAttempts = new Map<string, CounterState>();
 const wsMessageCounts = new Map<string, CounterState>();
 const wsActiveConnections = new Map<string, number>();
+const wsAudioByteCounts = new Map<string, CounterState>();
+const blockedClients = new Map<string, { expiresAt: number; reason: string }>();
 
 function safeJsonParse(raw: Buffer): ClientMessage {
   try {
@@ -116,6 +125,64 @@ function getPayloadSize(raw: unknown) {
   return Buffer.byteLength(String(raw));
 }
 
+function getAudioPayloadBytes(message: RealtimeInputMessage) {
+  return message.payload.chunks.reduce((total, chunk) => {
+    if (!chunk.mimeType.includes('audio')) {
+      return total;
+    }
+
+    return total + Buffer.from(chunk.data, 'base64').byteLength;
+  }, 0);
+}
+
+function getSecurityLogDir() {
+  return path.resolve(process.cwd(), getConfig().securityLogDir);
+}
+
+function logSecurityEvent(
+  type: string,
+  ip: string,
+  reason: string,
+  metadata?: Record<string, unknown>
+) {
+  const config = getConfig();
+  appendAbuseLog(getSecurityLogDir(), config.securityLogRetentionDays, {
+    type,
+    ip,
+    reason,
+    metadata,
+  });
+}
+
+function getActiveBlock(clientKey: string) {
+  const block = blockedClients.get(clientKey);
+  if (!block) {
+    return null;
+  }
+
+  if (block.expiresAt <= Date.now()) {
+    blockedClients.delete(clientKey);
+    return null;
+  }
+
+  return block;
+}
+
+function blockClient(
+  clientKey: string,
+  reason: string,
+  metadata?: Record<string, unknown>
+) {
+  const config = getConfig();
+  const expiresAt = Date.now() + config.wsTemporaryBlockDurationMs;
+  blockedClients.set(clientKey, { expiresAt, reason });
+  logSecurityEvent('security.block', clientKey, reason, {
+    ...metadata,
+    expiresAt,
+    blockDurationMs: config.wsTemporaryBlockDurationMs,
+  });
+}
+
 function isConnectMessage(message: ClientMessage): message is ConnectMessage {
   return message.type === 'connect';
 }
@@ -163,12 +230,29 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         typeof request.headers.origin === 'string'
           ? request.headers.origin
           : null;
+      const activeBlock = getActiveBlock(clientKey);
+
+      if (activeBlock) {
+        request.log.warn(
+          { ip: request.ip, reason: activeBlock.reason },
+          'Rejected WebSocket connection from temporarily blocked IP'
+        );
+        logSecurityEvent('security.reject', clientKey, activeBlock.reason, {
+          stage: 'connect',
+          blockedUntil: activeBlock.expiresAt,
+        });
+        socket.close(1008, 'Temporarily blocked');
+        return;
+      }
 
       if (!isAllowedOrigin(config.corsOrigin, originHeader)) {
         request.log.warn(
           { origin: originHeader },
           'Rejected WebSocket connection from disallowed origin'
         );
+        logSecurityEvent('security.reject', clientKey, 'origin_not_allowed', {
+          origin: originHeader,
+        });
         socket.close(1008, 'Origin not allowed');
         return;
       }
@@ -186,6 +270,9 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           { ip: request.ip },
           'Rejected WebSocket connection due to connect rate limit'
         );
+        blockClient(clientKey, 'too_many_connection_attempts', {
+          count: connectAttemptState.count,
+        });
         socket.close(1008, 'Too many connection attempts');
         return;
       }
@@ -195,6 +282,14 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         request.log.warn(
           { ip: request.ip },
           'Rejected WebSocket connection due to concurrent connection limit'
+        );
+        logSecurityEvent(
+          'security.reject',
+          clientKey,
+          'too_many_concurrent_connections',
+          {
+            activeConnections,
+          }
         );
         socket.close(1008, 'Too many concurrent connections');
         return;
@@ -208,6 +303,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
       let session: Session | undefined;
       let currentModel = defaultModel;
+      let freeTrialTimer: ReturnType<typeof setTimeout> | undefined;
 
       const send = (message: Record<string, unknown>) => {
         if (socket.readyState === socket.OPEN) {
@@ -216,6 +312,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       };
 
       const closeSession = () => {
+        if (freeTrialTimer) {
+          clearTimeout(freeTrialTimer);
+          freeTrialTimer = undefined;
+        }
         try {
           session?.close();
         } catch (error) {
@@ -241,6 +341,9 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             { ip: request.ip },
             'Closing WebSocket connection due to oversized payload'
           );
+          blockClient(clientKey, 'payload_too_large', {
+            payloadBytes: getPayloadSize(raw),
+          });
           socket.close(1009, 'Payload too large');
           return;
         }
@@ -256,6 +359,9 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             { ip: request.ip },
             'Closing WebSocket connection due to message rate limit'
           );
+          blockClient(clientKey, 'too_many_messages', {
+            count: messageRateState.count,
+          });
           socket.close(1008, 'Too many messages');
           return;
         }
@@ -279,6 +385,17 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         if (isConnectMessage(message)) {
+          if (message.payload.authToken && !isFirebaseAdminConfigured()) {
+            send({
+              type: 'error',
+              payload: {
+                message:
+                  'FIREBASE_AUTH_BACKEND_NOT_CONFIGURED: Firebase Admin credentials are missing on the backend',
+              },
+            });
+            return;
+          }
+
           if (!genAI) {
             send({
               type: 'error',
@@ -291,6 +408,38 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
           closeSession();
           currentModel = message.payload.model || defaultModel;
+
+          try {
+            const decodedToken = await verifyFirebaseIdToken(
+              message.payload.authToken
+            );
+
+            if (!decodedToken) {
+              freeTrialTimer = setTimeout(() => {
+                send({
+                  type: 'error',
+                  payload: {
+                    message:
+                      'TRIAL_EXPIRED: Free trial ended. Sign in with Google to continue.',
+                  },
+                });
+                closeSession();
+                socket.close(1008, 'Trial expired');
+              }, config.freeTrialDurationMs);
+            }
+          } catch (error) {
+            request.log.warn(
+              { err: error, ip: request.ip },
+              'Invalid Firebase Auth token supplied to /live'
+            );
+            send({
+              type: 'error',
+              payload: {
+                message: 'AUTH_INVALID: Firebase Auth token is invalid',
+              },
+            });
+            return;
+          }
 
           try {
             session = await genAI.live.connect({
@@ -369,6 +518,29 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           }
 
           if (isRealtimeInputMessage(message)) {
+            const audioBytes = getAudioPayloadBytes(message);
+            if (audioBytes > 0) {
+              const audioRateState = incrementCounter(
+                wsAudioByteCounts,
+                clientKey,
+                config.wsAudioByteWindowMs
+              );
+              audioRateState.count += audioBytes - 1;
+
+              if (audioRateState.count > config.wsMaxAudioBytesPerWindow) {
+                request.log.warn(
+                  { ip: request.ip, audioBytes: audioRateState.count },
+                  'Closing WebSocket connection due to audio byte rate limit'
+                );
+                blockClient(clientKey, 'audio_rate_limit_exceeded', {
+                  audioBytes: audioRateState.count,
+                  windowMs: config.wsAudioByteWindowMs,
+                });
+                socket.close(1008, 'Audio rate limit exceeded');
+                return;
+              }
+            }
+
             for (const chunk of message.payload.chunks) {
               await session.sendRealtimeInput(
                 currentModel === 'gemini-3.1-flash-live-preview'

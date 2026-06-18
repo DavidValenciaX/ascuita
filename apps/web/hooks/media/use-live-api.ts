@@ -25,6 +25,7 @@ import { AudioStreamer } from '../../lib/audio-streamer';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
 import { DEFAULT_LIVE_API_MODEL } from '../../lib/constants';
+import { useAuthGate } from '../../lib/state';
 
 export type UseLiveApiResults = {
   client: GenAILiveClient;
@@ -43,8 +44,10 @@ export type UseLiveApiResults = {
 
 export function useLiveApi({
   model = DEFAULT_LIVE_API_MODEL,
+  authToken,
 }: {
   model?: string;
+  authToken?: string | null;
 }): UseLiveApiResults {
   const client = useMemo(
     () => new GenAILiveClient(model),
@@ -59,6 +62,7 @@ export function useLiveApi({
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
+  const setTrialExpired = useAuthGate(state => state.setTrialExpired);
 
   // register audio for streaming server -> speakers
   useEffect(() => {
@@ -82,6 +86,7 @@ export function useLiveApi({
 
   useEffect(() => {
     const onSetupComplete = () => {
+      setTrialExpired(false);
       setFatalError(null);
       setConnecting(false);
       setConnected(true);
@@ -97,8 +102,17 @@ export function useLiveApi({
     };
 
     const onError = (error: ErrorEvent) => {
+      if (error.message?.includes('TRIAL_EXPIRED')) {
+        setTrialExpired(true);
+        setFatalError(null);
+        setConnecting(false);
+        return;
+      }
+
       if (
-        error.message?.includes('GEMINI_API_KEY is missing on the backend')
+        error.message?.includes('GEMINI_API_KEY is missing on the backend') ||
+        error.message?.includes('AUTH_INVALID') ||
+        error.message?.includes('FIREBASE_AUTH_BACKEND_NOT_CONFIGURED')
       ) {
         setFatalError(error.message);
       }
@@ -134,7 +148,7 @@ export function useLiveApi({
       client.off('interrupted', stopAudioStreamer);
       client.off('audio', onAudio);
     };
-  }, [client]);
+  }, [client, setTrialExpired]);
 
   const connect = useCallback(async () => {
     if (!config) {
@@ -143,8 +157,8 @@ export function useLiveApi({
     client.disconnect();
     setFatalError(null);
     setConnecting(true);
-    await client.connect(config);
-  }, [client, setConnected, config]);
+    await client.connect(config, authToken);
+  }, [authToken, client, setConnected, config]);
 
   const disconnect = useCallback(async () => {
     client.disconnect();
