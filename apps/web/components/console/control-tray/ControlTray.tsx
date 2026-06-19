@@ -39,21 +39,9 @@ function ControlTray({ children }: ControlTrayProps) {
   const { showSettingsPanel } = useUI();
   const { authReady, trialExpired, isAuthenticated, introPlaying } =
     useAuthGate();
-  const { client, connected, connecting, fatalError, connect, disconnect } =
+  const { client, connected, connecting, fatalError, connect } =
     useLiveAPIContext();
   const { t } = useTranslation();
-
-  // Stop the current agent when the settings panel is open
-  useEffect(() => {
-    if (!showSettingsPanel) {
-      return;
-    }
-
-    reconnectAttemptRef.current = 0;
-    if (connected) {
-      disconnect();
-    }
-  }, [showSettingsPanel, connected, disconnect]);
 
   useEffect(() => {
     if (connected) {

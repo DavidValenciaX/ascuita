@@ -335,6 +335,7 @@ export default function BasicFace({
     mouthMesh.position.set(0, 0, 1.55);
     mouthPivot.add(mouthMesh);
 
+    // ── 6. Environment (walls, lights, fog) ──────────────────────────────────
     const cleanupEnvironment = setupSceneEnvironment(scene, { theme: sceneTheme });
 
     // ── 7. Mouse/Touch tracker ───────────────────────────────────────────────
