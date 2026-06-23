@@ -113,8 +113,27 @@ export default function BasicFace({
     }
   }, [volume]);
 
-  const canvasWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const canvasHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 800,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600,
+  }));
+
+  useEffect(() => {
+    const handleResize = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const canvasWidth = viewport.width;
+  const canvasHeight = viewport.height;
+
+  // Responsive FOV: on portrait screens widen the field of view so the scene
+  // fits to width instead of height.
+  const responsiveFOV = (() => {
+    const aspect = canvasWidth / canvasHeight;
+    return aspect < 1 ? Math.min(48 / aspect, 85) : 48;
+  })();
 
   // Handle resizing the WebGL renderer and updating camera projection
   useEffect(() => {
@@ -124,7 +143,9 @@ export default function BasicFace({
       renderer.setSize(canvasWidth, canvasHeight, false);
       finalComposerRef.current?.setSize(canvasWidth, canvasHeight);
       fireBloomComposerRef.current?.setSize(canvasWidth, canvasHeight);
-      camera.aspect = canvasWidth / canvasHeight;
+      const aspect = canvasWidth / canvasHeight;
+      camera.aspect = aspect;
+      camera.fov = aspect < 1 ? Math.min(48 / aspect, 85) : 48;
       camera.updateProjectionMatrix();
     }
   }, [canvasWidth, canvasHeight]);
@@ -140,7 +161,7 @@ export default function BasicFace({
     // Pulled-back, slightly raised camera looking gently downward so the floor,
     // ceiling and side walls enter the frame and their edges converge toward the
     // back wall (one-point perspective), which is what reads as a 3D room.
-    const camera = new THREE.PerspectiveCamera(48, canvasWidth / canvasHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(responsiveFOV, canvasWidth / canvasHeight, 0.1, 1000);
     camera.position.set(0, 0.9, 8.5);
     camera.lookAt(0, 0.0, -2);
     cameraRef.current = camera;
