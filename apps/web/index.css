@@ -1453,6 +1453,29 @@ input[type='range'] {
   color: var(--Blue-400);
 }
 
+.settingsPanel__navAdvancedToggle {
+  margin-top: 4px;
+  border-top: 1px solid var(--Neutral-30);
+  padding-top: 12px;
+}
+
+.settingsPanel__navArrow {
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.settingsPanel__navAdvanced {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+}
+
+.settingsPanel__navBtnAdvanced {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
 .settingsPanel__content {
   flex: 1;
   overflow-y: auto;

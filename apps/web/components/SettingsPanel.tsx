@@ -588,18 +588,31 @@ function LanguageTab() {
 
 export default function SettingsPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const { setShowSettingsPanel } = useUI();
   const { t } = useTranslation();
 
-  const tabs: [Tab, string, string][] = [
+  const basicTabs: [Tab, string, string][] = [
     ['profile', 'person', t('tabProfile')],
     ['agents', 'group', t('tabAgents')],
-    ['speech', 'graphic_eq', t('tabSpeech')],
-    ['fire', 'local_fire_department', 'Fuego'],
-    ['avatar', 'smart_toy', 'Avatar'],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
   ];
+
+  const advancedTabs: [Tab, string, string][] = [
+    ['speech', 'graphic_eq', t('tabSpeech')],
+    ['fire', 'local_fire_department', 'Fuego'],
+    ['avatar', 'smart_toy', 'Avatar'],
+  ];
+
+  const isAdvancedActive = advancedTabs.some(([id]) => id === activeTab);
+
+  function selectTab(id: Tab) {
+    setActiveTab(id);
+    if (advancedTabs.some(([advId]) => advId === id)) {
+      setAdvancedOpen(true);
+    }
+  }
 
   return (
     <div className="settingsPanel" role="dialog" aria-modal="true">
@@ -613,17 +626,49 @@ export default function SettingsPanel() {
         </button>
 
         <nav className="settingsPanel__nav">
-          {tabs.map(([id, icon, label]) => (
+          {basicTabs.map(([id, icon, label]) => (
             <button
               key={id}
               type="button"
               className={c('settingsPanel__navBtn', { active: activeTab === id })}
-              onClick={() => setActiveTab(id)}
+              onClick={() => selectTab(id)}
             >
               <span className="icon">{icon}</span>
               <span>{label}</span>
             </button>
           ))}
+
+          <button
+            type="button"
+            className={c('settingsPanel__navBtn settingsPanel__navAdvancedToggle', {
+              active: isAdvancedActive,
+            })}
+            onClick={() => setAdvancedOpen(prev => !prev)}
+            aria-expanded={advancedOpen}
+          >
+            <span className="icon settingsPanel__navArrow">
+              {advancedOpen ? 'expand_more' : 'chevron_right'}
+            </span>
+            <span>Configuración avanzada</span>
+          </button>
+
+          {advancedOpen && (
+            <div className="settingsPanel__navAdvanced">
+              {advancedTabs.map(([id, icon, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={c('settingsPanel__navBtn settingsPanel__navBtnAdvanced', {
+                    active: activeTab === id,
+                  })}
+                  onClick={() => selectTab(id)}
+                >
+                  <span className="icon">{icon}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </nav>
 
         <div className="settingsPanel__content">
