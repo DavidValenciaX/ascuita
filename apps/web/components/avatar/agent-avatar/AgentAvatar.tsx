@@ -17,6 +17,7 @@ export default function AgentAvatar() {
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
   const pendingNameRef = useRef<string | null>(null);
+  const pendingPersonalityRef = useRef<string | null>(null);
   const user = useUser();
   const { setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
@@ -66,6 +67,29 @@ export default function AgentAvatar() {
                 required: [],
               },
             },
+            {
+              name: 'set_agent_personality',
+              description: 'Proposes a new personality description for the agent. The personality is not saved until the user confirms and confirm_agent_personality is called.',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  personality: {
+                    type: Type.STRING,
+                    description: 'The new personality description the user wants the agent to have',
+                  },
+                },
+                required: ['personality'],
+              },
+            },
+            {
+              name: 'confirm_agent_personality',
+              description: 'Confirms and permanently saves the proposed agent personality after the user has verbally agreed to the change.',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {},
+                required: [],
+              },
+            },
           ],
         },
       ],
@@ -100,6 +124,31 @@ export default function AgentAvatar() {
               id: fc.id as string,
               name: fc.name,
               response: { result: { success: false, error: 'No pending name to confirm' } },
+            });
+          }
+        } else if (fc.name === 'set_agent_personality') {
+          const newPersonality = (fc.args as { personality: string }).personality;
+          pendingPersonalityRef.current = newPersonality;
+          responses.push({
+            id: fc.id as string,
+            name: fc.name,
+            response: { result: { pending_confirmation: true, proposedPersonality: newPersonality } },
+          });
+        } else if (fc.name === 'confirm_agent_personality') {
+          const newPersonality = pendingPersonalityRef.current;
+          if (newPersonality) {
+            updateAgent(current.id, { personality: newPersonality });
+            pendingPersonalityRef.current = null;
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: true } },
+            });
+          } else {
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: false, error: 'No pending personality to confirm' } },
             });
           }
         }
