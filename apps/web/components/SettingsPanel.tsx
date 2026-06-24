@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import c from 'classnames';
 import FireSettingsTab from './FireSettingsTab';
 import {
@@ -23,6 +23,8 @@ import {
   createNewAgent,
 } from '@/lib/presets/agents';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
+import { useLanguage } from '@/lib/i18n';
+import { createSystemInstructions } from '@/lib/prompts';
 
 type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
@@ -205,13 +207,21 @@ function ProfileTab() {
 function AgentsTab() {
   const { current, setCurrent, availablePresets, availablePersonal, addAgent } = useAgent();
   const updateAgent = useAgent(state => state.update);
-  const { disconnect } = useLiveAPIContext();
+  const { disconnect, client, connected } = useLiveAPIContext();
   const { t } = useTranslation();
+  const { language } = useLanguage();
+  const user = useUser();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const originalAgentRef = useRef<Agent | null>(null);
 
   const editingAgent = editingId
     ? [...availablePresets, ...availablePersonal].find(a => a.id === editingId)
     : null;
+
+  function startEditing(agent: Agent) {
+    originalAgentRef.current = { ...agent };
+    setEditingId(agent.id);
+  }
 
   function updateEditingAgent(adjustments: Partial<Agent>) {
     if (editingId) updateAgent(editingId, adjustments);
@@ -222,10 +232,40 @@ function AgentsTab() {
     setCurrent(agent);
   }
 
+  function saveAgent() {
+    if (!editingAgent) return;
+
+    const isSameAgent = editingAgent.id === current.id;
+    const original = originalAgentRef.current;
+
+    if (!isSameAgent) {
+      changeAgent(editingAgent);
+    } else if (original && connected) {
+      const voiceChanged = original.voice !== editingAgent.voice;
+      const nameOrPersonalityChanged =
+        original.name !== editingAgent.name ||
+        original.personality !== editingAgent.personality;
+
+      if (voiceChanged) {
+        disconnect();
+      } else if (nameOrPersonalityChanged) {
+        const updatePrompt =
+          language === 'es'
+            ? `Actualización de tu configuración: ${createSystemInstructions(editingAgent, user, language)}\n\nNo saludes ni te presentes de nuevo. Simplemente continúa la conversación naturalmente con esta nueva información.`
+            : `Configuration update: ${createSystemInstructions(editingAgent, user, language)}\n\nDo not greet or introduce yourself again. Simply continue the conversation naturally with this new information.`;
+        client.send({ text: updatePrompt }, true);
+      }
+    }
+
+    originalAgentRef.current = null;
+    setEditingId(null);
+  }
+
   function handleAddAgent() {
     disconnect();
     const newAgent = createNewAgent();
     addAgent(newAgent);
+    originalAgentRef.current = { ...newAgent };
     setEditingId(newAgent.id);
   }
 
@@ -236,7 +276,10 @@ function AgentsTab() {
           <button
             type="button"
             className="button"
-            onClick={() => setEditingId(null)}
+            onClick={() => {
+              originalAgentRef.current = null;
+              setEditingId(null);
+            }}
           >
             <span className="icon">arrow_back</span>
             {t('yourAgents')}
@@ -294,10 +337,7 @@ function AgentsTab() {
         <button
           type="button"
           className="button primary settingsPanel__saveAgentBtn"
-          onClick={() => {
-            changeAgent(editingAgent);
-            setEditingId(null);
-          }}
+          onClick={saveAgent}
         >
           <span className="icon">check_circle</span>
           {t('saveAgent')}
@@ -363,7 +403,7 @@ function AgentsTab() {
                 <button
                   type="button"
                   className="settingsPanel__agentEdit"
-                  onClick={() => setEditingId(agent.id)}
+                  onClick={() => startEditing(agent)}
                   title={t('edit')}
                 >
                   <span className="icon">edit</span>
