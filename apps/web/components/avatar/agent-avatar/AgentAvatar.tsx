@@ -16,6 +16,7 @@ export default function AgentAvatar() {
   const { client, connected, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
+  const pendingNameRef = useRef<string | null>(null);
   const user = useUser();
   const { setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
@@ -44,16 +45,25 @@ export default function AgentAvatar() {
           functionDeclarations: [
             {
               name: 'set_agent_name',
-              description: 'Saves the name the user gives to the agent so it persists for the rest of the conversation.',
+              description: 'Proposes a new name for the agent. The name is not saved until the user confirms and confirm_agent_name is called.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
                   name: {
                     type: Type.STRING,
-                    description: 'The name to assign to this agent',
+                    description: 'The name the user wants the agent to go by',
                   },
                 },
                 required: ['name'],
+              },
+            },
+            {
+              name: 'confirm_agent_name',
+              description: 'Confirms and permanently saves the proposed agent name after the user has verbally agreed to the change.',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {},
+                required: [],
               },
             },
           ],
@@ -69,12 +79,29 @@ export default function AgentAvatar() {
       for (const fc of toolCall.functionCalls ?? []) {
         if (fc.name === 'set_agent_name') {
           const newName = (fc.args as { name: string }).name;
-          updateAgent(current.id, { name: newName });
+          pendingNameRef.current = newName;
           responses.push({
             id: fc.id as string,
             name: fc.name,
-            response: { result: { success: true, name: newName } },
+            response: { result: { pending_confirmation: true, proposedName: newName } },
           });
+        } else if (fc.name === 'confirm_agent_name') {
+          const newName = pendingNameRef.current;
+          if (newName) {
+            updateAgent(current.id, { name: newName });
+            pendingNameRef.current = null;
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: true, name: newName } },
+            });
+          } else {
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: false, error: 'No pending name to confirm' } },
+            });
+          }
         }
       }
       if (responses.length > 0) {

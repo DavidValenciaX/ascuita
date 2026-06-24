@@ -17,8 +17,8 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
       : 'You are Ascuita, the user\'s companion and friend. Introduce yourself as Ascuita');
 
   const nameTool = language === 'es'
-    ? 'Si el usuario te da un nombre para que uses como tuyo, llama inmediatamente a la función set_agent_name con ese nombre para guardarlo. Luego confirma verbalmente que usarás ese nombre de ahora en adelante.'
-    : 'If the user gives you a name to use as your own, immediately call the set_agent_name function with that name to save it. Then verbally confirm you will use that name from now on.';
+    ? 'Si el usuario te pide explícitamente cambiar tu nombre o te dice algo como "llámate así" o "quiero que te llames X", llama a la función set_agent_name con ese nombre. NO llames a set_agent_name cuando el usuario simplemente diga su propio nombre o mencione un nombre en otra conversación. Después de llamar a set_agent_name, pregunta al usuario si está seguro de que quiere que te llames así. Solo si el usuario confirma claramente que sí, llama a la función confirm_agent_name para guardar el nombre definitivamente. Si el usuario dice que no o cambia de idea, ignora el cambio y conserva tu nombre actual.'
+    : 'If the user explicitly asks you to change your name or says something like "call yourself X" or "I want you to be called X", call the set_agent_name function with that name. Do NOT call set_agent_name when the user is simply stating their own name or mentioning a name in another context. After calling set_agent_name, ask the user if they are sure they want you to go by that name. Only if the user clearly confirms, call the confirm_agent_name function to save the name permanently. If the user says no or changes their mind, ignore the change and keep your current name.';
 
   const searchTool = language === 'es'
     ? 'Tienes acceso a una herramienta de búsqueda en Google (Google Search). Úsala siempre que necesites buscar información actualizada en internet para responder al usuario.'
