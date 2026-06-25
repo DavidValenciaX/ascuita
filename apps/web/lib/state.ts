@@ -187,6 +187,8 @@ export const useUI = create<{
   setShowUserConfig: (show: boolean) => void;
   showSettingsPanel: boolean;
   setShowSettingsPanel: (show: boolean) => void;
+  showSpeechAnimationConfig: boolean;
+  setShowSpeechAnimationConfig: (show: boolean) => void;
   sceneTheme: SceneTheme;
   setSceneTheme: (theme: SceneTheme) => void;
 }>(set => ({
@@ -194,6 +196,9 @@ export const useUI = create<{
   setShowUserConfig: (show: boolean) => set({ showUserConfig: show }),
   showSettingsPanel: false,
   setShowSettingsPanel: (show: boolean) => set({ showSettingsPanel: show }),
+  showSpeechAnimationConfig: false,
+  setShowSpeechAnimationConfig: (show: boolean) =>
+    set({ showSpeechAnimationConfig: show }),
   sceneTheme: 'dark',
   setSceneTheme: (theme: SceneTheme) => set({ sceneTheme: theme }),
 }));
