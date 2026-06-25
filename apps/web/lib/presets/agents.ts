@@ -56,6 +56,23 @@ export const AGENT_COLORS = [
   '#24c1e0',
 ];
 
+type AgentColorLanguage = 'en' | 'es';
+
+export const AGENT_COLOR_NAMES: Record<string, Record<AgentColorLanguage, string>> = {
+  '#4285f4': { es: 'azul', en: 'blue' },
+  '#ea4335': { es: 'rojo', en: 'red' },
+  '#fbbc04': { es: 'amarillo', en: 'yellow' },
+  '#34a853': { es: 'verde', en: 'green' },
+  '#fa7b17': { es: 'naranja', en: 'orange' },
+  '#f538a0': { es: 'rosa', en: 'pink' },
+  '#a142f4': { es: 'morado', en: 'purple' },
+  '#24c1e0': { es: 'cian', en: 'cyan' },
+};
+
+export const getAgentColorName = (color: string, language: AgentColorLanguage = 'en') => {
+  return AGENT_COLOR_NAMES[color.toLowerCase()]?.[language] ?? color;
+};
+
 export const createNewAgent = (properties?: Partial<Agent>): Agent => {
   return {
     id: Math.random().toString(36).substring(2, 15),

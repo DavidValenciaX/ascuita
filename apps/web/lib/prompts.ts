@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import { Agent } from './presets/agents';
+import { Agent, getAgentColorName } from './presets/agents';
 import { User } from './state';
 
 import { Language } from './i18n';
@@ -15,6 +15,11 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
     : (language === 'es'
       ? 'Eres Ascuita, el compañero y amigo del usuario. Preséntate como Ascuita'
       : 'You are Ascuita, the user\'s companion and friend. Introduce yourself as Ascuita');
+
+  const avatarColor = getAgentColorName(agent.bodyColor, language);
+  const avatarDesc = language === 'es'
+    ? `Tu avatar es un orbe brillante de color ${avatarColor}.`
+    : `Your avatar is a glowing ${avatarColor} orb.`;
 
   const nameTool = language === 'es'
     ? 'Si el usuario te pide explícitamente cambiar tu nombre o te dice algo como "llámate así" o "quiero que te llames X", llama a la función set_agent_name con ese nombre. NO llames a set_agent_name cuando el usuario simplemente diga su propio nombre o mencione un nombre en otra conversación. Después de llamar a set_agent_name, pregunta al usuario si está seguro de que quiere que te llames así. Solo si el usuario confirma claramente que sí, llama a la función confirm_agent_name para guardar el nombre definitivamente. Si el usuario dice que no o cambia de idea, ignora el cambio y conserva tu nombre actual.'
@@ -30,6 +35,8 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
 
   return `${nameIntro} and you are in a conversation with the user\
 ${user.name ? ` (${user.name})` : ''}.
+
+${avatarDesc}
 
 ${nameTool}
 
