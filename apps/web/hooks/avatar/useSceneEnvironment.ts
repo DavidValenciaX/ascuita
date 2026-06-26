@@ -38,15 +38,15 @@ const DARK_STUDIO_PRESET = {
 };
 
 const LIGHT_STUDIO_PRESET = {
-  roomColor: '#e7eefc',
-  floorColor: '#f8ead7',
-  ceilingColor: '#f6f1ff',
-  ambientColor: '#fff2df',
+  roomColor: '#d4e2ff',
+  floorColor: '#f4e3ce',
+  ceilingColor: '#eee6f7',
+  ambientColor: '#e8eef7',
   mainLightColor: '#fff7e8',
-  mainLightIntensity: 1.18,
-  fogNear: 13,
-  fogFar: 30,
-  fogColor: '#f3efff',
+  mainLightIntensity: 1.0,
+  fogNear: 16,
+  fogFar: 40,
+  fogColor: '#edf4ff',
 };
 
 function createStudioGradientTexture(): THREE.CanvasTexture {
@@ -58,23 +58,23 @@ function createStudioGradientTexture(): THREE.CanvasTexture {
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
   const base = ctx.createLinearGradient(0, 0, 0, 512);
-  base.addColorStop(0, '#f7f1ff');
-  base.addColorStop(0.45, '#e8f3ff');
-  base.addColorStop(1, '#fff2dc');
+  base.addColorStop(0, '#d4e4ff');
+  base.addColorStop(0.45, '#e4f0ff');
+  base.addColorStop(1, '#f5e5c8');
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, 512, 512);
 
   const leftGlow = ctx.createRadialGradient(130, 170, 0, 130, 170, 330);
-  leftGlow.addColorStop(0, 'rgba(154, 199, 255, 0.55)');
-  leftGlow.addColorStop(0.45, 'rgba(154, 199, 255, 0.22)');
-  leftGlow.addColorStop(1, 'rgba(154, 199, 255, 0)');
+  leftGlow.addColorStop(0, 'rgba(150, 190, 255, 0.5)');
+  leftGlow.addColorStop(0.45, 'rgba(150, 190, 255, 0.2)');
+  leftGlow.addColorStop(1, 'rgba(150, 190, 255, 0)');
   ctx.fillStyle = leftGlow;
   ctx.fillRect(0, 0, 512, 512);
 
   const warmGlow = ctx.createRadialGradient(390, 360, 0, 390, 360, 360);
-  warmGlow.addColorStop(0, 'rgba(255, 191, 148, 0.42)');
-  warmGlow.addColorStop(0.5, 'rgba(255, 191, 148, 0.16)');
-  warmGlow.addColorStop(1, 'rgba(255, 191, 148, 0)');
+  warmGlow.addColorStop(0, 'rgba(255, 200, 150, 0.35)');
+  warmGlow.addColorStop(0.5, 'rgba(255, 200, 150, 0.13)');
+  warmGlow.addColorStop(1, 'rgba(255, 200, 150, 0)');
   ctx.fillStyle = warmGlow;
   ctx.fillRect(0, 0, 512, 512);
 
@@ -154,7 +154,7 @@ export function setupSceneEnvironment(
   const maxHalf = Math.max(roomWidth, roomHeight, roomDepth) / 2;
 
   if (isLightTheme) {
-    scene.background = new THREE.Color(fogColor);
+    scene.background = new THREE.Color('#e8f0ff');
   }
   scene.fog = new THREE.Fog(new THREE.Color(fogColor), fogNear, fogFar);
 
@@ -267,7 +267,7 @@ export function setupSceneEnvironment(
   }
 
   // ── Lights ────────────────────────────────────────────────────────────────
-  const ambient = new THREE.AmbientLight(new THREE.Color(ambientColor), isLightTheme ? 0.62 : 0.5);
+  const ambient = new THREE.AmbientLight(new THREE.Color(ambientColor), isLightTheme ? 0.58 : 0.5);
   scene.add(ambient);
   added.push(ambient);
 

@@ -91,6 +91,7 @@ export default function BasicFace({
   const mouthShapeRef = useRef(mouthShape);
   const innerFireConfigRef = useRef(innerFireConfig);
   const avatarRenderConfigRef = useRef(avatarRenderConfig);
+  const sceneThemeRef = useRef(sceneTheme);
 
   useEffect(() => { eyeScaleRef.current = eyeScale; }, [eyeScale]);
   useEffect(() => { colorRef.current = color; }, [color]);
@@ -100,6 +101,7 @@ export default function BasicFace({
   useEffect(() => { mouthShapeRef.current = mouthShape; }, [mouthShape]);
   useEffect(() => { innerFireConfigRef.current = innerFireConfig; }, [innerFireConfig]);
   useEffect(() => { avatarRenderConfigRef.current = avatarRenderConfig; }, [avatarRenderConfig]);
+  useEffect(() => { sceneThemeRef.current = sceneTheme; }, [sceneTheme]);
 
   // Detect whether the agent is talking based on audio output volume
   useEffect(() => {
@@ -403,17 +405,24 @@ export default function BasicFace({
         innerFire.setAvatarColor(lastColor);
       }
 
+      const isLightTheme = sceneThemeRef.current === 'light';
       bodyMat.emissiveIntensity = avatarRenderConfigRef.current.bodyEmissiveIntensity;
       bodyMat.transparent = avatarRenderConfigRef.current.bodyTransparent;
       bodyMat.opacity = avatarRenderConfigRef.current.bodyOpacity;
       bodyMat.depthWrite = avatarRenderConfigRef.current.bodyDepthWrite;
-      renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
+      renderer.toneMappingExposure = isLightTheme
+        ? avatarRenderConfigRef.current.sceneExposure * 0.88
+        : avatarRenderConfigRef.current.sceneExposure;
       fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
       fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;
       fireBloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
-      sceneBloomPass.strength = avatarRenderConfigRef.current.sceneBloomStrength;
+      sceneBloomPass.strength = isLightTheme
+        ? avatarRenderConfigRef.current.sceneBloomStrength * 0.6
+        : avatarRenderConfigRef.current.sceneBloomStrength;
       sceneBloomPass.radius = avatarRenderConfigRef.current.sceneBloomRadius;
-      sceneBloomPass.threshold = avatarRenderConfigRef.current.sceneBloomThreshold;
+      sceneBloomPass.threshold = isLightTheme
+        ? Math.max(avatarRenderConfigRef.current.sceneBloomThreshold, 0.4)
+        : avatarRenderConfigRef.current.sceneBloomThreshold;
 
       // Eye blink — squash both eyes vertically
       const currentEyeScale = eyeScaleRef.current;
@@ -479,8 +488,11 @@ export default function BasicFace({
       characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, 0.1);
 
       const previousCameraLayersMask = camera.layers.mask;
+      const previousBackground = scene.background;
       camera.layers.set(FIRE_BLOOM_LAYER);
+      scene.background = null;
       fireBloomComposer.render();
+      scene.background = previousBackground;
       camera.layers.mask = previousCameraLayersMask;
       composer.render();
     };
