@@ -8,7 +8,9 @@ import {
   serverTimestamp,
   doc,
   setDoc,
+  getDoc,
   getDocs,
+  deleteDoc,
   limit,
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -149,10 +151,39 @@ export function useConversations() {
     []
   );
 
+  const deleteConversation = useCallback(
+    async (conversationId: string) => {
+      if (!auth.currentUser) return;
+
+      const uid = auth.currentUser.uid;
+      const convRef = doc(db, 'users', uid, 'conversations', conversationId);
+      const conversationSnapshot = await getDoc(convRef);
+      const conversationData = conversationSnapshot.data();
+      if (conversationData && conversationData.endedAt == null) {
+        throw new Error('Cannot delete an active conversation');
+      }
+
+      const messagesRef = collection(
+        db,
+        'users',
+        uid,
+        'conversations',
+        conversationId,
+        'messages'
+      );
+      const snapshot = await getDocs(messagesRef);
+      await Promise.all(snapshot.docs.map(d => deleteDoc(d.ref)));
+
+      await deleteDoc(convRef);
+    },
+    []
+  );
+
   return {
     conversations,
     createConversation,
     endConversation,
+    deleteConversation,
     loadMessages,
   };
 }

@@ -1808,3 +1808,154 @@ body.cursor-hidden,
 body.cursor-hidden * {
   cursor: none !important;
 }
+
+/* ChatsTab */
+.chatsTab__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chatsTab__item {
+  align-items: center;
+  background: var(--Neutral-15);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.chatsTab__item:hover {
+  background: var(--Neutral-20);
+  border-color: var(--Neutral-40);
+}
+
+.chatsTab__itemMain {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--Neutral-90);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  text-align: left;
+}
+
+.chatsTab__itemIcon {
+  align-items: center;
+  background: var(--Neutral-25);
+  border-radius: 50%;
+  color: var(--Blue-400);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 20px;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.chatsTab__itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chatsTab__itemInfo strong {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatsTab__itemInfo small {
+  color: var(--Neutral-60);
+  font-size: 12px;
+}
+
+.chatsTab__itemDelete {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--Neutral-50);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 20px;
+  height: 32px;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  width: 32px;
+}
+
+.chatsTab__itemDelete:hover {
+  background: rgba(239, 83, 80, 0.12);
+  color: rgb(239, 83, 80);
+}
+
+.chatsTab__itemDelete:disabled {
+  opacity: 0.4;
+}
+
+.chatsTab__deleteBtn {
+  color: rgb(239, 83, 80);
+}
+
+.chatsTab__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.chatsTab__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.chatsTab__message {
+  background: var(--Neutral-15);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.chatsTab__message--user {
+  border-left: 3px solid var(--Blue-500);
+}
+
+.chatsTab__message--assistant {
+  border-left: 3px solid var(--Green-500);
+}
+
+.chatsTab__messageRole {
+  color: var(--Neutral-60);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chatsTab__messageText {
+  color: var(--Neutral-90);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chatsTab__messageTime {
+  color: var(--Neutral-50);
+  font-size: 11px;
+}

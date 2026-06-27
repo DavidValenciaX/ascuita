@@ -71,6 +71,9 @@ type OutboundMessage =
         config: LiveConnectConfig;
         model?: string;
         authToken?: string | null;
+        agentId?: string;
+        agentName?: string;
+        conversationId?: string;
       };
     }
   | {
@@ -81,6 +84,7 @@ type OutboundMessage =
       payload: {
         parts: Part | Part[];
         turnComplete: boolean;
+        persist?: boolean;
       };
     }
   | {
@@ -151,7 +155,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   public async connect(
     config: LiveConnectConfig,
     authToken?: string | null,
-    agent?: { id: string; name: string }
+    agent?: { id: string; name: string },
+    conversationId?: string | null
   ): Promise<boolean> {
     if (this._status === 'connected' || this._status === 'connecting') {
       return false;
@@ -175,6 +180,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
               authToken,
               agentId: agent?.id,
               agentName: agent?.name,
+              conversationId: conversationId || undefined,
             },
           });
           resolve(true);
@@ -215,7 +221,11 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     return true;
   }
 
-  public async send(parts: Part | Part[], turnComplete: boolean = true) {
+  public async send(
+    parts: Part | Part[],
+    turnComplete: boolean = true,
+    persist: boolean = true
+  ) {
     if (this._status !== 'connected' || !this.ws) {
       this.emit('error', new ErrorEvent('Client is not connected'));
       return;
@@ -226,6 +236,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       payload: {
         parts,
         turnComplete,
+        persist,
       },
     });
     this.log(`client.send`, parts);

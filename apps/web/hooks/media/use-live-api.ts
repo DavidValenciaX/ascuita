@@ -25,7 +25,7 @@ import { AudioStreamer } from '../../lib/audio-streamer';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
 import { DEFAULT_LIVE_API_MODEL } from '../../lib/constants';
-import { useAgent, useAuthGate } from '../../lib/state';
+import { useAgent, useAuthGate, useConversationResume } from '../../lib/state';
 
 export type UseLiveApiResults = {
   client: GenAILiveClient;
@@ -64,6 +64,7 @@ export function useLiveApi({
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
   const setTrialExpired = useAuthGate(state => state.setTrialExpired);
   const currentAgent = useAgent(state => state.current);
+  const pendingResume = useConversationResume(state => state.pending);
 
   // register audio for streaming server -> speakers
   useEffect(() => {
@@ -161,8 +162,16 @@ export function useLiveApi({
     await client.connect(config, authToken, {
       id: currentAgent.id,
       name: currentAgent.name || 'Ascuita',
-    });
-  }, [authToken, client, currentAgent.id, currentAgent.name, setConnected, config]);
+    }, pendingResume?.conversationId);
+  }, [
+    authToken,
+    client,
+    currentAgent.id,
+    currentAgent.name,
+    pendingResume?.conversationId,
+    setConnected,
+    config,
+  ]);
 
   const disconnect = useCallback(async () => {
     client.disconnect();

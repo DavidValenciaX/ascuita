@@ -9,6 +9,7 @@ import {
   AvatarRenderConfig,
   SpeechAnimationConfig,
   useAvatarRender,
+  useConversationResume,
   useSpeechAnimation,
   useUI,
   useUser,
@@ -25,9 +26,10 @@ import {
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { useLanguage } from '@/lib/i18n';
 import { createSystemInstructions } from '@/lib/prompts';
+import { useConversations, type ConversationMessage } from '@/hooks/useConversations';
 import { saveUserProfile } from '@/hooks/useUserProfile';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
+type Tab = 'profile' | 'chats' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -632,6 +634,214 @@ function LanguageTab() {
 
 // ── Main SettingsPanel ──────────────────────────────────────────────────────
 
+function ChatsTab() {
+  const { conversations, deleteConversation, loadMessages } = useConversations();
+  const { disconnect } = useLiveAPIContext();
+  const { setShowSettingsPanel } = useUI();
+  const setResumeConversation = useConversationResume(state => state.setPending);
+  const { setCurrent, availablePresets, availablePersonal } = useAgent();
+  const { t } = useTranslation();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const openRequestRef = useRef(0);
+
+  function resetSelection() {
+    openRequestRef.current += 1;
+    setSelectedId(null);
+    setMessages([]);
+    setLoadingMessages(false);
+  }
+
+  async function openConversation(id: string) {
+    const requestId = openRequestRef.current + 1;
+    openRequestRef.current = requestId;
+    setSelectedId(id);
+    setLoadingMessages(true);
+    setMessages([]);
+    try {
+      const msgs = await loadMessages(id);
+      if (openRequestRef.current !== requestId) return;
+      setMessages(msgs);
+    } catch (error) {
+      if (openRequestRef.current !== requestId) return;
+      console.error('Error loading messages:', error);
+    } finally {
+      if (openRequestRef.current !== requestId) return;
+      setLoadingMessages(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm(t('chatsDeleteConfirm'))) return;
+    setDeletingId(id);
+    try {
+      await deleteConversation(id);
+      if (selectedId === id) {
+        resetSelection();
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleResume(conversationId: string) {
+    const conversation = conversations.find(conv => conv.id === conversationId);
+    if (!conversation) return;
+
+    const resolvedAgent = [...availablePresets, ...availablePersonal].find(
+      agent => agent.id === conversation.agentId
+    );
+    if (resolvedAgent) {
+      setCurrent(resolvedAgent);
+    }
+
+    setResumeConversation({
+      conversationId: conversation.id,
+      agentId: conversation.agentId,
+      agentName: conversation.agentName || t('chatsAssistant'),
+      messages: messages.map(message => ({
+        role: message.role,
+        text: message.text,
+      })),
+    });
+    disconnect();
+    setShowSettingsPanel(false);
+  }
+
+  function formatDate(ms: number) {
+    if (!ms) return '';
+    return new Date(ms).toLocaleString();
+  }
+
+  function isConversationActive(endedAt: number | null) {
+    return endedAt == null;
+  }
+
+  if (selectedId) {
+    const conv = conversations.find(c => c.id === selectedId);
+    const canDelete = Boolean(conv && !isConversationActive(conv.endedAt));
+    return (
+      <div className="settingsPanel__tab">
+        <div className="settingsPanel__tabHeader">
+          <button
+            type="button"
+            className="button"
+            onClick={resetSelection}
+          >
+            <span className="icon">arrow_back</span>
+            {t('chatsBack')}
+          </button>
+          <div className="chatsTab__actions">
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => void handleResume(selectedId)}
+              disabled={loadingMessages}
+            >
+              <span className="icon">play_arrow</span>
+              {t('chatsResume')}
+            </button>
+            {conv && (
+              <button
+                type="button"
+                className="button chatsTab__deleteBtn"
+                onClick={() => handleDelete(selectedId)}
+                disabled={!canDelete || deletingId === selectedId}
+                title={!canDelete ? t('chatsDeleteDisabled') : t('chatsDelete')}
+              >
+                <span className="icon">delete</span>
+                {t('chatsDelete')}
+              </button>
+            )}
+          </div>
+        </div>
+        <h2>{conv?.agentName || t('chatsAssistant')}</h2>
+        <p className="settingsPanel__desc">
+          {conv ? formatDate(conv.startedAt) : ''}
+        </p>
+        <p className="settingsPanel__desc">{t('chatsResumeHint')}</p>
+        {loadingMessages ? (
+          <p className="settingsPanel__desc">{t('chatsLoading')}</p>
+        ) : messages.length === 0 ? (
+          <p className="settingsPanel__desc">{t('chatsNoMessages')}</p>
+        ) : (
+          <div className="chatsTab__messages">
+            {messages.map(msg => (
+              <div
+                key={msg.id}
+                className={c('chatsTab__message', {
+                  'chatsTab__message--user': msg.role === 'user',
+                  'chatsTab__message--assistant': msg.role === 'assistant',
+                })}
+              >
+                <span className="chatsTab__messageRole">
+                  {msg.role === 'user' ? t('chatsYou') : t('chatsAssistant')}
+                </span>
+                <p className="chatsTab__messageText">{msg.text}</p>
+                <span className="chatsTab__messageTime">
+                  {formatDate(msg.timestamp)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="settingsPanel__tab">
+      <h2>{t('chatsTitle')}</h2>
+      <p className="settingsPanel__desc">{t('chatsDesc')}</p>
+      {conversations.length === 0 ? (
+        <p className="settingsPanel__desc">{t('chatsEmpty')}</p>
+      ) : (
+        <ul className="chatsTab__list">
+          {conversations.map(conv => (
+            <li key={conv.id} className="chatsTab__item">
+              <button
+                type="button"
+                className="chatsTab__itemMain"
+                onClick={() => openConversation(conv.id)}
+              >
+                <span className="chatsTab__itemIcon">
+                  <span className="icon">forum</span>
+                </span>
+                <span className="chatsTab__itemInfo">
+                  <strong>{conv.agentName || t('chatsAssistant')}</strong>
+                  <small>{formatDate(conv.startedAt)}</small>
+                  <small>
+                    {conv.messageCount} {t('chatsMessages')}
+                    {' · '}
+                    {conv.endedAt ? t('chatsEnded') : t('chatsActive')}
+                  </small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className="chatsTab__itemDelete"
+                onClick={() => handleDelete(conv.id)}
+                disabled={isConversationActive(conv.endedAt) || deletingId === conv.id}
+                title={
+                  isConversationActive(conv.endedAt)
+                    ? t('chatsDeleteDisabled')
+                    : t('chatsDelete')
+                }
+              >
+                <span className="icon">delete</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -640,6 +850,7 @@ export default function SettingsPanel() {
 
   const basicTabs: [Tab, string, string][] = [
     ['profile', 'person', t('tabProfile')],
+    ['chats', 'forum', t('tabChats')],
     ['agents', 'group', t('tabAgents')],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
@@ -719,6 +930,7 @@ export default function SettingsPanel() {
 
         <div className="settingsPanel__content">
           {activeTab === 'profile' && <ProfileTab />}
+          {activeTab === 'chats' && <ChatsTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
           {activeTab === 'fire' && <FireSettingsTab />}

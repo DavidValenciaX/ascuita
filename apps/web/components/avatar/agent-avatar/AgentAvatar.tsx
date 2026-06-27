@@ -9,8 +9,40 @@ import { LiveServerToolCall } from '@google/genai';
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createSystemInstructions } from '@/lib/prompts';
-import { useAgent, useAuthGate, useUI, useUser } from '@/lib/state';
+import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
+
+function buildResumePrompt(
+  language: 'es' | 'en',
+  agentName: string,
+  messages: Array<{ role: 'user' | 'assistant'; text: string }>
+) {
+  const transcript = messages
+    .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text}`)
+    .join('\n\n');
+
+  if (language === 'es') {
+    return [
+      `Retoma esta conversacion previa como ${agentName}.`,
+      'No te presentes de nuevo ni reinicies el tono.',
+      'Usa el siguiente historial solo como contexto para continuar de forma natural desde donde se quedo la charla.',
+      'Si el ultimo mensaje es del asistente, continua con una respuesta breve que avance la conversacion.',
+      '',
+      'Historial:',
+      transcript,
+    ].join('\n');
+  }
+
+  return [
+    `Resume this earlier conversation as ${agentName}.`,
+    'Do not introduce yourself again or restart the tone.',
+    'Use the following transcript only as context so you can continue naturally from where the chat left off.',
+    'If the last message is from the assistant, continue with a brief reply that moves the conversation forward.',
+    '',
+    'Transcript:',
+    transcript,
+  ].join('\n');
+}
 
 export default function AgentAvatar() {
   const { client, connected, setConfig } = useLiveAPIContext();
@@ -21,6 +53,8 @@ export default function AgentAvatar() {
   const user = useUser();
   const { setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
+  const pendingResume = useConversationResume(state => state.pending);
+  const clearPendingResume = useConversationResume(state => state.clearPending);
   const { sceneTheme } = useUI();
   const { language } = useLanguage();
 
@@ -180,7 +214,23 @@ export default function AgentAvatar() {
       const agentName = current.name || 'Ascuita';
       greetedRef.current = true;
       setIntroPlaying(true);
-      client.send(
+      if (pendingResume && pendingResume.messages.length > 0) {
+        void client.send(
+          {
+            text: buildResumePrompt(
+              language,
+              pendingResume.agentName || agentName,
+              pendingResume.messages
+            ),
+          },
+          true,
+          false
+        );
+        clearPendingResume();
+        return;
+      }
+
+      void client.send(
         {
           text: language === 'es'
             ? `Saluda al usuario de forma calida y natural. Presentate como ${agentName}, explica tu rol en una sola idea corta y termina con una pregunta sencilla para invitar a conversar.`
@@ -193,7 +243,7 @@ export default function AgentAvatar() {
     return () => {
       window.clearTimeout(beginSession);
     };
-  }, [client, connected, current, language, setIntroPlaying]);
+  }, [client, clearPendingResume, connected, current, language, pendingResume, setIntroPlaying]);
 
   useEffect(() => {
     const handleTurnComplete = () => {

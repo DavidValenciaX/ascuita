@@ -25,6 +25,7 @@ type ClientMessage =
         authToken?: string | null;
         agentId?: string;
         agentName?: string;
+        conversationId?: string;
       };
     }
   | {
@@ -35,6 +36,7 @@ type ClientMessage =
       payload: {
         parts: Part | Part[];
         turnComplete?: boolean;
+        persist?: boolean;
       };
     }
   | {
@@ -492,16 +494,33 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               firestoreDb = getAdminDb();
               if (firestoreDb) {
                 try {
-                  const convRef = await firestoreDb
-                    .collection(`users/${conversationUid}/conversations`)
-                    .add({
-                      agentId: message.payload.agentId || 'default-agent',
-                      agentName: message.payload.agentName || 'Ascuita',
-                      startedAt: FieldValue.serverTimestamp(),
-                      endedAt: null,
-                      messageCount: 0,
-                    });
-                  conversationId = convRef.id;
+                  const requestedConversationId = message.payload.conversationId?.trim();
+                  if (requestedConversationId) {
+                    const existingConversationRef = firestoreDb.doc(
+                      `users/${conversationUid}/conversations/${requestedConversationId}`
+                    );
+                    const existingConversation = await existingConversationRef.get();
+                    if (existingConversation.exists) {
+                      await existingConversationRef.set(
+                        { endedAt: null },
+                        { merge: true }
+                      );
+                      conversationId = requestedConversationId;
+                    }
+                  }
+
+                  if (!conversationId) {
+                    const convRef = await firestoreDb
+                      .collection(`users/${conversationUid}/conversations`)
+                      .add({
+                        agentId: message.payload.agentId || 'default-agent',
+                        agentName: message.payload.agentName || 'Ascuita',
+                        startedAt: FieldValue.serverTimestamp(),
+                        endedAt: null,
+                        messageCount: 0,
+                      });
+                    conversationId = convRef.id;
+                  }
                 } catch (error) {
                   request.log.warn(
                     { err: error },
@@ -615,7 +634,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               .map(p => ((p as Record<string, unknown>).text as string) || '')
               .filter(Boolean)
               .join('');
-            if (text) {
+            if (text && message.payload.persist !== false) {
               void saveMessage('user', text);
             }
             return;

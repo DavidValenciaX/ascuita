@@ -244,3 +244,25 @@ export const useAuthGate = create<{
   setTrialExpired: expired => set({ trialExpired: expired }),
   setIntroPlaying: playing => set({ introPlaying: playing }),
 }));
+
+export type ResumeConversationMessage = {
+  role: 'user' | 'assistant';
+  text: string;
+};
+
+export type ResumeConversationState = {
+  conversationId: string;
+  agentId: string;
+  agentName: string;
+  messages: ResumeConversationMessage[];
+};
+
+export const useConversationResume = create<{
+  pending: ResumeConversationState | null;
+  setPending: (conversation: ResumeConversationState) => void;
+  clearPending: () => void;
+}>(set => ({
+  pending: null,
+  setPending: conversation => set({ pending: conversation }),
+  clearPending: () => set({ pending: null }),
+}));
