@@ -5,6 +5,7 @@
 import Modal from './Modal';
 import { useUI, useUser } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
+import { saveUserProfile } from '@/hooks/useUserProfile';
 
 export default function UserSettings() {
   const { name, info, setName, setInfo } = useUser();
@@ -23,8 +24,9 @@ export default function UserSettings() {
         </p>
 
         <form
-          onSubmit={e => {
+          onSubmit={async e => {
             e.preventDefault();
+            await saveUserProfile({ name, info });
             setShowUserConfig(false);
             updateClient();
           }}
@@ -53,7 +55,7 @@ export default function UserSettings() {
             />
           </div>
 
-          <button type="button" className="button primary">{t('letsGo')}</button>
+          <button type="submit" className="button primary">{t('letsGo')}</button>
         </form>
       </div>
     </Modal>

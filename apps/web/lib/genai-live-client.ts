@@ -150,7 +150,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   public async connect(
     config: LiveConnectConfig,
-    authToken?: string | null
+    authToken?: string | null,
+    agent?: { id: string; name: string }
   ): Promise<boolean> {
     if (this._status === 'connected' || this._status === 'connecting') {
       return false;
@@ -172,6 +173,8 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
               config,
               model: this.model,
               authToken,
+              agentId: agent?.id,
+              agentName: agent?.name,
             },
           });
           resolve(true);

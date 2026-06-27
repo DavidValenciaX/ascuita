@@ -12,7 +12,9 @@ import { appendAbuseLog } from '../lib/abuse-log.js';
 import {
   isFirebaseAdminConfigured,
   verifyFirebaseIdToken,
+  getAdminDb,
 } from '../lib/firebase-admin.js';
+import { FieldValue } from 'firebase-admin/firestore';
 
 type ClientMessage =
   | {
@@ -21,6 +23,8 @@ type ClientMessage =
         config: LiveConnectConfig;
         model?: string;
         authToken?: string | null;
+        agentId?: string;
+        agentName?: string;
       };
     }
   | {
@@ -82,6 +86,27 @@ function getErrorMessage(error: unknown) {
   }
 
   return String(error);
+}
+
+function extractTextFromServerMessage(serverMessage: unknown): string {
+  if (!serverMessage || typeof serverMessage !== 'object') return '';
+  const msg = serverMessage as Record<string, unknown>;
+  const serverContent = msg.serverContent as Record<string, unknown> | undefined;
+  if (!serverContent) return '';
+  const modelTurn = serverContent.modelTurn as Record<string, unknown> | undefined;
+  const parts = modelTurn?.parts as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(parts)) return '';
+  return parts
+    .map(part => (typeof part.text === 'string' ? part.text : ''))
+    .filter(Boolean)
+    .join('');
+}
+
+function isServerTurnComplete(serverMessage: unknown): boolean {
+  if (!serverMessage || typeof serverMessage !== 'object') return false;
+  const msg = serverMessage as Record<string, unknown>;
+  const serverContent = msg.serverContent as Record<string, unknown> | undefined;
+  return serverContent?.turnComplete === true;
 }
 
 function getClientKey(ip: string) {
@@ -304,6 +329,11 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       let session: Session | undefined;
       let currentModel = defaultModel;
       let freeTrialTimer: ReturnType<typeof setTimeout> | undefined;
+      let conversationUid: string | null = null;
+      let conversationId: string | null = null;
+      let pendingAssistantText = '';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let firestoreDb: any = null;
 
       const send = (message: Record<string, unknown>) => {
         if (socket.readyState === socket.OPEN) {
@@ -322,6 +352,37 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           request.log.warn({ err: error }, 'Error while closing Gemini session');
         } finally {
           session = undefined;
+          pendingAssistantText = '';
+        }
+      };
+
+      const endConversation = async () => {
+        if (!firestoreDb || !conversationUid || !conversationId) return;
+        try {
+          await firestoreDb
+            .doc(`users/${conversationUid}/conversations/${conversationId}`)
+            .set({ endedAt: FieldValue.serverTimestamp() }, { merge: true });
+        } catch (error) {
+          request.log.warn({ err: error }, 'Error ending conversation in Firestore');
+        }
+      };
+
+      const saveMessage = async (role: 'user' | 'assistant', text: string) => {
+        if (!firestoreDb || !conversationUid || !conversationId || !text.trim()) return;
+        try {
+          const messagesRef = firestoreDb.collection(
+            `users/${conversationUid}/conversations/${conversationId}/messages`
+          );
+          await messagesRef.add({
+            role,
+            text,
+            timestamp: FieldValue.serverTimestamp(),
+          });
+          await firestoreDb
+            .doc(`users/${conversationUid}/conversations/${conversationId}`)
+            .set({ messageCount: FieldValue.increment(1) }, { merge: true });
+        } catch (error) {
+          request.log.warn({ err: error }, 'Error saving message to Firestore');
         }
       };
 
@@ -426,6 +487,28 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 closeSession();
                 socket.close(1008, 'Trial expired');
               }, config.freeTrialDurationMs);
+            } else {
+              conversationUid = decodedToken.uid;
+              firestoreDb = getAdminDb();
+              if (firestoreDb) {
+                try {
+                  const convRef = await firestoreDb
+                    .collection(`users/${conversationUid}/conversations`)
+                    .add({
+                      agentId: message.payload.agentId || 'default-agent',
+                      agentName: message.payload.agentName || 'Ascuita',
+                      startedAt: FieldValue.serverTimestamp(),
+                      endedAt: null,
+                      messageCount: 0,
+                    });
+                  conversationId = convRef.id;
+                } catch (error) {
+                  request.log.warn(
+                    { err: error },
+                    'Error creating conversation document in Firestore'
+                  );
+                }
+              }
             }
           } catch (error) {
             request.log.warn(
@@ -456,6 +539,17 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                     type: 'server_message',
                     payload: serverMessage,
                   });
+                  const text = extractTextFromServerMessage(serverMessage);
+                  if (text) {
+                    pendingAssistantText += text;
+                  }
+                  if (isServerTurnComplete(serverMessage)) {
+                    const completedReply = pendingAssistantText.trim();
+                    pendingAssistantText = '';
+                    if (completedReply) {
+                      void saveMessage('assistant', completedReply);
+                    }
+                  }
                 },
                 onerror: error => {
                   request.log.error(
@@ -514,6 +608,16 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 : [message.payload.parts],
               turnComplete: message.payload.turnComplete ?? true,
             });
+            const parts = Array.isArray(message.payload.parts)
+              ? message.payload.parts
+              : [message.payload.parts];
+            const text = parts
+              .map(p => ((p as Record<string, unknown>).text as string) || '')
+              .filter(Boolean)
+              .join('');
+            if (text) {
+              void saveMessage('user', text);
+            }
             return;
           }
 
@@ -581,6 +685,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           wsActiveConnections.delete(clientKey);
         }
         closeSession();
+        endConversation();
         request.log.info('WebSocket client disconnected from /live');
       });
 

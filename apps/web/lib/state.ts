@@ -114,20 +114,28 @@ export const useAvatarRender = create<{
  * User
  */
 export type User = {
+  uid?: string;
   name?: string;
   info?: string;
+  photoURL?: string;
 };
 
 export const useUser = create<
   {
     setName: (name: string) => void;
     setInfo: (info: string) => void;
+    setUid: (uid: string) => void;
+    setPhotoURL: (url: string) => void;
   } & User
 >(set => ({
+  uid: '',
   name: '',
   info: '',
+  photoURL: '',
   setName: name => set({ name }),
   setInfo: info => set({ info }),
+  setUid: uid => set({ uid }),
+  setPhotoURL: url => set({ photoURL: url }),
 }));
 
 /**

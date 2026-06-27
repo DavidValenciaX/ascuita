@@ -26,8 +26,9 @@ import Header from '@/components/Header';
 import SettingsPanel from '@/components/SettingsPanel';
 import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
 import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
-import { useAuthGate, useUI } from '@/lib/state';
+import { useAuthGate, useUI, useUser } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect } from 'react';
 import { auth, onAuthStateChanged } from './firebase';
 
@@ -39,7 +40,10 @@ function App() {
   const { showSettingsPanel } = useUI();
   const authToken = useAuthGate(state => state.authToken);
   const setAuthState = useAuthGate(state => state.setAuthState);
+  const setUid = useUser(state => state.setUid);
+  const setPhotoURL = useUser(state => state.setPhotoURL);
   useIdleCursor();
+  useUserProfile();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async user => {
@@ -50,12 +54,19 @@ function App() {
         isAuthenticated: Boolean(user),
         userName: user?.displayName || '',
       });
+      if (user) {
+        setUid(user.uid);
+        setPhotoURL(user.photoURL || '');
+      } else {
+        setUid('');
+        setPhotoURL('');
+      }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [setAuthState]);
+  }, [setAuthState, setUid, setPhotoURL]);
   
   return (
     <div className="App">

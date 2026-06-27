@@ -25,6 +25,7 @@ import {
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { useLanguage } from '@/lib/i18n';
 import { createSystemInstructions } from '@/lib/prompts';
+import { saveUserProfile } from '@/hooks/useUserProfile';
 
 type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
@@ -176,6 +177,9 @@ function formatValue(value: number, unit = '') {
 function ProfileTab() {
   const { name, info, setName, setInfo } = useUser();
   const { t } = useTranslation();
+  const persistProfile = () => {
+    void saveUserProfile({ name, info });
+  };
 
   return (
     <div className="settingsPanel__tab">
@@ -188,6 +192,7 @@ function ProfileTab() {
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
+          onBlur={persistProfile}
           placeholder={t('namePlaceholder')}
         />
       </div>
@@ -197,6 +202,7 @@ function ProfileTab() {
           rows={4}
           value={info}
           onChange={e => setInfo(e.target.value)}
+          onBlur={persistProfile}
           placeholder={t('infoPlaceholder')}
         />
       </div>

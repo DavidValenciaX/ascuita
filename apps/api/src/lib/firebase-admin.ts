@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 function getPrivateKey() {
   return process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
@@ -46,4 +47,12 @@ export async function verifyFirebaseIdToken(idToken?: string | null) {
   }
 
   return getAuth(app).verifyIdToken(idToken);
+}
+
+export function getAdminDb() {
+  const app = getFirebaseAdminApp();
+  if (!app) {
+    return null;
+  }
+  return getFirestore(app);
 }
