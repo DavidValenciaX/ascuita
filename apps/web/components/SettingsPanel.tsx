@@ -319,6 +319,7 @@ function AgentsTab() {
             >
               <button
                 type="button"
+                style={{ backgroundColor: color }}
                 aria-label={`${t('selectColor')} ${color}`}
                 onClick={() => updateEditingAgent({ bodyColor: color })}
               />

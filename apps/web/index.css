@@ -1078,39 +1078,6 @@ input[type='range'] {
   cursor: pointer;
 }
 
-/* Agent color swatches */
-.colorPicker .color-swatch-0 button {
-  background-color: #4285f4;
-}
-
-.colorPicker .color-swatch-1 button {
-  background-color: #ea4335;
-}
-
-.colorPicker .color-swatch-2 button {
-  background-color: #fbbc04;
-}
-
-.colorPicker .color-swatch-3 button {
-  background-color: #34a853;
-}
-
-.colorPicker .color-swatch-4 button {
-  background-color: #fa7b17;
-}
-
-.colorPicker .color-swatch-5 button {
-  background-color: #f538a0;
-}
-
-.colorPicker .color-swatch-6 button {
-  background-color: #a142f4;
-}
-
-.colorPicker .color-swatch-7 button {
-  background-color: #24c1e0;
-}
-
 /* edit agent */
 
 .editAgent {
