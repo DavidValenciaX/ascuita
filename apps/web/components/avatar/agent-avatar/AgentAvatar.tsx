@@ -78,7 +78,7 @@ export default function AgentAvatar() {
       },
       tools: [
         { googleSearch: {} },
-        {
+        ...(current.isPreset ? [] : [{
           functionDeclarations: [
             {
               name: 'set_agent_name',
@@ -127,7 +127,7 @@ export default function AgentAvatar() {
               },
             },
           ],
-        },
+        }]),
       ],
     });
   }, [setConfig, user, current, language]);
