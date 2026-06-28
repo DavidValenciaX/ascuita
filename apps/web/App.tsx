@@ -24,6 +24,7 @@ import ErrorScreen from '@/components/avatar/ErrorScreen';
 import AgentAvatar from '@/components/avatar/agent-avatar/AgentAvatar';
 import Header from '@/components/Header';
 import SettingsPanel from '@/components/SettingsPanel';
+import Sidebar from '@/components/Sidebar';
 import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
 import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
 import { useAuthGate, useUI, useUser } from '@/lib/state';
@@ -74,6 +75,7 @@ function App() {
         <ErrorScreen />
         <AuthGateModal />
         <Header />
+        <Sidebar />
 
         {showSettingsPanel && <SettingsPanel />}
         <div className="streaming-console">

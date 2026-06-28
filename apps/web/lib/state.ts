@@ -197,6 +197,9 @@ export const useUI = create<{
   setShowSettingsPanel: (show: boolean) => void;
   showSpeechAnimationConfig: boolean;
   setShowSpeechAnimationConfig: (show: boolean) => void;
+  showSidebar: boolean;
+  setShowSidebar: (show: boolean) => void;
+  toggleSidebar: () => void;
   sceneTheme: SceneTheme;
   setSceneTheme: (theme: SceneTheme) => void;
 }>(set => ({
@@ -207,6 +210,9 @@ export const useUI = create<{
   showSpeechAnimationConfig: false,
   setShowSpeechAnimationConfig: (show: boolean) =>
     set({ showSpeechAnimationConfig: show }),
+  showSidebar: true,
+  setShowSidebar: (show: boolean) => set({ showSidebar: show }),
+  toggleSidebar: () => set(state => ({ showSidebar: !state.showSidebar })),
   sceneTheme: 'dark',
   setSceneTheme: (theme: SceneTheme) => set({ sceneTheme: theme }),
 }));

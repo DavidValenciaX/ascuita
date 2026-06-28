@@ -8,7 +8,7 @@ import { useAgent, useUI } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
 
 export default function Header() {
-  const { setShowSettingsPanel } = useUI();
+  const { setShowSettingsPanel, toggleSidebar } = useUI();
   const { current } = useAgent();
   const { client } = useLiveAPIContext();
   const { t } = useTranslation();
@@ -17,6 +17,15 @@ export default function Header() {
     <header>
       <div className="roomInfo">
         <div className="roomName">
+          <button
+            type="button"
+            className="sidebarToggleButton"
+            onClick={toggleSidebar}
+            title={t('toggleSidebar')}
+            aria-label={t('toggleSidebar')}
+          >
+            <span className="icon">menu</span>
+          </button>
           <h1>{current.name || t('defaultAgentName')}</h1>
         </div>
 
