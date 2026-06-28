@@ -1,0 +1,23 @@
+name: Deploy Firestore rules
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'firestore.rules'
+      - 'firebase.json'
+      - '.firebaserc'
+      - '.github/workflows/deploy-firestore-rules.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy_rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deploy Firestore rules
+        uses: firebase/firebase-action@v0
+        with:
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ASCUITA }}'
+          cmd: 'deploy --only firestore:rules'
