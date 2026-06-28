@@ -15,6 +15,7 @@ import type { Agent } from '@/lib/presets/agents';
 
 export async function saveUserAgent(agent: Agent) {
   if (!auth.currentUser) return;
+  if (!agent.name.trim() || !agent.personality.trim()) return;
 
   const uid = auth.currentUser.uid;
   const agentRef = doc(db, 'users', uid, 'agents', agent.id);

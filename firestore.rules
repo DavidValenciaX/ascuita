@@ -11,8 +11,19 @@ service cloud.firestore {
       // Agents subcollection
       match /agents/{agentId} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create: if request.auth != null && request.auth.uid == uid;
-        allow update, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.personality is string
+          && request.resource.data.personality.size() > 0;
+        allow update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.personality is string
+          && request.resource.data.personality.size() > 0;
+        allow delete: if request.auth != null && request.auth.uid == uid;
       }
 
       // Conversations subcollection

@@ -277,6 +277,7 @@ function AgentsTab() {
   const user = useUser();
   const { saveAgent: persistAgent, removeAgent: deleteAgentFromDb } = useUserAgents();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const originalAgentRef = useRef<Agent | null>(null);
 
   const editingAgent = editingId
@@ -299,6 +300,16 @@ function AgentsTab() {
 
   function saveAgent() {
     if (!editingAgent) return;
+
+    if (!editingAgent.name.trim()) {
+      setValidationError(t('agentNameRequired'));
+      return;
+    }
+    if (!editingAgent.personality.trim()) {
+      setValidationError(t('agentPersonalityRequired'));
+      return;
+    }
+    setValidationError(null);
 
     const isSameAgent = editingAgent.id === current.id;
     const original = originalAgentRef.current;
@@ -359,7 +370,10 @@ function AgentsTab() {
             type="text"
             placeholder={t('name')}
             value={editingAgent.name}
-            onChange={e => updateEditingAgent({ name: e.target.value })}
+            onChange={e => {
+              updateEditingAgent({ name: e.target.value });
+              setValidationError(null);
+            }}
             autoFocus
           />
         </div>
@@ -367,7 +381,10 @@ function AgentsTab() {
           {t('personality')}
           <textarea
             value={editingAgent.personality}
-            onChange={e => updateEditingAgent({ personality: e.target.value })}
+            onChange={e => {
+              updateEditingAgent({ personality: e.target.value });
+              setValidationError(null);
+            }}
             rows={7}
             placeholder={t('personalityPlaceholder')}
           />
@@ -403,6 +420,9 @@ function AgentsTab() {
             ))}
           </select>
         </div>
+        {validationError && (
+          <p className="settingsPanel__validationError">{validationError}</p>
+        )}
         <button
           type="button"
           className="button primary settingsPanel__saveAgentBtn"

@@ -25,6 +25,8 @@ export const translations: Translations = {
         noneYet: 'None yet.',
         newAgent: 'New agent',
         saveAgent: 'Save & select',
+        agentNameRequired: 'Please enter a name for the agent.',
+        agentPersonalityRequired: 'Please enter a personality description.',
         yourName: 'Your name',
         settings: 'Settings',
         // UserSettings
@@ -123,6 +125,8 @@ export const translations: Translations = {
         noneYet: 'Aún no hay ninguno.',
         newAgent: 'Nuevo agente',
         saveAgent: 'Guardar y seleccionar',
+        agentNameRequired: 'Por favor, ingresa un nombre para el agente.',
+        agentPersonalityRequired: 'Por favor, ingresa una descripción de personalidad.',
         yourName: 'Tu nombre',
         settings: 'Configuración',
         // UserSettings

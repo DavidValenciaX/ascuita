@@ -521,6 +521,21 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           closeSession();
           currentModel = message.payload.model || defaultModel;
 
+          const agentSnapshot = message.payload.agentSnapshot;
+          if (
+            agentSnapshot &&
+            (!agentSnapshot.name?.trim() || !agentSnapshot.personality?.trim())
+          ) {
+            send({
+              type: 'error',
+              payload: {
+                message:
+                  'AGENT_INVALID: Agent name and personality must not be empty.',
+              },
+            });
+            return;
+          }
+
           try {
             const decodedToken = await verifyFirebaseIdToken(
               message.payload.authToken
@@ -579,7 +594,6 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                   }
 
                   if (!conversationId) {
-                    const agentSnapshot = message.payload.agentSnapshot;
                     const convRef = await firestoreDb
                       .collection(`users/${conversationUid}/conversations`)
                       .add({
