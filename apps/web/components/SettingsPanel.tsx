@@ -248,13 +248,14 @@ function AgentsTab() {
       changeAgent(editingAgent);
     } else if (original && connected) {
       const voiceChanged = original.voice !== editingAgent.voice;
-      const nameOrPersonalityChanged =
+      const namePersonalityOrColorChanged =
         original.name !== editingAgent.name ||
-        original.personality !== editingAgent.personality;
+        original.personality !== editingAgent.personality ||
+        original.bodyColor !== editingAgent.bodyColor;
 
       if (voiceChanged) {
         disconnect();
-      } else if (nameOrPersonalityChanged) {
+      } else if (namePersonalityOrColorChanged) {
         const updatePrompt =
           language === 'es'
             ? `Actualización de tu configuración: ${createSystemInstructions(editingAgent, user, language)}\n\nNo saludes ni te presentes de nuevo. Simplemente continúa la conversación naturalmente con esta nueva información.`
