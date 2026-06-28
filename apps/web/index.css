@@ -254,6 +254,45 @@ header:hover .createButton {
   gap: 8px;
 }
 
+.headerAccountButton {
+  align-items: center;
+  background: rgba(24, 26, 27, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  display: inline-flex;
+  padding: 2px;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.headerAccountButton:hover {
+  border-color: rgba(128, 193, 255, 0.32);
+  background: rgba(31, 33, 35, 0.96);
+}
+
+.headerAccountButton__photo,
+.headerAccountButton__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.headerAccountButton__photo {
+  object-fit: cover;
+  background: var(--Neutral-20);
+}
+
+.headerAccountButton__icon {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--Neutral-80);
+  font-size: 28px;
+}
+
 .languageButton {
   height: 32px;
   min-width: auto;

@@ -4,14 +4,17 @@
 */
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { DEBUG_MODE } from '@/lib/constants';
-import { useAgent, useUI } from '@/lib/state';
+import { useAgent, useAuthGate, useUI, useUser } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
 
 export default function Header() {
   const { setShowSettingsPanel, toggleSidebar } = useUI();
   const { current } = useAgent();
+  const { isAuthenticated } = useAuthGate();
+  const { photoURL, authDisplayName, email } = useUser();
   const { client } = useLiveAPIContext();
   const { t } = useTranslation();
+  const accountLabel = authDisplayName || email || t('profileUnavailable');
 
   return (
     <header>
@@ -35,6 +38,24 @@ export default function Header() {
       </div>
 
       <div className="headerActions">
+        {isAuthenticated && (
+          <button
+            type="button"
+            className="headerAccountButton"
+            onClick={() => setShowSettingsPanel(true)}
+            title={t('settings')}
+          >
+            {photoURL ? (
+              <img
+                src={photoURL}
+                alt={accountLabel}
+                className="headerAccountButton__photo"
+              />
+            ) : (
+              <span className="icon headerAccountButton__icon">account_circle</span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           className="userSettingsButton"
