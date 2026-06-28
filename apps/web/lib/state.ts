@@ -156,6 +156,8 @@ export const useAgent = create<{
   setCurrent: (agent: Agent | string) => void;
   addAgent: (agent: Agent) => void;
   update: (agentId: string, adjustments: Partial<Agent>) => void;
+  setPersonalAgents: (agents: Agent[]) => void;
+  removeAgent: (agentId: string) => void;
 }>(set => ({
   current: Ascuita,
   availablePresets: [Ascuita],
@@ -181,6 +183,15 @@ export const useAgent = create<{
         a.id === agentId ? updatedAgent : a
       ),
       current: state.current.id === agentId ? updatedAgent : state.current,
+    }));
+  },
+  setPersonalAgents: (agents: Agent[]) => {
+    set({ availablePersonal: agents });
+  },
+  removeAgent: (agentId: string) => {
+    set(state => ({
+      availablePersonal: state.availablePersonal.filter(a => a.id !== agentId),
+      current: state.current.id === agentId ? Ascuita : state.current,
     }));
   },
 }));

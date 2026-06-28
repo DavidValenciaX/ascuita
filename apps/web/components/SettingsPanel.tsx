@@ -26,6 +26,7 @@ import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { useLanguage } from '@/lib/i18n';
 import { createSystemInstructions } from '@/lib/prompts';
 import { saveUserProfile } from '@/hooks/useUserProfile';
+import { useUserAgents } from '@/hooks/useUserAgents';
 
 type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
 
@@ -211,12 +212,13 @@ function ProfileTab() {
 }
 
 function AgentsTab() {
-  const { current, setCurrent, availablePresets, availablePersonal, addAgent } = useAgent();
+  const { current, setCurrent, availablePresets, availablePersonal, addAgent, removeAgent } = useAgent();
   const updateAgent = useAgent(state => state.update);
   const { disconnect, client, connected } = useLiveAPIContext();
   const { t } = useTranslation();
   const { language } = useLanguage();
   const user = useUser();
+  const { saveAgent: persistAgent, removeAgent: deleteAgentFromDb } = useUserAgents();
   const [editingId, setEditingId] = useState<string | null>(null);
   const originalAgentRef = useRef<Agent | null>(null);
 
@@ -263,6 +265,8 @@ function AgentsTab() {
         client.send({ text: updatePrompt }, true);
       }
     }
+
+    void persistAgent(editingAgent);
 
     originalAgentRef.current = null;
     setEditingId(null);
@@ -415,6 +419,18 @@ function AgentsTab() {
                   title={t('edit')}
                 >
                   <span className="icon">edit</span>
+                </button>
+                <button
+                  type="button"
+                  className="settingsPanel__agentEdit"
+                  onClick={() => {
+                    if (!window.confirm(t('deleteAgentConfirm'))) return;
+                    removeAgent(agent.id);
+                    void deleteAgentFromDb(agent.id);
+                  }}
+                  title={t('deleteAgent')}
+                >
+                  <span className="icon">delete</span>
                 </button>
               </li>
             ))}

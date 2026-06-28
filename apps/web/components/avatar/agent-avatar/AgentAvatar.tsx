@@ -12,6 +12,7 @@ import { createSystemInstructions } from '@/lib/prompts';
 import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 import { AGENT_COLORS } from '@/lib/presets/agents';
+import { saveUserAgent } from '@/hooks/useUserAgents';
 
 function buildResumePrompt(
   language: 'es' | 'en',
@@ -175,6 +176,7 @@ export default function AgentAvatar() {
           const newName = pendingNameRef.current;
           if (newName) {
             updateAgent(current.id, { name: newName });
+            if (!current.isPreset) void saveUserAgent({ ...current, name: newName });
             pendingNameRef.current = null;
             responses.push({
               id: fc.id as string,
@@ -200,6 +202,7 @@ export default function AgentAvatar() {
           const newPersonality = pendingPersonalityRef.current;
           if (newPersonality) {
             updateAgent(current.id, { personality: newPersonality });
+            if (!current.isPreset) void saveUserAgent({ ...current, personality: newPersonality });
             pendingPersonalityRef.current = null;
             responses.push({
               id: fc.id as string,
@@ -225,6 +228,7 @@ export default function AgentAvatar() {
           const newColor = pendingColorRef.current;
           if (newColor) {
             updateAgent(current.id, { bodyColor: newColor });
+            if (!current.isPreset) void saveUserAgent({ ...current, bodyColor: newColor });
             pendingColorRef.current = null;
             responses.push({
               id: fc.id as string,

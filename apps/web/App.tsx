@@ -30,6 +30,7 @@ import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
 import { useAuthGate, useUI, useUser } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUserAgents } from '@/hooks/useUserAgents';
 import { useEffect } from 'react';
 import { auth, onAuthStateChanged } from './firebase';
 
@@ -45,6 +46,7 @@ function App() {
   const setPhotoURL = useUser(state => state.setPhotoURL);
   useIdleCursor();
   useUserProfile();
+  useUserAgents();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async user => {
