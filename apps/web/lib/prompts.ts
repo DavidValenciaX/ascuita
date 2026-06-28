@@ -8,6 +8,7 @@ import { User } from './state';
 import { Language } from './i18n';
 
 export const createSystemInstructions = (agent: Agent, user: User, language: Language = 'en') => {
+  const effectiveUserName = user.name || user.authDisplayName || '';
   const nameIntro = agent.name
     ? (language === 'es'
       ? `Tu nombre es ${agent.name}`
@@ -43,7 +44,7 @@ export const createSystemInstructions = (agent: Agent, user: User, language: Lan
     : 'You have access to a Google Search tool. Use it whenever you need to search for up-to-date information on the internet to answer the user.';
 
   return `${nameIntro} and you are in a conversation with the user\
-${user.name ? ` (${user.name})` : ''}.
+${effectiveUserName ? ` (${effectiveUserName})` : ''}.
 
 ${avatarDesc}
 
@@ -58,7 +59,7 @@ ${searchTool}
 Your personality is described like this:
 ${agent.personality}\
 ${user.info
-    ? `\nHere is some information about ${user.name || 'the user'}:
+    ? `\nHere is some information about ${effectiveUserName || 'the user'}:
 ${user.info}
 
 Use this information to make your response more personal.`

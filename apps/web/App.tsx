@@ -29,7 +29,10 @@ import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
 import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
 import { useAuthGate, useUI, useUser } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
-import { useUserProfile } from '@/hooks/useUserProfile';
+import {
+  syncAuthenticatedUserProfile,
+  useUserProfile,
+} from '@/hooks/useUserProfile';
 import { useUserAgents } from '@/hooks/useUserAgents';
 import { useEffect } from 'react';
 import { auth, onAuthStateChanged } from './firebase';
@@ -44,6 +47,10 @@ function App() {
   const setAuthState = useAuthGate(state => state.setAuthState);
   const setUid = useUser(state => state.setUid);
   const setPhotoURL = useUser(state => state.setPhotoURL);
+  const setEmail = useUser(state => state.setEmail);
+  const setAuthDisplayName = useUser(state => state.setAuthDisplayName);
+  const setAuthProviders = useUser(state => state.setAuthProviders);
+  const setEmailVerified = useUser(state => state.setEmailVerified);
   useIdleCursor();
   useUserProfile();
   useUserAgents();
@@ -60,16 +67,41 @@ function App() {
       if (user) {
         setUid(user.uid);
         setPhotoURL(user.photoURL || '');
+        setEmail(user.email || '');
+        setAuthDisplayName(user.displayName || '');
+        setAuthProviders(
+          Array.from(
+            new Set(
+              user.providerData
+                .map(provider => provider?.providerId)
+                .filter((providerId): providerId is string => Boolean(providerId))
+            )
+          )
+        );
+        setEmailVerified(user.emailVerified);
+        void syncAuthenticatedUserProfile(user);
       } else {
         setUid('');
         setPhotoURL('');
+        setEmail('');
+        setAuthDisplayName('');
+        setAuthProviders([]);
+        setEmailVerified(false);
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [setAuthState, setUid, setPhotoURL]);
+  }, [
+    setAuthDisplayName,
+    setAuthProviders,
+    setAuthState,
+    setEmail,
+    setEmailVerified,
+    setPhotoURL,
+    setUid,
+  ]);
   
   return (
     <div className="App">

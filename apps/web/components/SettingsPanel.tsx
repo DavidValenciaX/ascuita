@@ -176,35 +176,92 @@ function formatValue(value: number, unit = '') {
 // ── Tab sub-components ──────────────────────────────────────────────────────
 
 function ProfileTab() {
-  const { name, info, setName, setInfo } = useUser();
+  const {
+    name,
+    info,
+    photoURL,
+    email,
+    authDisplayName,
+    authProviders,
+    emailVerified,
+    setName,
+    setInfo,
+  } = useUser();
   const { t } = useTranslation();
   const persistProfile = () => {
     void saveUserProfile({ name, info });
   };
+  const providerLabel =
+    (authProviders ?? []).length > 0
+      ? (authProviders ?? [])
+          .map(provider => {
+            if (provider === 'google.com') return t('profileProviderGoogle');
+            if (provider === 'password') return t('profileProviderPassword');
+            return provider;
+          })
+          .join(', ')
+      : t('profileUnavailable');
 
   return (
     <div className="settingsPanel__tab">
       <h2>{t('tabProfile')}</h2>
-      <p className="settingsPanel__desc">{t('userSettingsTitle')}</p>
-      <p className="settingsPanel__desc">{t('optionalInfo')}</p>
+      <p className="settingsPanel__desc">{t('profileAccountDesc')}</p>
+      <div className="settingsPanel__profileCard">
+        <div className="settingsPanel__profileHeader">
+          {photoURL ? (
+            <img
+              src={photoURL}
+              alt={authDisplayName || email || t('profilePhotoAlt')}
+              className="settingsPanel__profilePhoto"
+            />
+          ) : (
+            <div className="settingsPanel__profilePhoto settingsPanel__profilePhotoFallback">
+              <span className="icon">account_circle</span>
+            </div>
+          )}
+          <div className="settingsPanel__profileIdentity">
+            <strong>{authDisplayName || t('profileUnavailable')}</strong>
+            <span>{email || t('profileUnavailable')}</span>
+          </div>
+        </div>
+        <div className="settingsPanel__profileMeta">
+          <div className="settingsPanel__profileMetaItem">
+            <span>{t('profileProvider')}</span>
+            <strong>{providerLabel}</strong>
+          </div>
+          <div className="settingsPanel__profileMetaItem">
+            <span>{t('profileEmailStatus')}</span>
+            <strong>
+              {emailVerified
+                ? t('profileEmailVerified')
+                : t('profileEmailNotVerified')}
+            </strong>
+          </div>
+          <div className="settingsPanel__profileMetaItem">
+            <span>{t('profileFirebaseName')}</span>
+            <strong>{authDisplayName || t('profileUnavailable')}</strong>
+          </div>
+        </div>
+      </div>
+      <p className="settingsPanel__desc">{t('profileOptionalDesc')}</p>
       <div className="settingsPanel__field">
-        <p>{t('yourName')}</p>
+        <p>{t('profileNickname')}</p>
         <input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
           onBlur={persistProfile}
-          placeholder={t('namePlaceholder')}
+          placeholder={t('profileNicknamePlaceholder')}
         />
       </div>
       <div className="settingsPanel__field">
-        <p>{t('yourInfo')}</p>
+        <p>{t('profileAboutYou')}</p>
         <textarea
           rows={4}
           value={info}
           onChange={e => setInfo(e.target.value)}
           onBlur={persistProfile}
-          placeholder={t('infoPlaceholder')}
+          placeholder={t('profileAboutYouPlaceholder')}
         />
       </div>
     </div>

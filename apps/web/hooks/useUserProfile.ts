@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import type { User as FirebaseUser } from 'firebase/auth';
 import {
   doc,
   getDoc,
@@ -9,17 +10,27 @@ import {
 import { auth, db } from '../firebase';
 import { useAuthGate, useUser } from '@/lib/state';
 
+export type FirebaseAuthProfileSnapshot = {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  providers: string[];
+  emailVerified: boolean;
+  creationTime: string;
+  lastSignInTime: string;
+};
+
 export type UserProfileUpdates = {
   name?: string;
   info?: string;
 };
 
-export async function saveUserProfile(updates: UserProfileUpdates) {
-  if (!auth.currentUser) return;
-
-  const uid = auth.currentUser.uid;
+async function saveUserDocument(
+  uid: string,
+  updates: Record<string, unknown>
+) {
   const userDocRef = doc(db, 'users', uid);
-
   const payload: Record<string, unknown> = {
     ...updates,
     updatedAt: serverTimestamp(),
@@ -33,9 +44,51 @@ export async function saveUserProfile(updates: UserProfileUpdates) {
   await setDoc(userDocRef, payload, { merge: true });
 }
 
+function buildFirebaseAuthProfile(user: FirebaseUser): FirebaseAuthProfileSnapshot {
+  const providers = Array.from(
+    new Set(
+      user.providerData
+        .map(provider => provider?.providerId)
+        .filter((providerId): providerId is string => Boolean(providerId))
+    )
+  );
+
+  return {
+    uid: user.uid,
+    displayName: user.displayName || '',
+    email: user.email || '',
+    photoURL: user.photoURL || '',
+    providers,
+    emailVerified: user.emailVerified,
+    creationTime: user.metadata.creationTime || '',
+    lastSignInTime: user.metadata.lastSignInTime || '',
+  };
+}
+
+export async function saveUserProfile(updates: UserProfileUpdates) {
+  if (!auth.currentUser) return;
+
+  await saveUserDocument(auth.currentUser.uid, updates);
+}
+
+export async function syncAuthenticatedUserProfile(user: FirebaseUser) {
+  const authProfile = buildFirebaseAuthProfile(user);
+  await saveUserDocument(user.uid, { authProfile });
+}
+
 export function useUserProfile() {
   const { isAuthenticated, authReady } = useAuthGate();
-  const { name, info, setName, setInfo } = useUser();
+  const {
+    name,
+    info,
+    setName,
+    setInfo,
+    setPhotoURL,
+    setEmail,
+    setAuthDisplayName,
+    setAuthProviders,
+    setEmailVerified,
+  } = useUser();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -47,6 +100,11 @@ export function useUserProfile() {
     if (!authReady || !isAuthenticated || !auth.currentUser) {
       setName('');
       setInfo('');
+      setPhotoURL('');
+      setEmail('');
+      setAuthDisplayName('');
+      setAuthProviders([]);
+      setEmailVerified(false);
       return;
     }
 
@@ -57,10 +115,31 @@ export function useUserProfile() {
       userDocRef,
       snapshot => {
         const data = snapshot.data();
+        const authProfile = data?.authProfile as
+          | Partial<FirebaseAuthProfileSnapshot>
+          | undefined;
         if (data) {
           setName(data.name || '');
           setInfo(data.info || '');
+        } else {
+          setName('');
+          setInfo('');
         }
+        setPhotoURL(authProfile?.photoURL || auth.currentUser?.photoURL || '');
+        setEmail(authProfile?.email || auth.currentUser?.email || '');
+        setAuthDisplayName(
+          authProfile?.displayName || auth.currentUser?.displayName || ''
+        );
+        setAuthProviders(
+          authProfile?.providers ||
+            auth.currentUser?.providerData
+              .map(provider => provider?.providerId)
+              .filter((providerId): providerId is string => Boolean(providerId)) ||
+            []
+        );
+        setEmailVerified(
+          authProfile?.emailVerified ?? auth.currentUser?.emailVerified ?? false
+        );
       },
       error => {
         console.error('Error listening to user profile:', error);
@@ -73,7 +152,17 @@ export function useUserProfile() {
       unsubscribe();
       unsubscribeRef.current = null;
     };
-  }, [authReady, isAuthenticated, setName, setInfo]);
+  }, [
+    authReady,
+    isAuthenticated,
+    setAuthDisplayName,
+    setAuthProviders,
+    setEmail,
+    setEmailVerified,
+    setInfo,
+    setName,
+    setPhotoURL,
+  ]);
 
   const saveProfile = useCallback(
     async (updates: UserProfileUpdates) => {

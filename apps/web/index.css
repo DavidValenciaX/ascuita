@@ -1477,6 +1477,90 @@ input[type='range'] {
   gap: 6px;
 }
 
+.settingsPanel__profileCard {
+  background: var(--Neutral-15);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.settingsPanel__profileHeader {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.settingsPanel__profilePhoto {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--Neutral-20);
+}
+
+.settingsPanel__profilePhotoFallback {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  color: var(--Neutral-80);
+}
+
+.settingsPanel__profilePhotoFallback .icon {
+  font-size: 34px;
+}
+
+.settingsPanel__profileIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settingsPanel__profileIdentity strong,
+.settingsPanel__profileIdentity span {
+  overflow-wrap: anywhere;
+}
+
+.settingsPanel__profileIdentity strong {
+  color: white;
+  font-size: 16px;
+}
+
+.settingsPanel__profileIdentity span {
+  color: var(--Neutral-80);
+  font-size: 14px;
+}
+
+.settingsPanel__profileMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.settingsPanel__profileMetaItem {
+  background: var(--Neutral-20);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+}
+
+.settingsPanel__profileMetaItem span {
+  color: var(--Neutral-60);
+  font-size: 12px;
+}
+
+.settingsPanel__profileMetaItem strong {
+  color: var(--Neutral-90);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
 .settingsPanel__field p {
   color: var(--Neutral-80);
   font-size: 14px;

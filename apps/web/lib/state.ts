@@ -118,6 +118,10 @@ export type User = {
   name?: string;
   info?: string;
   photoURL?: string;
+  email?: string;
+  authDisplayName?: string;
+  authProviders?: string[];
+  emailVerified?: boolean;
 };
 
 export const useUser = create<
@@ -126,16 +130,28 @@ export const useUser = create<
     setInfo: (info: string) => void;
     setUid: (uid: string) => void;
     setPhotoURL: (url: string) => void;
+    setEmail: (email: string) => void;
+    setAuthDisplayName: (name: string) => void;
+    setAuthProviders: (providers: string[]) => void;
+    setEmailVerified: (verified: boolean) => void;
   } & User
 >(set => ({
   uid: '',
   name: '',
   info: '',
   photoURL: '',
+  email: '',
+  authDisplayName: '',
+  authProviders: [],
+  emailVerified: false,
   setName: name => set({ name }),
   setInfo: info => set({ info }),
   setUid: uid => set({ uid }),
   setPhotoURL: url => set({ photoURL: url }),
+  setEmail: email => set({ email }),
+  setAuthDisplayName: authDisplayName => set({ authDisplayName }),
+  setAuthProviders: authProviders => set({ authProviders }),
+  setEmailVerified: emailVerified => set({ emailVerified }),
 }));
 
 /**
