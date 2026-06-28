@@ -1,28 +1,35 @@
 # Ascuita
 
-Ascuita es una aplicación web para crear, probar y conversar con personajes de IA en tiempo real usando Gemini Live API. El proyecto parte del código original publicado por Google, pero ahora incluye cambios importantes en identidad, animación del personaje, configuración, experiencia de usuario y soporte multilenguaje.
+Ascuita es una aplicación web para crear, probar y conversar con personajes de IA en tiempo real usando Gemini Live API. El proyecto parte del código original publicado por Google, pero ahora incluye cambios importantes en identidad, animación del personaje, autenticación, persistencia de conversaciones, seguridad, experiencia de usuario y soporte multilenguaje.
 
 Actualmente el repositorio usa una arquitectura `monorepo`:
 
-* `apps/web`: frontend Vite + React desplegado en Firebase Hosting.
-* `apps/api`: backend Node + Fastify + WebSocket desplegado en una VPS y encargado de hablar con Gemini.
+* `apps/web`: frontend Vite + React + Zustand desplegado en Firebase Hosting.
+* `apps/api`: backend Node + Fastify + WebSocket desplegado en una VPS y encargado de hablar con Gemini Live API de forma segura.
 
 ## Características
 
 * **Personaje 3D con Three.js**: el avatar ya no depende de bocas SVG. El cuerpo, ojos, brillo, movimiento y orientación se renderizan como una escena 3D.
 * **Boca procedural sincronizada con audio**: el lip sync usa análisis de audio y visemas inspirados en Adobe Character Animator; la boca se dibuja dinámicamente sobre una textura de canvas aplicada al personaje 3D.
 * **Agentes personalizables**: puedes elegir presets, crear agentes propios y ajustar nombre, personalidad, voz y color.
+* **Autenticación con Google (Firebase Auth)**: los usuarios pueden iniciar sesión con su cuenta de Google. El backend verifica los tokens de Firebase Admin SDK.
+* **Trial gratuito para invitados**: los usuarios no autenticados pueden probar la aplicación durante un tiempo limitado (por defecto 60 segundos) antes de necesitar iniciar sesión.
+* **Persistencia de conversaciones (Firestore)**: las conversaciones y mensajes se guardan en Firestore. Los usuarios pueden ver su historial y retomar conversaciones anteriores.
 * **Soporte en español e inglés**: la interfaz cambia de idioma según el navegador y permite alternar idioma desde la configuración.
 * **Panel de configuración de animación**: incluye controles para ajustar sensibilidad, suavizado y comportamiento de la boca.
+* **Temas claro/oscuro**: la escena 3D puede alternar entre tema oscuro y claro.
 * **Gemini Live API securizada**: el navegador ya no usa la API key directamente; el backend actúa como proxy seguro hacia Gemini Live.
+* **Seguridad y rate limiting**: el backend implementa rate limiting HTTP y WebSocket, límites de conexiones concurrentes por IP, límites de tamaño de payload, límites de bytes de audio por ventana de tiempo, bloqueo temporal de IPs abusivas, headers de seguridad y logs de abuso con retención configurable.
+* **Endpoint de salud**: el backend expone `GET /health` para monitoreo.
 
 ## Requisitos
 
 * Node.js `>=20.0.0`.
 * Una API key de Google Gemini.
 * Acceso a un modelo compatible con Gemini Live API.
+* Un proyecto de Firebase con Authentication (Google Sign-In) y Firestore habilitados.
 
-La versión mínima de Node se declara en `package.json`. Aunque Vite puede funcionar con Node 18, la versión instalada de `@google/genai` exige Node 20 o superior.
+La versión mínima de Node se declara en `package.json`. Aunque Vite puede funcionar con Node 18, la versión instalada de `@google/genai` exige Node 20 o superior. Los workflows de CI usan Node 22.
 
 ## Configuración Local
 
@@ -34,7 +41,7 @@ npm install
 
 ### 2. Crear variables del backend
 
-Crea `apps/api/.env` con este contenido:
+Crea `apps/api/.env` con este contenido (consulta `apps/api/.env.example` para la lista completa):
 
 ```env
 HOST=127.0.0.1
@@ -43,7 +50,30 @@ LOG_LEVEL=info
 CORS_ORIGIN=http://localhost:5173
 GEMINI_API_KEY=tu_clave_real
 GEMINI_MODEL=gemini-3.1-flash-live-preview
+
+# Firebase Admin SDK (necesario para Auth y Firestore en el backend)
+FIREBASE_PROJECT_ID=tu_project_id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@tu-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\ntu_clave\n-----END PRIVATE KEY-----\n"
+
+# Seguridad y rate limiting (opcional, tienen valores por defecto)
+SECURITY_LOG_DIR=logs/security
+SECURITY_LOG_RETENTION_DAYS=3
+FREE_TRIAL_DURATION_MS=60000
+HTTP_RATE_LIMIT_WINDOW_MS=60000
+HTTP_RATE_LIMIT_MAX_REQUESTS=300
+WS_CONNECT_WINDOW_MS=300000
+WS_MAX_CONNECT_ATTEMPTS_PER_IP=20
+WS_MAX_CONCURRENT_CONNECTIONS_PER_IP=3
+WS_MESSAGE_WINDOW_MS=60000
+WS_MAX_MESSAGES_PER_WINDOW=2400
+WS_MAX_PAYLOAD_BYTES=262144
+WS_AUDIO_BYTE_WINDOW_MS=60000
+WS_MAX_AUDIO_BYTES_PER_WINDOW=7500000
+WS_TEMPORARY_BLOCK_DURATION_MS=900000
 ```
+
+`CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173` y el dominio de producción.
 
 ### 3. Crear variables del frontend
 
@@ -55,6 +85,8 @@ VITE_GEMINI_MODEL=gemini-3.1-flash-live-preview
 VITE_DEBUG_MODE=true
 VITE_FIREBASE_CONFIG={"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."}
 ```
+
+`VITE_FIREBASE_CONFIG` debe contener el JSON de configuración del SDK de Firebase web (disponible en la consola de Firebase > Project Settings > Web App).
 
 ### 4. Arrancar backend y frontend a la vez
 
@@ -102,31 +134,54 @@ npm run build:web
 
 La arquitectura de despliegue actual es esta:
 
-* `apps/web` se despliega a Firebase Hosting.
-* `apps/api` se despliega a una VPS Ubuntu con `Nginx + pm2`.
+* `apps/web` se despliega a Firebase Hosting mediante GitHub Actions.
+* `apps/api` se despliega a una VPS Ubuntu con `Nginx + pm2` mediante GitHub Actions.
 * `Nginx` expone HTTPS y reenvía tráfico WebSocket al backend Node.
+* Las reglas de Firestore se despliegan con un workflow dedicado.
 
 ### Frontend en Firebase
 
-Variables esperadas por el workflow de frontend:
+Variables esperadas por el workflow de frontend (configuradas como variables en GitHub):
 
 * `VITE_FIREBASE_CONFIG`
 * `VITE_API_BASE_URL`
 * `VITE_GEMINI_MODEL`
 * `VITE_DEBUG_MODE`
 
+Secrets requeridos por el workflow:
+
+* `FIREBASE_SERVICE_ACCOUNT_ASCUITA`: clave de la cuenta de servicio de Firebase.
+
 ### Backend en VPS
+
+Secrets requeridos por el workflow de backend en GitHub:
+
+* `VPS_HOST`: IP o dominio de la VPS.
+* `VPS_USER`: usuario SSH (típicamente `ubuntu`).
+* `VPS_SSH_KEY`: clave privada SSH.
+* `VPS_PORT`: puerto SSH.
 
 Variables esperadas en la VPS para `apps/api/.env`:
 
-* `HOST`
-* `PORT`
-* `LOG_LEVEL`
-* `CORS_ORIGIN`
-* `GEMINI_API_KEY`
-* `GEMINI_MODEL`
+* `HOST`, `PORT`, `LOG_LEVEL`, `CORS_ORIGIN`
+* `GEMINI_API_KEY`, `GEMINI_MODEL`
+* `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+* Variables de seguridad y rate limiting (opcionales, con valores por defecto)
 
-Importante: `GEMINI_API_KEY` solo debe existir en el backend y nunca en el build del frontend.
+El backend se gestiona con PM2 usando `apps/api/ecosystem.config.cjs`, que define el proceso `ascuita-api` en modo fork.
+
+### Reglas de Firestore
+
+El workflow `deploy-firestore-rules.yml` despliega las reglas definidas en `firestore.rules` cada vez que cambian. Las reglas permiten que cada usuario solo lea y escriba sus propios datos (agentes, conversaciones y mensajes) bajo `users/{uid}/...`.
+
+Importante: `GEMINI_API_KEY` y las credenciales de Firebase Admin solo deben existir en el backend y nunca en el build del frontend.
+
+## Stack Tecnológico
+
+* **Frontend**: React 19, Vite, Three.js, Zustand, Firebase (Auth + Firestore).
+* **Backend**: Node.js, Fastify, WebSocket, `@google/genai`, Firebase Admin SDK.
+* **Despliegue**: Firebase Hosting (frontend), VPS Ubuntu + Nginx + PM2 (backend), GitHub Actions (CI/CD).
+* **Base de datos**: Cloud Firestore con reglas de seguridad por usuario.
 
 ## Licencia y Atribución
 
