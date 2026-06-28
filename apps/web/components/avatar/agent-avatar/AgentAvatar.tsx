@@ -11,6 +11,7 @@ import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createSystemInstructions } from '@/lib/prompts';
 import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
+import { AGENT_COLORS } from '@/lib/presets/agents';
 
 function buildResumePrompt(
   language: 'es' | 'en',
@@ -50,6 +51,7 @@ export default function AgentAvatar() {
   const greetedRef = useRef(false);
   const pendingNameRef = useRef<string | null>(null);
   const pendingPersonalityRef = useRef<string | null>(null);
+  const pendingColorRef = useRef<string | null>(null);
   const user = useUser();
   const { setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
@@ -126,6 +128,30 @@ export default function AgentAvatar() {
                 required: [],
               },
             },
+            {
+              name: 'set_agent_color',
+              description: 'Proposes a new avatar color for the agent. The color is not saved until the user confirms and confirm_agent_color is called.',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {
+                  color: {
+                    type: Type.STRING,
+                    description: 'The hex color value the user wants the agent avatar to be',
+                    enum: AGENT_COLORS,
+                  },
+                },
+                required: ['color'],
+              },
+            },
+            {
+              name: 'confirm_agent_color',
+              description: 'Confirms and permanently saves the proposed avatar color after the user has verbally agreed to the change.',
+              parameters: {
+                type: Type.OBJECT,
+                properties: {},
+                required: [],
+              },
+            },
           ],
         }]),
       ],
@@ -185,6 +211,31 @@ export default function AgentAvatar() {
               id: fc.id as string,
               name: fc.name,
               response: { result: { success: false, error: 'No pending personality to confirm' } },
+            });
+          }
+        } else if (fc.name === 'set_agent_color') {
+          const newColor = (fc.args as { color: string }).color;
+          pendingColorRef.current = newColor;
+          responses.push({
+            id: fc.id as string,
+            name: fc.name,
+            response: { result: { pending_confirmation: true, proposedColor: newColor } },
+          });
+        } else if (fc.name === 'confirm_agent_color') {
+          const newColor = pendingColorRef.current;
+          if (newColor) {
+            updateAgent(current.id, { bodyColor: newColor });
+            pendingColorRef.current = null;
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: true, color: newColor } },
+            });
+          } else {
+            responses.push({
+              id: fc.id as string,
+              name: fc.name,
+              response: { result: { success: false, error: 'No pending color to confirm' } },
             });
           }
         }
