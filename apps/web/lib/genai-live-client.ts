@@ -15,6 +15,7 @@ import EventEmitter from 'eventemitter3';
 import { API_BASE_URL, DEFAULT_LIVE_API_MODEL } from './constants';
 import { difference } from 'lodash';
 import { base64ToArrayBuffer } from './utils';
+import type { Agent } from './presets/agents';
 
 /**
  * Represents a single log entry in the system.
@@ -73,6 +74,7 @@ type OutboundMessage =
         authToken?: string | null;
         agentId?: string;
         agentName?: string;
+        agentSnapshot?: Agent;
         conversationId?: string;
       };
     }
@@ -155,7 +157,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   public async connect(
     config: LiveConnectConfig,
     authToken?: string | null,
-    agent?: { id: string; name: string },
+    agent?: Agent,
     conversationId?: string | null
   ): Promise<boolean> {
     if (this._status === 'connected' || this._status === 'connecting') {
@@ -180,6 +182,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
               authToken,
               agentId: agent?.id,
               agentName: agent?.name,
+              agentSnapshot: agent,
               conversationId: conversationId || undefined,
             },
           });

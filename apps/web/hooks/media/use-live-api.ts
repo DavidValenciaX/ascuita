@@ -159,10 +159,15 @@ export function useLiveApi({
     client.disconnect();
     setFatalError(null);
     setConnecting(true);
-    await client.connect(config, authToken, {
-      id: currentAgent.id,
-      name: currentAgent.name || 'Ascuita',
-    }, pendingResume?.conversationId);
+    await client.connect(
+      config,
+      authToken,
+      {
+        ...currentAgent,
+        name: currentAgent.name || 'Ascuita',
+      },
+      pendingResume?.conversationId
+    );
   }, [
     authToken,
     client,

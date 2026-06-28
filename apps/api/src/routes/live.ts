@@ -25,6 +25,14 @@ type ClientMessage =
         authToken?: string | null;
         agentId?: string;
         agentName?: string;
+        agentSnapshot?: {
+          id: string;
+          name: string;
+          personality: string;
+          bodyColor: string;
+          voice: string;
+          isPreset?: boolean;
+        };
         conversationId?: string;
       };
     }
@@ -540,11 +548,32 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                   }
 
                   if (!conversationId) {
+                    const agentSnapshot = message.payload.agentSnapshot;
                     const convRef = await firestoreDb
                       .collection(`users/${conversationUid}/conversations`)
                       .add({
-                        agentId: message.payload.agentId || 'default-agent',
-                        agentName: message.payload.agentName || 'Ascuita',
+                        agentId:
+                          agentSnapshot?.id ||
+                          message.payload.agentId ||
+                          'default-agent',
+                        agentName:
+                          agentSnapshot?.name ||
+                          message.payload.agentName ||
+                          'Ascuita',
+                        agentSnapshot: {
+                          id:
+                            agentSnapshot?.id ||
+                            message.payload.agentId ||
+                            'default-agent',
+                          name:
+                            agentSnapshot?.name ||
+                            message.payload.agentName ||
+                            'Ascuita',
+                          personality: agentSnapshot?.personality || '',
+                          bodyColor: agentSnapshot?.bodyColor || '#4285f4',
+                          voice: agentSnapshot?.voice || 'Aoede',
+                          isPreset: agentSnapshot?.isPreset === true,
+                        },
                         startedAt: FieldValue.serverTimestamp(),
                         endedAt: null,
                         messageCount: 0,

@@ -74,17 +74,24 @@ function Sidebar() {
     const conversation = conversations.find(conv => conv.id === conversationId);
     if (!conversation) return;
 
-    const resolvedAgent = [...availablePresets, ...availablePersonal].find(
-      agent => agent.id === conversation.agentId
-    );
-    if (resolvedAgent) {
-      setCurrent(resolvedAgent);
+    if (conversation.agentSnapshot) {
+      setCurrent(conversation.agentSnapshot);
+    } else {
+      const resolvedAgent = [...availablePresets, ...availablePersonal].find(
+        agent => agent.id === conversation.agentId
+      );
+      if (resolvedAgent) {
+        setCurrent(resolvedAgent);
+      }
     }
 
     setResumeConversation({
       conversationId: conversation.id,
-      agentId: conversation.agentId,
-      agentName: conversation.agentName || t('chatsAssistant'),
+      agentId: conversation.agentSnapshot?.id || conversation.agentId,
+      agentName:
+        conversation.agentSnapshot?.name ||
+        conversation.agentName ||
+        t('chatsAssistant'),
       messages: messages.map(message => ({
         role: message.role,
         text: message.text,

@@ -274,20 +274,22 @@ export default function AgentAvatar() {
       const agentName = current.name || 'Ascuita';
       greetedRef.current = true;
       setIntroPlaying(true);
-      if (pendingResume && pendingResume.messages.length > 0) {
-        void client.send(
-          {
-            text: buildResumePrompt(
-              language,
-              pendingResume.agentName || agentName,
-              pendingResume.messages
-            ),
-          },
-          true,
-          false
-        );
+      if (pendingResume) {
         clearPendingResume();
-        return;
+        if (pendingResume.messages.length > 0) {
+          void client.send(
+            {
+              text: buildResumePrompt(
+                language,
+                pendingResume.agentName || agentName,
+                pendingResume.messages
+              ),
+            },
+            true,
+            false
+          );
+          return;
+        }
       }
 
       void client.send(

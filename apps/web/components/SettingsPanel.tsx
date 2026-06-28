@@ -262,7 +262,7 @@ function AgentsTab() {
           language === 'es'
             ? `Actualización de tu configuración: ${createSystemInstructions(editingAgent, user, language)}\n\nNo saludes ni te presentes de nuevo. Simplemente continúa la conversación naturalmente con esta nueva información.`
             : `Configuration update: ${createSystemInstructions(editingAgent, user, language)}\n\nDo not greet or introduce yourself again. Simply continue the conversation naturally with this new information.`;
-        client.send({ text: updatePrompt }, true);
+        client.send({ text: updatePrompt }, true, false);
       }
     }
 
