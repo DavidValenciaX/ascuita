@@ -62,6 +62,8 @@ export default function AgentAvatar() {
   useEffect(() => {
     setConfig({
       responseModalities: [Modality.AUDIO],
+      inputAudioTranscription: {},
+      outputAudioTranscription: {},
       speechConfig: {
         voiceConfig: {
           prebuiltVoiceConfig: { voiceName: current.voice },
@@ -236,7 +238,8 @@ export default function AgentAvatar() {
             ? `Saluda al usuario de forma calida y natural. Presentate como ${agentName}, explica tu rol en una sola idea corta y termina con una pregunta sencilla para invitar a conversar.`
             : `Greet the user warmly and naturally. Introduce yourself as ${agentName}, explain your role in one short idea, and end with a simple question that invites conversation.`,
         },
-        true
+        true,
+        false
       );
     }, 1800);
 

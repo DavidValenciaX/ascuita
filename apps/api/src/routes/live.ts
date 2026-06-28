@@ -104,6 +104,22 @@ function extractTextFromServerMessage(serverMessage: unknown): string {
     .join('');
 }
 
+function extractTranscriptionFromServerMessage(
+  serverMessage: unknown,
+  key: 'inputTranscription' | 'outputTranscription'
+): { text: string; finished: boolean } {
+  if (!serverMessage || typeof serverMessage !== 'object') {
+    return { text: '', finished: false };
+  }
+  const msg = serverMessage as Record<string, unknown>;
+  const serverContent = msg.serverContent as Record<string, unknown> | undefined;
+  const transcription = serverContent?.[key] as Record<string, unknown> | undefined;
+  return {
+    text: typeof transcription?.text === 'string' ? transcription.text : '',
+    finished: transcription?.finished === true,
+  };
+}
+
 function isServerTurnComplete(serverMessage: unknown): boolean {
   if (!serverMessage || typeof serverMessage !== 'object') return false;
   const msg = serverMessage as Record<string, unknown>;
@@ -334,6 +350,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       let conversationUid: string | null = null;
       let conversationId: string | null = null;
       let pendingAssistantText = '';
+      let pendingAssistantTranscriptText = '';
+      let pendingUserTranscriptText = '';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let firestoreDb: any = null;
 
@@ -355,6 +373,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         } finally {
           session = undefined;
           pendingAssistantText = '';
+          pendingAssistantTranscriptText = '';
+          pendingUserTranscriptText = '';
         }
       };
 
@@ -370,7 +390,9 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       };
 
       const saveMessage = async (role: 'user' | 'assistant', text: string) => {
-        if (!firestoreDb || !conversationUid || !conversationId || !text.trim()) return;
+        if (!firestoreDb || !conversationUid || !conversationId || !text.trim()) {
+          return;
+        }
         try {
           const messagesRef = firestoreDb.collection(
             `users/${conversationUid}/conversations/${conversationId}/messages`
@@ -385,6 +407,14 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             .set({ messageCount: FieldValue.increment(1) }, { merge: true });
         } catch (error) {
           request.log.warn({ err: error }, 'Error saving message to Firestore');
+        }
+      };
+
+      const flushPendingUserTranscript = () => {
+        const completedUserTurn = pendingUserTranscriptText.trim();
+        pendingUserTranscriptText = '';
+        if (completedUserTurn) {
+          void saveMessage('user', completedUserTurn);
         }
       };
 
@@ -559,11 +589,45 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                     payload: serverMessage,
                   });
                   const text = extractTextFromServerMessage(serverMessage);
+                  const inputTranscription = extractTranscriptionFromServerMessage(
+                    serverMessage,
+                    'inputTranscription'
+                  );
+                  const outputTranscription = extractTranscriptionFromServerMessage(
+                    serverMessage,
+                    'outputTranscription'
+                  );
+                  if (inputTranscription.text) {
+                    pendingUserTranscriptText += inputTranscription.text;
+                  }
+                  if (inputTranscription.finished) {
+                    flushPendingUserTranscript();
+                  }
+                  if (
+                    pendingUserTranscriptText.trim() &&
+                    (outputTranscription.text || text || isServerTurnComplete(serverMessage))
+                  ) {
+                    flushPendingUserTranscript();
+                  }
                   if (text) {
                     pendingAssistantText += text;
                   }
+                  if (outputTranscription.text) {
+                    pendingAssistantTranscriptText += outputTranscription.text;
+                  }
+                  if (outputTranscription.finished) {
+                    const completedAssistantTurn =
+                      pendingAssistantTranscriptText.trim();
+                    pendingAssistantTranscriptText = '';
+                    pendingAssistantText = '';
+                    if (completedAssistantTurn) {
+                      void saveMessage('assistant', completedAssistantTurn);
+                    }
+                  }
                   if (isServerTurnComplete(serverMessage)) {
-                    const completedReply = pendingAssistantText.trim();
+                    const completedReply =
+                      pendingAssistantTranscriptText.trim() || pendingAssistantText.trim();
+                    pendingAssistantTranscriptText = '';
                     pendingAssistantText = '';
                     if (completedReply) {
                       void saveMessage('assistant', completedReply);
