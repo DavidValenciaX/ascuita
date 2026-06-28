@@ -17,7 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Deploy Firestore rules
-        uses: firebase/firebase-action@v0
+        uses: w9jds/firebase-action@v15.16.0
         with:
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ASCUITA }}'
-          cmd: 'deploy --only firestore:rules'
+          args: deploy --only firestore:rules
+        env:
+          GCP_SA_KEY: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ASCUITA }}'
