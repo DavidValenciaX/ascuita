@@ -81,6 +81,17 @@ const wsMessageCounts = new Map<string, CounterState>();
 const wsActiveConnections = new Map<string, number>();
 const wsAudioByteCounts = new Map<string, CounterState>();
 const blockedClients = new Map<string, { expiresAt: number; reason: string }>();
+const guestTrialStarts = new Map<string, number>();
+const GUEST_TRIAL_RETENTION_MS = 60 * 60_000;
+
+function cleanupExpiredGuestTrials() {
+  const now = Date.now();
+  for (const [key, start] of guestTrialStarts) {
+    if (now - start > GUEST_TRIAL_RETENTION_MS) {
+      guestTrialStarts.delete(key);
+    }
+  }
+}
 
 function safeJsonParse(raw: Buffer): ClientMessage {
   try {
@@ -516,6 +527,26 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             );
 
             if (!decodedToken) {
+              cleanupExpiredGuestTrials();
+              const now = Date.now();
+              const trialStart = guestTrialStarts.get(clientKey);
+              if (!trialStart) {
+                guestTrialStarts.set(clientKey, now);
+              }
+              const elapsed = now - (trialStart ?? now);
+              const remaining = config.freeTrialDurationMs - elapsed;
+              if (remaining <= 0) {
+                send({
+                  type: 'error',
+                  payload: {
+                    message:
+                      'TRIAL_EXPIRED: Free trial ended. Sign in with Google to continue.',
+                  },
+                });
+                closeSession();
+                socket.close(1008, 'Trial expired');
+                return;
+              }
               freeTrialTimer = setTimeout(() => {
                 send({
                   type: 'error',
@@ -526,7 +557,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 });
                 closeSession();
                 socket.close(1008, 'Trial expired');
-              }, config.freeTrialDurationMs);
+              }, remaining);
             } else {
               conversationUid = decodedToken.uid;
               firestoreDb = getAdminDb();

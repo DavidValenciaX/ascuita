@@ -139,13 +139,15 @@ function ControlTray({ children }: ControlTrayProps) {
         <span className="text-indicator">
           {trialExpired && !isAuthenticated
             ? t('signInRequired')
-            : fatalError
-              ? t('connectionError')
-              : introPlaying
-                ? t('preparingGreeting')
-                : connected
-                  ? t('streaming')
-                  : t('connecting')}
+            : fatalError?.startsWith('WS_BLOCKED')
+              ? t('wsBlockedError')
+              : fatalError
+                ? t('connectionError')
+                : introPlaying
+                  ? t('preparingGreeting')
+                  : connected
+                    ? t('streaming')
+                    : t('connecting')}
         </span>
       </div>
     </section>

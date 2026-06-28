@@ -117,6 +117,8 @@ export function useLiveApi({
         error.message?.includes('FIREBASE_AUTH_BACKEND_NOT_CONFIGURED')
       ) {
         setFatalError(error.message);
+      } else if (error.message?.includes('Could not connect to Ascuita API WebSocket')) {
+        setFatalError('WS_BLOCKED: Could not establish a WebSocket connection to the server.');
       }
       setConnecting(false);
     };

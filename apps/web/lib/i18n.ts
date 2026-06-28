@@ -93,6 +93,7 @@ export const translations: Translations = {
         // ControlTray
         connecting: 'Connecting',
         connectionError: 'Connection error',
+        wsBlockedError: 'WebSocket blocked. Disable Brave Shields or ad blockers for this site.',
         preparingGreeting: 'Preparing greeting',
         signInRequired: 'Sign in required',
         streaming: 'Streaming',
@@ -190,6 +191,7 @@ export const translations: Translations = {
         // ControlTray
         connecting: 'Conectando',
         connectionError: 'Error de conexion',
+        wsBlockedError: 'WebSocket bloqueado. Desactiva Brave Shields o bloqueadores de anuncios para este sitio.',
         preparingGreeting: 'Preparando saludo',
         signInRequired: 'Inicia sesion para continuar',
         streaming: 'Transmitiendo',
