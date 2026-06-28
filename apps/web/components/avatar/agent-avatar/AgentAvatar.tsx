@@ -176,7 +176,8 @@ export default function AgentAvatar() {
           const newName = pendingNameRef.current;
           if (newName) {
             updateAgent(current.id, { name: newName });
-            if (!current.isPreset) void saveUserAgent({ ...current, name: newName });
+            const freshAgent = useAgent.getState().current;
+            if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingNameRef.current = null;
             responses.push({
               id: fc.id as string,
@@ -202,7 +203,8 @@ export default function AgentAvatar() {
           const newPersonality = pendingPersonalityRef.current;
           if (newPersonality) {
             updateAgent(current.id, { personality: newPersonality });
-            if (!current.isPreset) void saveUserAgent({ ...current, personality: newPersonality });
+            const freshAgent = useAgent.getState().current;
+            if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingPersonalityRef.current = null;
             responses.push({
               id: fc.id as string,
@@ -228,7 +230,8 @@ export default function AgentAvatar() {
           const newColor = pendingColorRef.current;
           if (newColor) {
             updateAgent(current.id, { bodyColor: newColor });
-            if (!current.isPreset) void saveUserAgent({ ...current, bodyColor: newColor });
+            const freshAgent = useAgent.getState().current;
+            if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingColorRef.current = null;
             responses.push({
               id: fc.id as string,
