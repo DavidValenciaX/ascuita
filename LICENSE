@@ -200,3 +200,55 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+   ---
+
+   NOTICE OF MODIFICATIONS
+
+   Original Work:
+       Copyright 2024 Google LLC
+       Licensed under the Apache License, Version 2.0
+
+   Modifications:
+       Copyright 2025-2026 David Valencia
+       Licensed under the Apache License, Version 2.0
+
+   This project (Ascuita) is a derivative work based on the original
+   Gemini Live API web application published by Google LLC. The
+   following modifications have been made to the original work:
+
+   - Rebranding of the application identity to "Ascuita".
+   - Replacement of the SVG-based avatar with a 3D character rendered
+     using Three.js, including procedural eyes, body, glow and
+     orientation.
+   - Implementation of a procedural lip-sync system that analyzes audio
+     in real time and animates the mouth using visemes inspired by
+     Adobe Character Animator, drawn dynamically on a canvas texture
+     applied to the 3D character.
+   - Migration to a monorepo architecture (apps/web + apps/api).
+   - Introduction of a secure backend proxy (Node + Fastify + WebSocket)
+     so that the Gemini API key is never exposed to the browser.
+   - Integration of Firebase Authentication (Google Sign-In) with
+     token verification via Firebase Admin SDK on the backend.
+   - Free trial mode for unauthenticated users with configurable
+     duration.
+   - Persistence of conversations and messages in Cloud Firestore,
+     with the ability to resume previous conversations.
+   - Security measures including HTTP and WebSocket rate limiting,
+     concurrent connection limits per IP, payload size limits, audio
+     byte rate limits, temporary IP blocking, security headers and
+     abuse logging with configurable retention.
+   - Health check endpoint (GET /health).
+   - Internationalization (i18n) with support for Spanish and English.
+   - Light/dark theme switching for the 3D scene.
+   - Animation settings panel with controls for sensitivity, smoothing
+     and mouth behavior.
+   - Customizable agents with adjustable name, personality, voice and
+     color, including preset and personal agents.
+   - Automated deployment via GitHub Actions: frontend to Firebase
+     Hosting, backend to VPS (Ubuntu + Nginx + PM2), and Firestore
+     rules deployment.
+   - PM2 process management configuration (ecosystem.config.cjs).
+
+   All modifications are licensed under the same Apache License,
+   Version 2.0, as the original work.
