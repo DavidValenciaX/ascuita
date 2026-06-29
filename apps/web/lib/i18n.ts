@@ -116,6 +116,9 @@ export const translations: Translations = {
         legalTitle: 'Legal',
         legalPrivacy: 'Privacy Policy',
         legalTerms: 'Terms of Service',
+        clickwrapAcceptTerms: 'I accept the Terms of Service.',
+        clickwrapReadPrivacy: 'I have read and understand the Privacy Policy.',
+        clickwrapRequired: 'Required',
     },
     es: {
         // Header
@@ -220,6 +223,9 @@ export const translations: Translations = {
         legalTitle: 'Legal',
         legalPrivacy: 'Política de Privacidad',
         legalTerms: 'Términos y Condiciones',
+        clickwrapAcceptTerms: 'Acepto los Términos y Condiciones.',
+        clickwrapReadPrivacy: 'He leído y comprendo la Política de Privacidad.',
+        clickwrapRequired: 'Obligatorio',
     },
 };
 
