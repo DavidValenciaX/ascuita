@@ -105,8 +105,6 @@ export const translations: Translations = {
         trialEndedTitle: 'Sign in to keep talking',
         trialEndedBody:
             'The free minute has ended. Sign in with Google to continue talking with the avatar.',
-        trialEndedHint:
-            'You do not need a database for this basic gate, only Firebase Auth enabled with Google provider.',
         // ErrorScreen
         errorGeneric: 'Something went wrong. Please try again.',
         errorQuota:
@@ -212,8 +210,6 @@ export const translations: Translations = {
         trialEndedTitle: 'Inicia sesión para seguir hablando',
         trialEndedBody:
             'El minuto gratuito ya terminó. Inicia sesión con Google para seguir conversando con el avatar.',
-        trialEndedHint:
-            'Para esta barrera básica no necesitas base de datos, solo Firebase Auth con Google activado.',
         // ErrorScreen
         errorGeneric: 'Algo salió mal. Por favor, inténtalo de nuevo.',
         errorQuota:

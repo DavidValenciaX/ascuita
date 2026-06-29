@@ -88,7 +88,6 @@ export default function AuthGateModal() {
           <span className="icon">login</span>
           {pending ? t('signingIn') : t('continueWithGoogle')}
         </button>
-        <p className="authGateModal__hint">{t('trialEndedHint')}</p>
         {error ? <p className="authGateModal__error">{error}</p> : null}
       </div>
     </div>
