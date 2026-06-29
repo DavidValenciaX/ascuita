@@ -237,7 +237,7 @@ export const useUI = create<{
   showSpeechAnimationConfig: false,
   setShowSpeechAnimationConfig: (show: boolean) =>
     set({ showSpeechAnimationConfig: show }),
-  showSidebar: true,
+  showSidebar: false,
   setShowSidebar: (show: boolean) => set({ showSidebar: show }),
   toggleSidebar: () => set(state => ({ showSidebar: !state.showSidebar })),
   sceneTheme: 'dark',
