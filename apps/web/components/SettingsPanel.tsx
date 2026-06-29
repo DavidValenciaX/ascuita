@@ -28,7 +28,7 @@ import { createSystemInstructions } from '@/lib/prompts';
 import { saveUserProfile } from '@/hooks/useUserProfile';
 import { useUserAgents } from '@/hooks/useUserAgents';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language';
+type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language' | 'legal';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -725,6 +725,28 @@ function LanguageTab() {
   );
 }
 
+function LegalTab() {
+  const { language, t } = useTranslation();
+  const privacyHref = language === 'es' ? '/privacidad' : '/privacy';
+  const termsHref = language === 'es' ? '/terminos' : '/terms';
+
+  return (
+    <div className="settingsPanel__tab">
+      <h2>{t('legalTitle')}</h2>
+      <div className="settingsPanel__legalSection">
+        <a href={privacyHref} className="settingsPanel__legalLink">
+          <span className="icon">privacy_tip</span>
+          {t('legalPrivacy')}
+        </a>
+        <a href={termsHref} className="settingsPanel__legalLink">
+          <span className="icon">description</span>
+          {t('legalTerms')}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ── Main SettingsPanel ──────────────────────────────────────────────────────
 
 export default function SettingsPanel() {
@@ -738,6 +760,7 @@ export default function SettingsPanel() {
     ['agents', 'group', t('tabAgents')],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
+    ['legal', 'gavel', t('legalTitle')],
   ];
 
   const advancedTabs: [Tab, string, string][] = [
@@ -820,6 +843,7 @@ export default function SettingsPanel() {
           {activeTab === 'avatar' && <AvatarTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'language' && <LanguageTab />}
+          {activeTab === 'legal' && <LegalTab />}
         </div>
       </div>
     </div>

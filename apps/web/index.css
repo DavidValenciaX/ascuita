@@ -1641,6 +1641,35 @@ input[type='range'] {
   color: var(--Blue-400);
 }
 
+.settingsPanel__legalSection {
+  margin-top: 0.5rem;
+}
+
+.settingsPanel__legalLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  color: var(--Neutral-80);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.2s;
+}
+
+.settingsPanel__legalLink:hover {
+  color: var(--Blue-400);
+}
+
+.settingsPanel__legalLink .icon {
+  font-size: 1.2rem;
+  color: var(--Neutral-50);
+  transition: color 0.2s;
+}
+
+.settingsPanel__legalLink:hover .icon {
+  color: var(--Blue-400);
+}
+
 .settingsPanel__themeToggle {
   align-items: center;
   background:

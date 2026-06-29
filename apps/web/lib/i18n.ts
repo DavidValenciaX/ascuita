@@ -112,6 +112,10 @@ export const translations: Translations = {
         errorQuota:
             'Gemini Live API in AI Studio has a limited free quota each day. Come back tomorrow to continue.',
         close: 'Close',
+        // Legal
+        legalTitle: 'Legal',
+        legalPrivacy: 'Privacy Policy',
+        legalTerms: 'Terms of Service',
     },
     es: {
         // Header
@@ -212,6 +216,10 @@ export const translations: Translations = {
         errorQuota:
             'La API de Gemini Live en AI Studio tiene una cuota gratuita limitada cada día. Vuelve mañana para continuar.',
         close: 'Cerrar',
+        // Legal
+        legalTitle: 'Legal',
+        legalPrivacy: 'Política de Privacidad',
+        legalTerms: 'Términos y Condiciones',
     },
 };
 
