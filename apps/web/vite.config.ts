@@ -8,5 +8,10 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    server: {
+      fs: {
+        allow: [path.resolve(__dirname, '..')],
+      },
+    },
   };
 });

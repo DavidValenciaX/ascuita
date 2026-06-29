@@ -194,9 +194,11 @@ Consulta [LICENSE](LICENSE) para más detalles.
 
 ## Documentos Legales
 
-El Servicio cuenta con los siguientes documentos legales disponibles en la carpeta `docs/`:
+El Servicio cuenta con los siguientes documentos legales, disponibles tanto en el repositorio como en la web:
 
-* **Política de Privacidad (Español)**: [docs/privacy-policy-es.md](docs/privacy-policy-es.md)
-* **Privacy Policy (English)**: [docs/privacy-policy-en.md](docs/privacy-policy-en.md)
-* **Términos y Condiciones (Español)**: [docs/terms-es.md](docs/terms-es.md)
-* **Terms of Service (English)**: [docs/terms-en.md](docs/terms-en.md)
+| Documento | Archivo | URL pública |
+|---|---|---|
+| Política de Privacidad (ES) | `docs/privacy-policy-es.md` | `/privacidad` |
+| Privacy Policy (EN) | `docs/privacy-policy-en.md` | `/privacy` |
+| Términos y Condiciones (ES) | `docs/terms-es.md` | `/terminos` |
+| Terms of Service (EN) | `docs/terms-en.md` | `/terms` |
