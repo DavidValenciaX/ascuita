@@ -191,3 +191,12 @@ Este proyecto conserva la licencia Apache 2.0 del código original:
 * Modificaciones: publicadas bajo la misma licencia Apache License, Version 2.0.
 
 Consulta [LICENSE](LICENSE) para más detalles.
+
+## Documentos Legales
+
+El Servicio cuenta con los siguientes documentos legales disponibles en la carpeta `docs/`:
+
+* **Política de Privacidad (Español)**: [docs/privacy-policy-es.md](docs/privacy-policy-es.md)
+* **Privacy Policy (English)**: [docs/privacy-policy-en.md](docs/privacy-policy-en.md)
+* **Términos y Condiciones (Español)**: [docs/terms-es.md](docs/terms-es.md)
+* **Terms of Service (English)**: [docs/terms-en.md](docs/terms-en.md)
