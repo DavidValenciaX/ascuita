@@ -95,7 +95,7 @@ User content is stored in Google Cloud Firestore and is subject to Google's poli
 
 ## 7. Free Trial
 
-- Unauthenticated users may use the Service for a limited period (default: 60 seconds) as a free trial.
+- Unauthenticated users may use the Service for a limited period (default: 3 minutes) as a free trial.
 - The Operator reserves the right to modify, suspend, or discontinue the free trial at any time.
 - Abuse of the free trial (e.g., through creating multiple identities) may result in IP blocking.
 

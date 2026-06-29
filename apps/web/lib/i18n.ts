@@ -104,7 +104,7 @@ export const translations: Translations = {
         trialEndedEyebrow: 'Free access finished',
         trialEndedTitle: 'Sign in to keep talking',
         trialEndedBody:
-            'The free minute has ended. Sign in with Google to continue talking with the avatar.',
+            'The free trial has ended. Sign in with Google to continue talking with the avatar.',
         // ErrorScreen
         errorGeneric: 'Something went wrong. Please try again.',
         errorQuota:
@@ -209,7 +209,7 @@ export const translations: Translations = {
         trialEndedEyebrow: 'Acceso gratuito terminado',
         trialEndedTitle: 'Inicia sesión para seguir hablando',
         trialEndedBody:
-            'El minuto gratuito ya terminó. Inicia sesión con Google para seguir conversando con el avatar.',
+            'La prueba gratuita ya terminó. Inicia sesión con Google para seguir conversando con el avatar.',
         // ErrorScreen
         errorGeneric: 'Algo salió mal. Por favor, inténtalo de nuevo.',
         errorQuota:

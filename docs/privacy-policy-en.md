@@ -44,7 +44,7 @@ The Service streams your voice in real time to the backend, which forwards it to
 
 If you use the Service without signing in, we collect:
 
-- **IP address**: to control the free trial duration (60 seconds by default) and prevent abuse.
+- **IP address**: to control the free trial duration (3 minutes by default) and prevent abuse.
 - **Real-time audio**: streamed to the Gemini Live API in the same manner as authenticated users.
 
 No conversation content is stored for unauthenticated users.

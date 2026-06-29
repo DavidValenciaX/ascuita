@@ -95,7 +95,7 @@ El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a 
 
 ## 7. Trial gratuito
 
-- Los usuarios no autenticados pueden utilizar el Servicio durante un período limitado (por defecto, 60 segundos) como prueba gratuita.
+- Los usuarios no autenticados pueden utilizar el Servicio durante un período limitado (por defecto, 3 minutos) como prueba gratuita.
 - El Operador se reserva el derecho de modificar, suspender o eliminar el trial gratuito en cualquier momento.
 - El abuso del trial gratuito (por ejemplo, mediante creación de múltiples identidades) puede resultar en bloqueo de IP.
 

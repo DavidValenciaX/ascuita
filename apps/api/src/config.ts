@@ -116,7 +116,7 @@ export function getConfig(): AppConfig {
     ),
     freeTrialDurationMs: parseNumber(
       process.env.FREE_TRIAL_DURATION_MS,
-      60_000
+      180_000
     ),
   };
 }

@@ -44,7 +44,7 @@ El Servicio transmite tu voz en tiempo real al backend, que la reenvía a la API
 
 Si utilizas el Servicio sin iniciar sesión, recopilamos:
 
-- **Dirección IP**: para controlar la duración del trial gratuito (60 segundos por defecto) y prevenir abuso.
+- **Dirección IP**: para controlar la duración del trial gratuito (3 minutos por defecto) y prevenir abuso.
 - **Audio en tiempo real**: transmitido a Gemini Live API de la misma forma que los usuarios autenticados.
 
 No se almacena contenido de conversaciones para usuarios no autenticados.
