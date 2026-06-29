@@ -230,6 +230,10 @@ export const translations: Translations = {
 };
 
 const getInitialLanguage = (): Language => {
+    if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('ascuita-lang');
+        if (stored === 'en' || stored === 'es') return stored;
+    }
     if (typeof navigator === 'undefined') return 'es';
     return navigator.language.startsWith('es') ? 'es' : 'en';
 };
@@ -240,7 +244,12 @@ export const useLanguage = create<{
     t: (key: string) => string;
 }>(set => ({
     language: getInitialLanguage(),
-    setLanguage: (language: Language) => set({ language }),
+    setLanguage: (language: Language) => {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('ascuita-lang', language);
+        }
+        set({ language });
+    },
     t: (key: string) => {
         // We access the state inside the function to get the current language
         // But since this is inside the store creator, we can't easily access 'get'.
