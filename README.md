@@ -7,6 +7,16 @@ Actualmente el repositorio usa una arquitectura `monorepo`:
 * `apps/web`: frontend Vite + React + Zustand desplegado en Firebase Hosting.
 * `apps/api`: backend Node + Fastify + WebSocket desplegado en una VPS y encargado de hablar con Gemini Live API de forma segura.
 
+## Capturas de pantalla
+
+### Escritorio
+
+![Interfaz de escritorio](docs/images/screenshot_desktop_ui.webp)
+
+### Móvil
+
+![Interfaz móvil](docs/images/screenshot_mobile_ui.jpg)
+
 ## Características
 
 * **Personaje 3D con Three.js**: el avatar ya no depende de bocas SVG. El cuerpo, ojos, brillo, movimiento y orientación se renderizan como una escena 3D.
