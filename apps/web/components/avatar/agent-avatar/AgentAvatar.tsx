@@ -47,7 +47,7 @@ function buildResumePrompt(
 }
 
 export default function AgentAvatar() {
-  const { client, connected, setConfig } = useLiveAPIContext();
+  const { client, connected, audioReady, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
   const pendingNameRef = useRef<string | null>(null);
@@ -260,7 +260,7 @@ export default function AgentAvatar() {
   // Initiate the session when the Live API connection is established
   // Instruct the model to send an initial greeting message
   useEffect(() => {
-    if (!connected) {
+    if (!connected || !audioReady) {
       greetedRef.current = false;
       setIntroPlaying(false);
       return;
@@ -306,7 +306,7 @@ export default function AgentAvatar() {
     return () => {
       window.clearTimeout(beginSession);
     };
-  }, [client, clearPendingResume, connected, current, language, pendingResume, setIntroPlaying]);
+  }, [client, clearPendingResume, connected, audioReady, current, language, pendingResume, setIntroPlaying]);
 
   useEffect(() => {
     const handleTurnComplete = () => {

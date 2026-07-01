@@ -21,6 +21,7 @@
 import ControlTray from '@/components/console/control-tray/ControlTray';
 import AuthGateModal from '@/components/AuthGateModal';
 import ErrorScreen from '@/components/avatar/ErrorScreen';
+import LoadingScreen from '@/components/avatar/LoadingScreen';
 import AgentAvatar from '@/components/avatar/agent-avatar/AgentAvatar';
 import Header from '@/components/Header';
 import SettingsPanel from '@/components/SettingsPanel';
@@ -107,6 +108,7 @@ function App() {
     <div className="App">
       <LiveAPIProvider model={DEFAULT_LIVE_API_MODEL} authToken={authToken}>
         <ErrorScreen />
+        <LoadingScreen />
         <AuthGateModal />
         <Header />
         <Sidebar />

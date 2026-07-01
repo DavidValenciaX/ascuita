@@ -39,7 +39,15 @@ function ControlTray({ children }: ControlTrayProps) {
   const { showSettingsPanel } = useUI();
   const { authReady, trialExpired, isAuthenticated, introPlaying } =
     useAuthGate();
-  const { client, connected, connecting, fatalError, connect } =
+  const {
+    client,
+    connected,
+    connecting,
+    fatalError,
+    displayError,
+    audioReady,
+    connect,
+  } =
     useLiveAPIContext();
   const { t } = useTranslation();
 
@@ -133,21 +141,25 @@ function ControlTray({ children }: ControlTrayProps) {
           className={cn('connection-status-dot', {
             connected,
             connecting,
-            error: Boolean(fatalError),
+            error: Boolean(fatalError) || displayError?.code === 'WS_BLOCKED',
           })}
         />
         <span className="text-indicator">
           {trialExpired && !isAuthenticated
             ? t('signInRequired')
-            : fatalError?.startsWith('WS_BLOCKED')
+            : displayError?.code === 'WS_BLOCKED'
               ? t('wsBlockedError')
-              : fatalError
+            : fatalError
                 ? t('connectionError')
                 : introPlaying
                   ? t('preparingGreeting')
                   : connected
                     ? t('streaming')
-                    : t('connecting')}
+                    : connecting
+                      ? t('connecting')
+                      : !audioReady
+                        ? t('preparingAudio')
+                        : t('connecting')}
         </span>
       </div>
     </section>

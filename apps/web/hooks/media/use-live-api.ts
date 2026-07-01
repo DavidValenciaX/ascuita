@@ -37,6 +37,9 @@ export type UseLiveApiResults = {
   connected: boolean;
   connecting: boolean;
   fatalError: string | null;
+  displayError: { code: 'GENERIC' | 'RESOURCE_EXHAUSTED' | 'WS_BLOCKED'; message: string } | null;
+  clearDisplayError: () => void;
+  audioReady: boolean;
 
   volume: number;
   audioStreamer: AudioStreamer | null;
@@ -55,13 +58,17 @@ export function useLiveApi({
   );
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
+  const pendingAudioChunksRef = useRef<ArrayBuffer[]>([]);
+  const websocketFailureCountRef = useRef(0);
 
   const [volume, setVolume] = useState(0);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [displayError, setDisplayError] = useState<UseLiveApiResults['displayError']>(null);
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
+  const [audioReady, setAudioReady] = useState(false);
   const setTrialExpired = useAuthGate(state => state.setTrialExpired);
   const currentAgent = useAgent(state => state.current);
   const pendingResume = useConversationResume(state => state.pending);
@@ -82,14 +89,25 @@ export function useLiveApi({
             console.error('Error adding worklet:', err);
           });
         setAudioStreamer(audioStreamerRef.current);
+
+        // Flush any audio chunks that arrived before the streamer was ready
+        if (pendingAudioChunksRef.current.length > 0) {
+          for (const chunk of pendingAudioChunksRef.current) {
+            audioStreamerRef.current.addPCM16(new Uint8Array(chunk));
+          }
+          pendingAudioChunksRef.current = [];
+        }
+        setAudioReady(true);
       });
     }
   }, [audioStreamerRef]);
 
   useEffect(() => {
     const onSetupComplete = () => {
+      websocketFailureCountRef.current = 0;
       setTrialExpired(false);
       setFatalError(null);
+      setDisplayError(null);
       setConnecting(false);
       setConnected(true);
     };
@@ -100,6 +118,7 @@ export function useLiveApi({
     };
 
     const onOpen = () => {
+      setDisplayError(null);
       setConnecting(true);
     };
 
@@ -107,6 +126,17 @@ export function useLiveApi({
       if (error.message?.includes('TRIAL_EXPIRED')) {
         setTrialExpired(true);
         setFatalError(null);
+        setDisplayError(null);
+        setConnecting(false);
+        return;
+      }
+
+      if (error.message?.includes('RESOURCE_EXHAUSTED')) {
+        setFatalError(error.message);
+        setDisplayError({
+          code: 'RESOURCE_EXHAUSTED',
+          message: error.message,
+        });
         setConnecting(false);
         return;
       }
@@ -117,9 +147,30 @@ export function useLiveApi({
         error.message?.includes('FIREBASE_AUTH_BACKEND_NOT_CONFIGURED')
       ) {
         setFatalError(error.message);
-      } else if (error.message?.includes('Could not connect to Ascuita API WebSocket')) {
-        setFatalError('WS_BLOCKED: Could not establish a WebSocket connection to the server.');
+        setDisplayError({
+          code: 'GENERIC',
+          message: error.message,
+        });
+        setConnecting(false);
+        return;
       }
+
+      if (error.message?.includes('Could not connect to Ascuita API WebSocket')) {
+        websocketFailureCountRef.current += 1;
+        if (websocketFailureCountRef.current >= 4) {
+          setDisplayError({
+            code: 'WS_BLOCKED',
+            message: error.message,
+          });
+        }
+        setConnecting(false);
+        return;
+      }
+
+      setDisplayError({
+        code: 'GENERIC',
+        message: error.message || 'Unknown error from Ascuita API',
+      });
       setConnecting(false);
     };
 
@@ -132,6 +183,8 @@ export function useLiveApi({
     const onAudio = (data: ArrayBuffer) => {
       if (audioStreamerRef.current) {
         audioStreamerRef.current.addPCM16(new Uint8Array(data));
+      } else {
+        pendingAudioChunksRef.current.push(data);
       }
     };
 
@@ -160,6 +213,7 @@ export function useLiveApi({
     }
     client.disconnect();
     setFatalError(null);
+    setDisplayError(null);
     setConnecting(true);
     await client.connect(
       config,
@@ -186,6 +240,10 @@ export function useLiveApi({
     setConnected(false);
   }, [setConnected, client]);
 
+  const clearDisplayError = useCallback(() => {
+    setDisplayError(null);
+  }, []);
+
   return {
     client,
     config,
@@ -194,6 +252,9 @@ export function useLiveApi({
     connected,
     connecting,
     fatalError,
+    displayError,
+    clearDisplayError,
+    audioReady,
     disconnect,
     volume,
     audioStreamer,

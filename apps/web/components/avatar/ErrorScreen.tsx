@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
-import { useEffect, useState } from 'react';
 import { useTranslation } from '@/lib/i18n';
 
 export interface ExtendedErrorType {
@@ -13,39 +12,25 @@ export interface ExtendedErrorType {
 }
 
 export default function ErrorScreen() {
-  const { client } = useLiveAPIContext();
-  const [error, setError] = useState<{ message?: string } | null>(null);
+  const { connected, displayError, clearDisplayError } = useLiveAPIContext();
   const { t } = useTranslation();
-
-  useEffect(() => {
-    function onError(error: ErrorEvent) {
-      console.error(error);
-      setError(error);
-    }
-
-    client.on('error', onError);
-
-    return () => {
-      client.off('error', onError);
-    };
-  }, [client]);
 
   const quotaErrorMessage = t('errorQuota');
 
   let errorMessage = t('errorGeneric');
-  let rawMessage: string | null = error?.message || null;
+  let rawMessage: string | null = displayError?.message || null;
   let tryAgainOption = true;
-  if (error?.message?.includes('RESOURCE_EXHAUSTED')) {
+  if (displayError?.code === 'RESOURCE_EXHAUSTED') {
     errorMessage = quotaErrorMessage;
     rawMessage = null;
     tryAgainOption = false;
   }
 
-  if (error?.message?.includes('TRIAL_EXPIRED')) {
-    return <div className="error-screen--hidden" />;
+  if (displayError?.code === 'WS_BLOCKED') {
+    errorMessage = t('wsBlockedError');
   }
 
-  if (!error) {
+  if (!displayError || connected) {
     return <div className="error-screen--hidden" />;
   }
 
@@ -59,9 +44,7 @@ export default function ErrorScreen() {
         <button
           type="button"
           className="close-button"
-          onClick={() => {
-            setError(null);
-          }}
+          onClick={clearDisplayError}
         >
           {t('close')}
         </button>
