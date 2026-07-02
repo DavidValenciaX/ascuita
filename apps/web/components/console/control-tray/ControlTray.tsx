@@ -159,7 +159,7 @@ function ControlTray({ children }: ControlTrayProps) {
                       ? t('connecting')
                       : !audioReady
                         ? t('preparingAudio')
-                        : t('connecting')}
+                        : t('ready')}
         </span>
       </div>
     </section>
