@@ -275,7 +275,11 @@ function AgentsTab() {
   const { t } = useTranslation();
   const { language } = useLanguage();
   const user = useUser();
-  const { saveAgent: persistAgent, removeAgent: deleteAgentFromDb } = useUserAgents();
+  const {
+    saveAgent: persistAgent,
+    removeAgent: deleteAgentFromDb,
+    countAgentConversations,
+  } = useUserAgents();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const originalAgentRef = useRef<Agent | null>(null);
@@ -500,10 +504,26 @@ function AgentsTab() {
                 <button
                   type="button"
                   className="settingsPanel__agentEdit"
-                  onClick={() => {
-                    if (!window.confirm(t('deleteAgentConfirm'))) return;
+                  onClick={async () => {
+                    const relatedConversationCount = await countAgentConversations(
+                      agent.id
+                    );
+                    const confirmMessage =
+                      relatedConversationCount > 0
+                        ? t('deleteAgentCascadeConfirm').replace(
+                            '{count}',
+                            String(relatedConversationCount)
+                          )
+                        : t('deleteAgentConfirm');
+                    if (!window.confirm(confirmMessage)) return;
+
+                    if (agent.id === current.id && connected) {
+                      disconnect();
+                      await new Promise(resolve => window.setTimeout(resolve, 150));
+                    }
+
+                    await deleteAgentFromDb(agent.id);
                     removeAgent(agent.id);
-                    void deleteAgentFromDb(agent.id);
                   }}
                   title={t('deleteAgent')}
                 >

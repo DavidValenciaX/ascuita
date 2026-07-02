@@ -20,6 +20,8 @@ export const translations: Translations = {
         edit: 'Edit',
         deleteAgent: 'Delete',
         deleteAgentConfirm: 'Delete this agent? This cannot be undone.',
+        deleteAgentCascadeConfirm:
+            'This agent is used by {count} saved conversations. If you delete it, those conversations will also be deleted. This cannot be undone.',
         presets: 'Presets',
         yourAgents: 'Your agents',
         noneYet: 'None yet.',
@@ -84,6 +86,8 @@ export const translations: Translations = {
         chatsDeleteConfirm: 'Delete this conversation? This cannot be undone.',
         chatsLoading: 'Loading messages...',
         chatsNoMessages: 'No messages in this conversation.',
+        conversationAgentMissing:
+            'This conversation uses an agent that no longer exists. Delete the conversation or recreate the agent to continue.',
         chatsYou: 'You',
         chatsAssistant: 'Assistant',
         newChat: 'New chat',
@@ -128,6 +132,8 @@ export const translations: Translations = {
         edit: 'Editar',
         deleteAgent: 'Eliminar',
         deleteAgentConfirm: '¿Eliminar este agente? Esta acción no se puede deshacer.',
+        deleteAgentCascadeConfirm:
+            'Este agente está relacionado con {count} conversaciones guardadas. Si lo eliminas, esas conversaciones también se eliminarán. Esta acción no se puede deshacer.',
         presets: 'Preajustes',
         yourAgents: 'Tus agentes',
         noneYet: 'Aún no hay ninguno.',
@@ -192,6 +198,8 @@ export const translations: Translations = {
         chatsDeleteConfirm: '¿Eliminar esta conversación? Esta acción no se puede deshacer.',
         chatsLoading: 'Cargando mensajes...',
         chatsNoMessages: 'No hay mensajes en esta conversación.',
+        conversationAgentMissing:
+            'Esta conversación usa un agente que ya no existe. Elimina la conversación o vuelve a crear el agente para continuar.',
         chatsYou: 'Tú',
         chatsAssistant: 'Asistente',
         newChat: 'Nuevo chat',

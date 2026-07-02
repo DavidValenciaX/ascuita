@@ -74,23 +74,21 @@ function Sidebar() {
     const conversation = conversations.find(conv => conv.id === conversationId);
     if (!conversation) return;
 
-    if (conversation.agentSnapshot) {
-      setCurrent(conversation.agentSnapshot);
-    } else {
-      const resolvedAgent = [...availablePresets, ...availablePersonal].find(
-        agent => agent.id === conversation.agentId
-      );
-      if (resolvedAgent) {
-        setCurrent(resolvedAgent);
-      }
+    const resolvedAgent = [...availablePresets, ...availablePersonal].find(
+      agent => agent.id === conversation.agentId
+    );
+    if (!resolvedAgent) {
+      window.alert(t('conversationAgentMissing'));
+      return;
     }
+    setCurrent(resolvedAgent);
 
     setResumeConversation({
       conversationId: conversation.id,
-      agentId: conversation.agentSnapshot?.id || conversation.agentId,
+      agentId: conversation.agentId,
       agentName:
-        conversation.agentSnapshot?.name ||
         conversation.agentName ||
+        resolvedAgent.name ||
         t('chatsAssistant'),
       messages: messages.map(message => ({
         role: message.role,

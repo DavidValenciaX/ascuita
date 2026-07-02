@@ -74,7 +74,6 @@ type OutboundMessage =
         authToken?: string | null;
         agentId?: string;
         agentName?: string;
-        agentSnapshot?: Agent;
         conversationId?: string;
       };
     }
@@ -182,7 +181,6 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
               authToken,
               agentId: agent?.id,
               agentName: agent?.name,
-              agentSnapshot: agent,
               conversationId: conversationId || undefined,
             },
           });

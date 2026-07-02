@@ -15,7 +15,6 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useAuthGate } from '@/lib/state';
-import type { Agent } from '@/lib/presets/agents';
 
 export type ConversationMessage = {
   id: string;
@@ -28,7 +27,6 @@ export type Conversation = {
   id: string;
   agentId: string;
   agentName: string;
-  agentSnapshot: Agent | null;
   startedAt: number;
   endedAt: number | null;
   messageCount: number;
@@ -64,21 +62,10 @@ export function useConversations() {
       snapshot => {
         const list: Conversation[] = snapshot.docs.map(docSnap => {
           const data = docSnap.data();
-          const agentSnapshot = data.agentSnapshot as Partial<Agent> | undefined;
           return {
             id: docSnap.id,
             agentId: data.agentId || '',
             agentName: data.agentName || '',
-            agentSnapshot: agentSnapshot?.id
-              ? {
-                  id: agentSnapshot.id,
-                  name: agentSnapshot.name || data.agentName || '',
-                  personality: agentSnapshot.personality || '',
-                  bodyColor: agentSnapshot.bodyColor || '#4285f4',
-                  voice: (agentSnapshot.voice || 'Aoede') as Agent['voice'],
-                  isPreset: agentSnapshot.isPreset === true,
-                }
-              : null,
             startedAt: data.startedAt?.toMillis?.() || 0,
             endedAt: data.endedAt?.toMillis?.() || null,
             messageCount: data.messageCount || 0,

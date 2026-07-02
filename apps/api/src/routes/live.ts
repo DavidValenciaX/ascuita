@@ -25,14 +25,6 @@ type ClientMessage =
         authToken?: string | null;
         agentId?: string;
         agentName?: string;
-        agentSnapshot?: {
-          id: string;
-          name: string;
-          personality: string;
-          bodyColor: string;
-          voice: string;
-          isPreset?: boolean;
-        };
         conversationId?: string;
       };
     }
@@ -400,9 +392,17 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       const endConversation = async () => {
         if (!firestoreDb || !conversationUid || !conversationId) return;
         try {
-          await firestoreDb
-            .doc(`users/${conversationUid}/conversations/${conversationId}`)
-            .set({ endedAt: FieldValue.serverTimestamp() }, { merge: true });
+          const conversationRef = firestoreDb.doc(
+            `users/${conversationUid}/conversations/${conversationId}`
+          );
+          const conversationDoc = await conversationRef.get();
+          if (!conversationDoc.exists) {
+            return;
+          }
+          await conversationRef.set(
+            { endedAt: FieldValue.serverTimestamp() },
+            { merge: true }
+          );
         } catch (error) {
           request.log.warn({ err: error }, 'Error ending conversation in Firestore');
         }
@@ -413,6 +413,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           return;
         }
         try {
+          const conversationRef = firestoreDb.doc(
+            `users/${conversationUid}/conversations/${conversationId}`
+          );
+          const conversationDoc = await conversationRef.get();
+          if (!conversationDoc.exists) {
+            return;
+          }
           const messagesRef = firestoreDb.collection(
             `users/${conversationUid}/conversations/${conversationId}/messages`
           );
@@ -421,9 +428,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             text,
             timestamp: FieldValue.serverTimestamp(),
           });
-          await firestoreDb
-            .doc(`users/${conversationUid}/conversations/${conversationId}`)
-            .set({ messageCount: FieldValue.increment(1) }, { merge: true });
+          await conversationRef.set(
+            { messageCount: FieldValue.increment(1) },
+            { merge: true }
+          );
         } catch (error) {
           request.log.warn({ err: error }, 'Error saving message to Firestore');
         }
@@ -521,21 +529,6 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           closeSession();
           currentModel = message.payload.model || defaultModel;
 
-          const agentSnapshot = message.payload.agentSnapshot;
-          if (
-            agentSnapshot &&
-            (!agentSnapshot.name?.trim() || !agentSnapshot.personality?.trim())
-          ) {
-            send({
-              type: 'error',
-              payload: {
-                message:
-                  'AGENT_INVALID: Agent name and personality must not be empty.',
-              },
-            });
-            return;
-          }
-
           try {
             const decodedToken = await verifyFirebaseIdToken(
               message.payload.authToken
@@ -597,28 +590,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                     const convRef = await firestoreDb
                       .collection(`users/${conversationUid}/conversations`)
                       .add({
-                        agentId:
-                          agentSnapshot?.id ||
-                          message.payload.agentId ||
-                          'default-agent',
-                        agentName:
-                          agentSnapshot?.name ||
-                          message.payload.agentName ||
-                          'Ascuita',
-                        agentSnapshot: {
-                          id:
-                            agentSnapshot?.id ||
-                            message.payload.agentId ||
-                            'default-agent',
-                          name:
-                            agentSnapshot?.name ||
-                            message.payload.agentName ||
-                            'Ascuita',
-                          personality: agentSnapshot?.personality || '',
-                          bodyColor: agentSnapshot?.bodyColor || '#4285f4',
-                          voice: agentSnapshot?.voice || 'Aoede',
-                          isPreset: agentSnapshot?.isPreset === true,
-                        },
+                        agentId: message.payload.agentId || 'default-agent',
+                        agentName: message.payload.agentName || 'Ascuita',
                         startedAt: FieldValue.serverTimestamp(),
                         endedAt: null,
                         messageCount: 0,
