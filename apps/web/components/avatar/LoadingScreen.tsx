@@ -3,13 +3,14 @@ import { useAuthGate } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
 
 export default function LoadingScreen() {
-  const { connected, audioReady } = useLiveAPIContext();
+  const { connecting, fatalError, displayError, audioReady } = useLiveAPIContext();
   const { authReady, trialExpired, isAuthenticated } = useAuthGate();
   const { t } = useTranslation();
 
   if (trialExpired && !isAuthenticated) return null;
   if (!authReady) return null;
-  if (connected && audioReady) return null;
+  if (fatalError || displayError) return null;
+  if (audioReady && !connecting) return null;
 
   let message = t('initializing');
   if (!audioReady) {
