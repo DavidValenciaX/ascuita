@@ -360,6 +360,9 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       let freeTrialTimer: ReturnType<typeof setTimeout> | undefined;
       let conversationUid: string | null = null;
       let conversationId: string | null = null;
+      let conversationAgentId = 'default-agent';
+      let conversationAgentName = 'Ascuita';
+      let conversationCreationPromise: Promise<string | null> | null = null;
       let pendingAssistantText = '';
       let pendingAssistantTranscriptText = '';
       let pendingUserTranscriptText = '';
@@ -408,6 +411,44 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
+      const ensureConversation = async () => {
+        if (conversationId) {
+          return conversationId;
+        }
+        if (!firestoreDb || !conversationUid) {
+          return null;
+        }
+        if (conversationCreationPromise) {
+          return conversationCreationPromise;
+        }
+
+        conversationCreationPromise = (async () => {
+          try {
+            const convRef = await firestoreDb
+              .collection(`users/${conversationUid}/conversations`)
+              .add({
+                agentId: conversationAgentId,
+                agentName: conversationAgentName,
+                startedAt: FieldValue.serverTimestamp(),
+                endedAt: null,
+                messageCount: 0,
+              });
+            conversationId = convRef.id;
+            return conversationId;
+          } catch (error) {
+            request.log.warn(
+              { err: error },
+              'Error creating conversation document in Firestore'
+            );
+            return null;
+          } finally {
+            conversationCreationPromise = null;
+          }
+        })();
+
+        return conversationCreationPromise;
+      };
+
       const saveMessage = async (role: 'user' | 'assistant', text: string) => {
         if (!firestoreDb || !conversationUid || !conversationId || !text.trim()) {
           return;
@@ -437,11 +478,15 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
-      const flushPendingUserTranscript = () => {
+      const flushPendingUserTranscript = async () => {
         const completedUserTurn = pendingUserTranscriptText.trim();
         pendingUserTranscriptText = '';
         if (completedUserTurn) {
-          void saveMessage('user', completedUserTurn);
+          const ensuredConversationId = await ensureConversation();
+          if (!ensuredConversationId) {
+            return;
+          }
+          await saveMessage('user', completedUserTurn);
         }
       };
 
@@ -571,6 +616,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               firestoreDb = getAdminDb();
               if (firestoreDb) {
                 try {
+                  conversationAgentId = message.payload.agentId || 'default-agent';
+                  conversationAgentName = message.payload.agentName || 'Ascuita';
                   const requestedConversationId = message.payload.conversationId?.trim();
                   if (requestedConversationId) {
                     const existingConversationRef = firestoreDb.doc(
@@ -584,19 +631,6 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                       );
                       conversationId = requestedConversationId;
                     }
-                  }
-
-                  if (!conversationId) {
-                    const convRef = await firestoreDb
-                      .collection(`users/${conversationUid}/conversations`)
-                      .add({
-                        agentId: message.payload.agentId || 'default-agent',
-                        agentName: message.payload.agentName || 'Ascuita',
-                        startedAt: FieldValue.serverTimestamp(),
-                        endedAt: null,
-                        messageCount: 0,
-                      });
-                    conversationId = convRef.id;
                   }
                 } catch (error) {
                   request.log.warn(
@@ -630,7 +664,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 onopen: () => {
                   send({ type: 'open' });
                 },
-                onmessage: serverMessage => {
+                onmessage: async serverMessage => {
                   send({
                     type: 'server_message',
                     payload: serverMessage,
@@ -648,13 +682,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                     pendingUserTranscriptText += inputTranscription.text;
                   }
                   if (inputTranscription.finished) {
-                    flushPendingUserTranscript();
+                    await flushPendingUserTranscript();
                   }
                   if (
                     pendingUserTranscriptText.trim() &&
                     (outputTranscription.text || text || isServerTurnComplete(serverMessage))
                   ) {
-                    flushPendingUserTranscript();
+                    await flushPendingUserTranscript();
                   }
                   if (text) {
                     pendingAssistantText += text;
@@ -746,7 +780,11 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               .filter(Boolean)
               .join('');
             if (text && message.payload.persist !== false) {
-              void saveMessage('user', text);
+              const ensuredConversationId = await ensureConversation();
+              if (!ensuredConversationId) {
+                return;
+              }
+              await saveMessage('user', text);
             }
             return;
           }
