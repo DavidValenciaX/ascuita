@@ -24,8 +24,10 @@ jobs:
         with:
           node-version: '22.23.1'
           cache: npm
-      - name: Install and Build
-        run: npm ci && npm run build:web
+      - name: Install and test
+        run: npm ci && npm run test:web
+      - name: Build
+        run: npm run build:web
         env:
           VITE_FIREBASE_CONFIG: ${{ vars.VITE_FIREBASE_CONFIG }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}

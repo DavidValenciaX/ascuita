@@ -30,7 +30,7 @@ const DEFAULT_CORS_ORIGINS = [
   'http://127.0.0.1:4173',
 ];
 
-function parseCorsOrigin(value?: string): string[] {
+export function parseCorsOrigin(value?: string): string[] {
   if (!value) {
     return DEFAULT_CORS_ORIGINS;
   }
@@ -52,7 +52,7 @@ export function isAllowedOrigin(
   return allowedOrigins.includes(origin);
 }
 
-function parseNumber(value: string | undefined, fallback: number) {
+export function parseNumber(value: string | undefined, fallback: number) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

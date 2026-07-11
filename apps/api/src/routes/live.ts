@@ -85,7 +85,7 @@ function cleanupExpiredGuestTrials() {
   }
 }
 
-function safeJsonParse(raw: Buffer): ClientMessage {
+export function safeJsonParse(raw: Buffer): ClientMessage {
   try {
     return JSON.parse(raw.toString());
   } catch {
@@ -93,7 +93,7 @@ function safeJsonParse(raw: Buffer): ClientMessage {
   }
 }
 
-function getErrorMessage(error: unknown) {
+export function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
   }
@@ -101,7 +101,7 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
-function extractTextFromServerMessage(serverMessage: unknown): string {
+export function extractTextFromServerMessage(serverMessage: unknown): string {
   if (!serverMessage || typeof serverMessage !== 'object') return '';
   const msg = serverMessage as Record<string, unknown>;
   const serverContent = msg.serverContent as Record<string, unknown> | undefined;
@@ -115,7 +115,7 @@ function extractTextFromServerMessage(serverMessage: unknown): string {
     .join('');
 }
 
-function extractTranscriptionFromServerMessage(
+export function extractTranscriptionFromServerMessage(
   serverMessage: unknown,
   key: 'inputTranscription' | 'outputTranscription'
 ): { text: string; finished: boolean } {
@@ -131,18 +131,18 @@ function extractTranscriptionFromServerMessage(
   };
 }
 
-function isServerTurnComplete(serverMessage: unknown): boolean {
+export function isServerTurnComplete(serverMessage: unknown): boolean {
   if (!serverMessage || typeof serverMessage !== 'object') return false;
   const msg = serverMessage as Record<string, unknown>;
   const serverContent = msg.serverContent as Record<string, unknown> | undefined;
   return serverContent?.turnComplete === true;
 }
 
-function getClientKey(ip: string) {
+export function getClientKey(ip: string) {
   return ip || 'unknown';
 }
 
-function incrementCounter(
+export function incrementCounter(
   map: Map<string, CounterState>,
   key: string,
   windowMs: number
@@ -163,7 +163,7 @@ function incrementCounter(
   return current;
 }
 
-function getPayloadSize(raw: unknown) {
+export function getPayloadSize(raw: unknown) {
   if (typeof raw === 'string') {
     return Buffer.byteLength(raw);
   }
@@ -179,7 +179,7 @@ function getPayloadSize(raw: unknown) {
   return Buffer.byteLength(String(raw));
 }
 
-function getAudioPayloadBytes(message: RealtimeInputMessage) {
+export function getAudioPayloadBytes(message: RealtimeInputMessage) {
   return message.payload.chunks.reduce((total, chunk) => {
     if (!chunk.mimeType.includes('audio')) {
       return total;
@@ -237,27 +237,27 @@ function blockClient(
   });
 }
 
-function isConnectMessage(message: ClientMessage): message is ConnectMessage {
+export function isConnectMessage(message: ClientMessage): message is ConnectMessage {
   return message.type === 'connect';
 }
 
-function isSendMessage(message: ClientMessage): message is SendMessage {
+export function isSendMessage(message: ClientMessage): message is SendMessage {
   return message.type === 'send';
 }
 
-function isRealtimeInputMessage(
+export function isRealtimeInputMessage(
   message: ClientMessage
 ): message is RealtimeInputMessage {
   return message.type === 'realtime_input';
 }
 
-function isToolResponseMessage(
+export function isToolResponseMessage(
   message: ClientMessage
 ): message is ToolResponseMessage {
   return message.type === 'tool_response';
 }
 
-function toBuffer(raw: unknown): Buffer {
+export function toBuffer(raw: unknown): Buffer {
   if (Buffer.isBuffer(raw)) {
     return raw;
   }
