@@ -6,9 +6,9 @@ import {
   clamp,
   smoothstep,
   getMouthSignature,
-} from './mouth-config';
-import type { AdobeViseme, AudioFeatures, MouthShape } from './mouth-config';
-import { defaultSpeechAnimationConfig } from '../../lib/state';
+} from '@/hooks/avatar/mouth-config';
+import type { AdobeViseme, AudioFeatures, MouthShape } from '@/hooks/avatar/mouth-config';
+import { defaultSpeechAnimationConfig } from '@/lib/state';
 
 const makeFeatures = (overrides: Partial<AudioFeatures> = {}): AudioFeatures => ({
   bands: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],

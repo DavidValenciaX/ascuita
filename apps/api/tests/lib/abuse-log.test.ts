@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { appendAbuseLog } from './abuse-log.js';
+import { appendAbuseLog } from '../../src/lib/abuse-log.js';
 
 function createTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'ascuita-abuse-log-'));

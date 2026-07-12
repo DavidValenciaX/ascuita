@@ -4,7 +4,7 @@ import {
   createNewAgent,
   AGENT_COLORS,
   Ascuita,
-} from './agents';
+} from '@/lib/presets/agents';
 
 describe('getAgentColorName', () => {
   it('returns the English name for a known color', () => {

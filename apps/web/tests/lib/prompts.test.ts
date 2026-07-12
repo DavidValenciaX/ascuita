@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createSystemInstructions } from './prompts';
-import type { Agent } from './presets/agents';
-import type { User } from './state';
+import { createSystemInstructions } from '@/lib/prompts';
+import type { Agent } from '@/lib/presets/agents';
+import type { User } from '@/lib/state';
 
 const customAgent: Agent = {
   id: 'custom-1',

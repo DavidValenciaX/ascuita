@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import healthRoute from './health.js';
+import healthRoute from '../../src/routes/health.js';
 
 describe('healthRoute', () => {
   let app: ReturnType<typeof Fastify> | undefined;

@@ -7,7 +7,7 @@ import {
 import {
   exportFireConfig,
   importFireConfigFromInput,
-} from './fire-settings-io';
+} from '@/components/fire-settings-io';
 
 class MockFileReader {
   onload: ((event: { target?: { result?: string } }) => void) | null = null;

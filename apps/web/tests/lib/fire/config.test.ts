@@ -4,7 +4,7 @@ import {
   mergeInnerFireConfig,
   normalizeInnerFireConfig,
   defaultInnerFireConfig,
-} from './config';
+} from '@/lib/fire/config';
 
 describe('cloneInnerFireConfig', () => {
   it('creates a deep copy equal to the original', () => {

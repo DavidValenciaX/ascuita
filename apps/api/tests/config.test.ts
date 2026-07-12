@@ -4,7 +4,7 @@ import {
   isAllowedOrigin,
   parseNumber,
   getConfig,
-} from './config.js';
+} from '../src/config.js';
 
 describe('parseCorsOrigin', () => {
   it('returns default origins when value is undefined', () => {

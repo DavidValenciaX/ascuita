@@ -11,7 +11,7 @@ vi.mock('firebase-admin/firestore', () => ({
   },
 }));
 
-vi.mock('../lib/firebase-admin.js', () => ({
+vi.mock('../../src/lib/firebase-admin.js', () => ({
   isFirebaseAdminConfigured: vi.fn(),
   verifyFirebaseIdToken: vi.fn(),
   getAdminDb: vi.fn(),
@@ -32,7 +32,7 @@ import {
   isRealtimeInputMessage,
   isToolResponseMessage,
   toBuffer,
-} from './live.js';
+} from '../../src/routes/live.js';
 
 describe('safeJsonParse', () => {
   it('parses valid JSON', () => {
