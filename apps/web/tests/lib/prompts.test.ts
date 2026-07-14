@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { createSystemInstructions } from '@/lib/prompts';
+import { buildInitialGreetingPrompt, createSystemInstructions } from '@/lib/prompts';
 import type { Agent } from '@/lib/presets/agents';
 import type { User } from '@/lib/state';
 
@@ -81,5 +81,44 @@ describe('createSystemInstructions', () => {
     expect(esResult).toContain('converse in Spanish');
     const enResult = createSystemInstructions(customAgent, {}, 'en');
     expect(enResult).toContain('converse in English');
+  });
+});
+
+describe('buildInitialGreetingPrompt', () => {
+  it('keeps the full introduction for guest users in Spanish', () => {
+    const result = buildInitialGreetingPrompt({
+      agentName: 'Ascuita',
+      isAuthenticated: false,
+      language: 'es',
+    });
+
+    expect(result).toContain('Presentate como Ascuita');
+    expect(result).toContain('explica tu rol');
+  });
+
+  it('uses a brief personalized greeting for authenticated users in Spanish', () => {
+    const result = buildInitialGreetingPrompt({
+      agentName: 'Ascuita',
+      userName: 'David',
+      isAuthenticated: true,
+      language: 'es',
+    });
+
+    expect(result).toContain('David');
+    expect(result).toContain('No te presentes de nuevo');
+    expect(result).not.toContain('Presentate como Ascuita');
+    expect(result).not.toContain('explica tu rol');
+  });
+
+  it('uses a brief fallback greeting for authenticated users without a name', () => {
+    const result = buildInitialGreetingPrompt({
+      agentName: 'Ascuita',
+      isAuthenticated: true,
+      language: 'en',
+    });
+
+    expect(result).toContain('Greet the user briefly and naturally');
+    expect(result).toContain('Do not introduce yourself again');
+    expect(result).not.toContain('Introduce yourself as Ascuita');
   });
 });

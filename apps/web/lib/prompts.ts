@@ -7,6 +7,38 @@ import { User } from './state';
 
 import { Language } from './i18n';
 
+type InitialGreetingOptions = {
+  agentName: string;
+  userName?: string;
+  isAuthenticated?: boolean;
+  language?: Language;
+};
+
+export const buildInitialGreetingPrompt = ({
+  agentName,
+  userName,
+  isAuthenticated = false,
+  language = 'en',
+}: InitialGreetingOptions) => {
+  const trimmedUserName = userName?.trim();
+
+  if (isAuthenticated) {
+    if (language === 'es') {
+      return trimmedUserName
+        ? `Saluda de forma breve y natural a ${trimmedUserName} por su nombre. No te presentes de nuevo ni expliques quien eres o tu rol. Da una bienvenida corta y termina con una pregunta sencilla para continuar la conversacion.`
+        : 'Saluda al usuario de forma breve y natural. No te presentes de nuevo ni expliques quien eres o tu rol. Da una bienvenida corta y termina con una pregunta sencilla para continuar la conversacion.';
+    }
+
+    return trimmedUserName
+      ? `Greet ${trimmedUserName} briefly and naturally by name. Do not introduce yourself again or explain who you are or your role. Give a short welcome and end with a simple question to continue the conversation.`
+      : 'Greet the user briefly and naturally. Do not introduce yourself again or explain who you are or your role. Give a short welcome and end with a simple question to continue the conversation.';
+  }
+
+  return language === 'es'
+    ? `Saluda al usuario de forma calida y natural. Presentate como ${agentName}, explica tu rol en una sola idea corta y termina con una pregunta sencilla para invitar a conversar.`
+    : `Greet the user warmly and naturally. Introduce yourself as ${agentName}, explain your role in one short idea, and end with a simple question that invites conversation.`;
+};
+
 export const createSystemInstructions = (agent: Agent, user: User, language: Language = 'en') => {
   const effectiveUserName = user.name || user.authDisplayName || '';
   const nameIntro = agent.name

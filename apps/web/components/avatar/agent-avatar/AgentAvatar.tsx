@@ -8,7 +8,7 @@ import { LiveServerToolCall } from '@google/genai';
 
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
-import { createSystemInstructions } from '@/lib/prompts';
+import { buildInitialGreetingPrompt, createSystemInstructions } from '@/lib/prompts';
 import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 import { AGENT_COLORS } from '@/lib/presets/agents';
@@ -54,12 +54,13 @@ export default function AgentAvatar() {
   const pendingPersonalityRef = useRef<string | null>(null);
   const pendingColorRef = useRef<string | null>(null);
   const user = useUser();
-  const { setIntroPlaying } = useAuthGate();
+  const { isAuthenticated, userName: authUserName, setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
   const pendingResume = useConversationResume(state => state.pending);
   const clearPendingResume = useConversationResume(state => state.clearPending);
   const { sceneTheme } = useUI();
   const { language } = useLanguage();
+  const effectiveUserName = user.name?.trim() || user.authDisplayName?.trim() || authUserName?.trim() || '';
 
   // Set the configuration for the Live API
   useEffect(() => {
@@ -294,9 +295,12 @@ export default function AgentAvatar() {
 
       void client.send(
         {
-          text: language === 'es'
-            ? `Saluda al usuario de forma calida y natural. Presentate como ${agentName}, explica tu rol en una sola idea corta y termina con una pregunta sencilla para invitar a conversar.`
-            : `Greet the user warmly and naturally. Introduce yourself as ${agentName}, explain your role in one short idea, and end with a simple question that invites conversation.`,
+          text: buildInitialGreetingPrompt({
+            agentName,
+            userName: effectiveUserName,
+            isAuthenticated,
+            language,
+          }),
         },
         true,
         false
@@ -306,7 +310,18 @@ export default function AgentAvatar() {
     return () => {
       window.clearTimeout(beginSession);
     };
-  }, [client, clearPendingResume, connected, audioReady, current, language, pendingResume, setIntroPlaying]);
+  }, [
+    client,
+    clearPendingResume,
+    connected,
+    audioReady,
+    current,
+    effectiveUserName,
+    isAuthenticated,
+    language,
+    pendingResume,
+    setIntroPlaying,
+  ]);
 
   useEffect(() => {
     const handleTurnComplete = () => {
