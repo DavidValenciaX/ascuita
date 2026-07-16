@@ -302,6 +302,7 @@ function MemoriesTab() {
   const {
     memories,
     memoryEnabled,
+    memorySettingsLoading,
     loading,
     deleteMemory,
     clearMemories,
@@ -356,6 +357,7 @@ function MemoriesTab() {
             <input
               type="checkbox"
               checked={memoryEnabled}
+              disabled={memorySettingsLoading}
               onChange={() => {
                 void toggleMemorySaving();
               }}

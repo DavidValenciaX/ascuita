@@ -17,6 +17,7 @@ import { auth, db } from '../firebase';
 import { useAuthGate } from '@/lib/state';
 import {
   createMemoryId,
+  DEFAULT_MEMORY_ENABLED,
   isMemoryId,
   MAX_MEMORIES_PER_USER,
   type MemoryInput,
@@ -102,7 +103,7 @@ export async function saveUserMemory(
     const userRef = doc(db, 'users', user.uid);
     const userSnapshot = await getDoc(userRef);
     const memoryEnabled =
-      userSnapshot.data()?.memorySettings?.enabled === true;
+      userSnapshot.data()?.memorySettings?.enabled !== false;
 
     if (!memoryEnabled) {
       return {
@@ -257,7 +258,8 @@ export async function setUserMemoryEnabled(
 export function useUserMemories() {
   const { isAuthenticated, authReady } = useAuthGate();
   const [memories, setMemories] = useState<UserMemory[]>([]);
-  const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [memoryEnabled, setMemoryEnabled] = useState(DEFAULT_MEMORY_ENABLED);
+  const [memorySettingsLoading, setMemorySettingsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const unsubscribeRef = useRef<(() => void)[]>([]);
 
@@ -270,11 +272,13 @@ export function useUserMemories() {
     if (!authReady || !isAuthenticated || !auth.currentUser) {
       setMemories([]);
       setMemoryEnabled(false);
+      setMemorySettingsLoading(false);
       setLoading(false);
       return;
     }
 
     const uid = auth.currentUser.uid;
+    setMemorySettingsLoading(true);
     setLoading(true);
 
     const memoriesQuery = query(
@@ -303,10 +307,15 @@ export function useUserMemories() {
     const unsubscribeUser = onSnapshot(
       doc(db, 'users', uid),
       snapshot => {
-        setMemoryEnabled(snapshot.data()?.memorySettings?.enabled === true);
+        setMemoryEnabled(
+          snapshot.data()?.memorySettings?.enabled !== false
+        );
+        setMemorySettingsLoading(false);
       },
       error => {
         console.error('Error loading memory settings:', error);
+        setMemoryEnabled(false);
+        setMemorySettingsLoading(false);
       }
     );
 
@@ -339,6 +348,7 @@ export function useUserMemories() {
   return {
     memories,
     memoryEnabled,
+    memorySettingsLoading,
     loading,
     saveMemory,
     deleteMemory,

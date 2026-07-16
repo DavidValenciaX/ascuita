@@ -50,6 +50,7 @@ export const MAX_MEMORY_SOURCE_AGENT_LENGTH = 128;
 export const MAX_MEMORIES_PER_USER = 100;
 export const MAX_MEMORIES_IN_PROMPT = 40;
 export const MAX_MEMORY_PROMPT_LENGTH = 8_000;
+export const DEFAULT_MEMORY_ENABLED = true;
 
 const SENSITIVE_MEMORY_PATTERN =
   /\b(?:password|contraseña|passcode|c[oó]digo de acceso|api[\s_-]*key|token|secret|secreto|credit[\s-]*card|tarjeta de cr[eé]dito|bank[\s-]*account|cuenta bancaria|social security|seguro social|ssn|passport|pasaporte|medical diagnosis|diagn[oó]stico m[eé]dico|health condition|condici[oó]n m[eé]dica|medication|medicamento|enfermedad|therapy|terapia|sexual|orientaci[oó]n sexual|precise address|direcci[oó]n exacta|gps coordinates|coordenadas gps)\b/i;

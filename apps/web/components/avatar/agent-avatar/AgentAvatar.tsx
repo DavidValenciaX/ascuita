@@ -54,7 +54,14 @@ function buildResumePrompt(
 }
 
 export default function AgentAvatar() {
-  const { client, connected, audioReady, setConfig } = useLiveAPIContext();
+  const {
+    client,
+    connected,
+    connecting,
+    audioReady,
+    setConfig,
+    disconnect,
+  } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
   const pendingNameRef = useRef<string | null>(null);
@@ -70,15 +77,18 @@ export default function AgentAvatar() {
   const {
     memories,
     memoryEnabled,
+    memorySettingsLoading,
     saveMemory,
     deleteMemory,
   } = useUserMemories();
+  const memoryAvailable =
+    isAuthenticated && !memorySettingsLoading && memoryEnabled;
   const effectiveUserName = user.name?.trim() || user.authDisplayName?.trim() || authUserName?.trim() || '';
 
   // Set the configuration for the Live API
   useEffect(() => {
     const functionDeclarations: FunctionDeclaration[] = [
-      ...(isAuthenticated && memoryEnabled
+      ...(memoryAvailable
         ? createMemoryToolDeclarations()
         : []),
       ...(!current.isPreset
@@ -179,14 +189,14 @@ export default function AgentAvatar() {
           {
             text: createSystemInstructions(current, user, language, {
               memories,
-              memoryEnabled: isAuthenticated && memoryEnabled,
+              memoryEnabled: memoryAvailable,
             }),
           },
         ],
       },
       tools: [
         { googleSearch: {} },
-        ...((isAuthenticated && memoryEnabled) || !current.isPreset
+        ...(memoryAvailable || !current.isPreset
           ? [{ functionDeclarations }]
           : []),
       ],
@@ -197,9 +207,23 @@ export default function AgentAvatar() {
     current,
     language,
     memories,
-    isAuthenticated,
-    memoryEnabled,
+    memoryAvailable,
   ]);
+
+  // The Live API receives tools only during the initial connection setup.
+  // Reconnect when the persisted memory preference becomes available or changes.
+  const previousMemoryAvailableRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const previousMemoryAvailable = previousMemoryAvailableRef.current;
+    if (
+      previousMemoryAvailable !== null &&
+      previousMemoryAvailable !== memoryAvailable &&
+      (connected || connecting)
+    ) {
+      void disconnect();
+    }
+    previousMemoryAvailableRef.current = memoryAvailable;
+  }, [connected, connecting, disconnect, memoryAvailable]);
 
   // Handle function calls from the model (e.g. saving a name given by voice)
   useEffect(() => {
@@ -211,7 +235,7 @@ export default function AgentAvatar() {
           (fc.args || {}) as Record<string, unknown>,
           {
             isAuthenticated,
-            memoryEnabled,
+            memoryEnabled: memoryAvailable,
             sourceAgentId: current.id,
             saveMemory,
             deleteMemory,
@@ -319,7 +343,7 @@ export default function AgentAvatar() {
     current.id,
     updateAgent,
     isAuthenticated,
-    memoryEnabled,
+    memoryAvailable,
     saveMemory,
     deleteMemory,
   ]);

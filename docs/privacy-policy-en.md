@@ -1,6 +1,6 @@
 # Ascuita Privacy Policy
 
-**Last updated: July 15, 2026**
+**Last updated: July 16, 2026**
 
 This Privacy Policy describes how Ascuita ("the Service", "we", "us") collects, uses, and protects the personal information of users ("you", "the User") when using the Ascuita web application.
 
@@ -29,7 +29,7 @@ When using the Service, you may create and store:
 - **Custom agents**: name, personality, body color, and selected voice.
 - **Conversations**: records of conversations held with AI agents, including agent identifier, start and end dates, and message count.
 - **Messages**: transcribed text of your messages (automatically transcribed voice input) and the AI agent's responses.
-- **Profile and persistent memories**: your preferred name, optional information you provide about yourself, and, if you enable automatic memories, brief non-sensitive memories that the agent considers useful for future conversations. Memories are stored as separate records with categories and creation/update dates.
+- **Profile and persistent memories**: your preferred name, optional information you provide about yourself, and, for authenticated users, brief non-sensitive memories that the agent considers useful for future conversations. Automatic memories are enabled by default and can be disabled from Settings. Memories are stored as separate records with categories and creation/update dates.
 
 ### 1.3. Real-time audio data
 
@@ -57,7 +57,7 @@ No conversation content or memories are stored for unauthenticated users. Guests
 We use the collected information to:
 
 - **Provide the Service**: authenticate users, store and retrieve conversations, agents, and memories, and process AI interactions.
-- **Personalize conversations**: when you enable automatic memories, use brief non-sensitive memories across sessions to adapt responses. The model decides when to request a memory, but the application validates the request before saving it.
+- **Personalize conversations**: use brief non-sensitive memories across sessions to adapt responses when automatic memories are enabled. They are enabled by default for authenticated users, but can be disabled from Settings. The model decides when to request a memory, but the application validates the request before saving it.
 - **Improve the Service**: analyze usage patterns through Firebase Analytics to identify areas for improvement.
 - **Ensure security**: prevent abuse, enforce rate limiting, detect and block malicious IPs, and maintain security logs.
 - **Communicate with you**: respond to inquiries, notify you of important changes to the Service or this Policy.
@@ -70,9 +70,11 @@ We do not sell, rent, or trade your personal information to third parties.
 
 For users in the European Union, data processing is based on:
 
-- **Consent** (Art. 6(1)(a) GDPR): by signing in with Google and accepting this Policy; automatic memories additionally require enabling that option in Settings.
+- **Consent** (Art. 6(1)(a) GDPR): where required by law and validly obtained for personalization and memories.
 - **Performance of a contract** (Art. 6(1)(b) GDPR): to provide the Service's functionality.
-- **Legitimate interest** (Art. 6(1)(f) GDPR): for security, abuse prevention, and analytics.
+- **Legitimate interest** (Art. 6(1)(f) GDPR): for security, abuse prevention, and analytics, and for personalization where applicable and properly balanced.
+
+The default activation of memories and general acceptance of this Policy explain this functionality, but do not replace any specific consent that applicable law may require.
 
 ---
 

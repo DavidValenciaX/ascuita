@@ -115,11 +115,16 @@ describe('user memory persistence', () => {
     expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
   });
 
-  it('keeps automatic memories opt-in when the setting is missing', async () => {
+  it('keeps automatic memories enabled when the setting is missing', async () => {
     firebaseMock.auth.currentUser = { uid: 'user-a' };
-    firestoreMocks.getDoc.mockResolvedValueOnce({
-      data: () => ({}),
-    });
+    firestoreMocks.getDoc
+      .mockResolvedValueOnce({
+        data: () => ({}),
+      })
+      .mockResolvedValueOnce({
+        exists: () => false,
+      });
+    firestoreMocks.getDocs.mockResolvedValueOnce({ size: 0 });
 
     const result = await saveUserMemory({
       content: 'Prefiere respuestas breves',
@@ -127,10 +132,10 @@ describe('user memory persistence', () => {
     });
 
     expect(result).toMatchObject({
-      success: false,
-      code: 'MEMORY_DISABLED',
+      success: true,
+      updated: false,
     });
-    expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
+    expect(firestoreMocks.setDoc).toHaveBeenCalled();
   });
 
   it('validates memory identifiers before deletion', async () => {

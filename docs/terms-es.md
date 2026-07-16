@@ -1,6 +1,6 @@
 # Términos y Condiciones de Ascuita
 
-**Última actualización: 15 de julio de 2026**
+**Última actualización: 16 de julio de 2026**
 
 Estos Términos y Condiciones ("los Términos") regulan el uso de la aplicación web Ascuita ("el Servicio") operada por **David Valencia** ("el Operador", "nosotros"). Al acceder o utilizar el Servicio, aceptas quedar vinculado por estos Términos. Si no estás de acuerdo con alguno de los términos, no utilices el Servicio.
 
@@ -13,7 +13,7 @@ Ascuita es una aplicación web que permite a los usuarios crear, configurar y co
 - Creación y gestión de agentes de IA personalizables.
 - Conversaciones de voz en tiempo real con los agentes.
 - Persistencia de conversaciones y agentes asociados a la cuenta del usuario.
-- Memorias persistentes opcionales para personalizar futuras conversaciones de usuarios registrados.
+- Memorias persistentes para personalizar futuras conversaciones de usuarios registrados, activadas por defecto y desactivables desde Configuración.
 - Un modo de prueba gratuita para usuarios no autenticados con duración limitada.
 
 ---
@@ -81,7 +81,7 @@ Eres el único responsable del contenido que generas y compartes con los agentes
 
 ### 5.3. Almacenamiento
 
-El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a las políticas de Google. Las memorias solo se guardan para usuarios autenticados que activen la opción correspondiente. Los usuarios no autenticados (trial gratuito) no tienen almacenamiento persistente de conversaciones ni de memorias.
+El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a las políticas de Google. Las memorias automáticas están activadas por defecto para usuarios autenticados y pueden desactivarse desde Configuración. Los usuarios no autenticados (trial gratuito) no tienen almacenamiento persistente de conversaciones ni de memorias.
 
 ---
 

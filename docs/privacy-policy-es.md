@@ -1,6 +1,6 @@
 # Política de Privacidad de Ascuita
 
-**Última actualización: 15 de julio de 2026**
+**Última actualización: 16 de julio de 2026**
 
 Esta Política de Privacidad describe cómo Ascuita ("el Servicio", "nosotros", "nos") recopila, utiliza y protege la información personal de los usuarios ("tú", "el Usuario") al utilizar la aplicación web Ascuita.
 
@@ -29,7 +29,7 @@ Al utilizar el Servicio, puedes crear y almacenar:
 - **Agentes personalizados**: nombre, personalidad, color del cuerpo y voz seleccionada.
 - **Conversaciones**: registro de las conversaciones mantenidas con los agentes de IA, incluyendo el identificador del agente, fecha de inicio y fin, y número de mensajes.
 - **Mensajes**: texto transcrito de tus mensajes (entrada de voz transcrita automáticamente) y las respuestas del agente de IA.
-- **Perfil y memorias persistentes**: el nombre preferido, la información opcional que introduzcas sobre ti y, si activas las memorias automáticas, recuerdos breves y no sensibles que el agente considere útiles para futuras conversaciones. Las memorias se guardan como elementos separados con categoría y fechas de creación/actualización.
+- **Perfil y memorias persistentes**: el nombre preferido, la información opcional que introduzcas sobre ti y, para usuarios autenticados, recuerdos breves y no sensibles que el agente considere útiles para futuras conversaciones. Las memorias automáticas están activadas por defecto y pueden desactivarse desde Configuración. Se guardan como elementos separados con categoría y fechas de creación/actualización.
 
 ### 1.3. Datos de audio en tiempo real
 
@@ -57,7 +57,7 @@ No se almacena contenido de conversaciones ni memorias para usuarios no autentic
 Utilizamos la información recopilada para:
 
 - **Proporcionar el Servicio**: autenticar usuarios, guardar y recuperar conversaciones, agentes y memorias, y procesar interacciones con IA.
-- **Personalizar conversaciones**: cuando activas las memorias automáticas, usar recuerdos breves y no sensibles entre sesiones para adaptar las respuestas. El modelo decide cuándo solicitar una memoria, pero la aplicación valida la solicitud antes de guardarla.
+- **Personalizar conversaciones**: usar recuerdos breves y no sensibles entre sesiones para adaptar las respuestas cuando las memorias automáticas están habilitadas. Están habilitadas por defecto para usuarios autenticados, pero pueden desactivarse desde Configuración. El modelo decide cuándo solicitar una memoria, pero la aplicación valida la solicitud antes de guardarla.
 - **Mejorar el Servicio**: analizar patrones de uso mediante Firebase Analytics para identificar áreas de mejora.
 - **Garantizar la seguridad**: prevenir abuso, aplicar rate limiting, detectar y bloquear IPs maliciosas, y mantener logs de seguridad.
 - **Comunicarnos contigo**: responder consultas, notificar cambios importantes en el Servicio o en esta Política.
@@ -70,9 +70,11 @@ No vendemos, alquilamos ni comercializamos tu información personal con terceros
 
 Para usuarios en la Unión Europea, el tratamiento de datos se basa en:
 
-- **Consentimiento** (Art. 6(1)(a) GDPR): al iniciar sesión con Google y aceptar esta Política; las memorias automáticas requieren además que actives esa opción en Configuración.
+- **Consentimiento** (Art. 6(1)(a) GDPR): cuando la ley lo requiera y se haya obtenido válidamente para la personalización y las memorias.
 - **Ejecución de un contrato** (Art. 6(1)(b) GDPR): para proporcionar la funcionalidad del Servicio.
-- **Interés legítimo** (Art. 6(1)(f) GDPR): para seguridad, prevención de abuso y analítica.
+- **Interés legítimo** (Art. 6(1)(f) GDPR): para seguridad, prevención de abuso y analítica, y para personalización cuando sea aplicable y se haya ponderado adecuadamente.
+
+La activación predeterminada de las memorias y la aceptación general de esta Política informan sobre esta funcionalidad, pero no sustituyen cualquier consentimiento específico que pueda exigir la legislación aplicable.
 
 ---
 

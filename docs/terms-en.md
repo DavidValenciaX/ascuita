@@ -1,6 +1,6 @@
 # Ascuita Terms of Service
 
-**Last updated: July 15, 2026**
+**Last updated: July 16, 2026**
 
 These Terms of Service ("the Terms") govern the use of the Ascuita web application ("the Service") operated by **David Valencia** ("the Operator", "we"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree to any of the terms, do not use the Service.
 
@@ -13,7 +13,7 @@ Ascuita is a web application that allows users to create, configure, and convers
 - Creation and management of customizable AI agents.
 - Real-time voice conversations with agents.
 - Persistence of conversations and agents associated with the user's account.
-- Optional persistent memories to personalize future conversations for signed-in users.
+- Persistent memories to personalize future conversations for signed-in users, enabled by default and configurable from Settings.
 - A free trial mode for unauthenticated users with limited duration.
 
 ---
@@ -81,7 +81,7 @@ You are solely responsible for the content you generate and share with the AI ag
 
 ### 5.3. Storage
 
-User content is stored in Google Cloud Firestore and is subject to Google's policies. Memories are stored only for authenticated users who enable the corresponding option. Unauthenticated users (free trial) do not have persistent conversation or memory storage.
+User content is stored in Google Cloud Firestore and is subject to Google's policies. Automatic memories are enabled by default for authenticated users and can be disabled from Settings. Unauthenticated users (free trial) do not have persistent conversation or memory storage.
 
 ---
 
