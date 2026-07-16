@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:rules": "vitest run --config vitest.rules.config.ts",
     "test:watch": "vitest"
   },
   "engines": {
@@ -28,6 +29,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@types/lodash": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.8",

@@ -1,6 +1,6 @@
 # Política de Privacidad de Ascuita
 
-**Última actualización: 28 de junio de 2026**
+**Última actualización: 15 de julio de 2026**
 
 Esta Política de Privacidad describe cómo Ascuita ("el Servicio", "nosotros", "nos") recopila, utiliza y protege la información personal de los usuarios ("tú", "el Usuario") al utilizar la aplicación web Ascuita.
 
@@ -29,6 +29,7 @@ Al utilizar el Servicio, puedes crear y almacenar:
 - **Agentes personalizados**: nombre, personalidad, color del cuerpo y voz seleccionada.
 - **Conversaciones**: registro de las conversaciones mantenidas con los agentes de IA, incluyendo el identificador del agente, fecha de inicio y fin, y número de mensajes.
 - **Mensajes**: texto transcrito de tus mensajes (entrada de voz transcrita automáticamente) y las respuestas del agente de IA.
+- **Perfil y memorias persistentes**: el nombre preferido, la información opcional que introduzcas sobre ti y, si activas las memorias automáticas, recuerdos breves y no sensibles que el agente considere útiles para futuras conversaciones. Las memorias se guardan como elementos separados con categoría y fechas de creación/actualización.
 
 ### 1.3. Datos de audio en tiempo real
 
@@ -47,7 +48,7 @@ Si utilizas el Servicio sin iniciar sesión, recopilamos:
 - **Dirección IP**: para controlar la duración del trial gratuito (3 minutos por defecto) y prevenir abuso.
 - **Audio en tiempo real**: transmitido a Gemini Live API de la misma forma que los usuarios autenticados.
 
-No se almacena contenido de conversaciones para usuarios no autenticados.
+No se almacena contenido de conversaciones ni memorias para usuarios no autenticados. Los invitados tampoco reciben almacenamiento local de memorias.
 
 ---
 
@@ -55,7 +56,8 @@ No se almacena contenido de conversaciones para usuarios no autenticados.
 
 Utilizamos la información recopilada para:
 
-- **Proporcionar el Servicio**: autenticar usuarios, guardar y recuperar conversaciones y agentes, y procesar interacciones con IA.
+- **Proporcionar el Servicio**: autenticar usuarios, guardar y recuperar conversaciones, agentes y memorias, y procesar interacciones con IA.
+- **Personalizar conversaciones**: cuando activas las memorias automáticas, usar recuerdos breves y no sensibles entre sesiones para adaptar las respuestas. El modelo decide cuándo solicitar una memoria, pero la aplicación valida la solicitud antes de guardarla.
 - **Mejorar el Servicio**: analizar patrones de uso mediante Firebase Analytics para identificar áreas de mejora.
 - **Garantizar la seguridad**: prevenir abuso, aplicar rate limiting, detectar y bloquear IPs maliciosas, y mantener logs de seguridad.
 - **Comunicarnos contigo**: responder consultas, notificar cambios importantes en el Servicio o en esta Política.
@@ -68,7 +70,7 @@ No vendemos, alquilamos ni comercializamos tu información personal con terceros
 
 Para usuarios en la Unión Europea, el tratamiento de datos se basa en:
 
-- **Consentimiento** (Art. 6(1)(a) GDPR): al iniciar sesión con Google y aceptar esta Política.
+- **Consentimiento** (Art. 6(1)(a) GDPR): al iniciar sesión con Google y aceptar esta Política; las memorias automáticas requieren además que actives esa opción en Configuración.
 - **Ejecución de un contrato** (Art. 6(1)(b) GDPR): para proporcionar la funcionalidad del Servicio.
 - **Interés legítimo** (Art. 6(1)(f) GDPR): para seguridad, prevención de abuso y analítica.
 
@@ -81,13 +83,13 @@ Compartimos datos con los siguientes proveedores de servicios, bajo sus respecti
 ### 4.1. Google Firebase
 
 - **Firebase Authentication**: gestiona la autenticación con Google.
-- **Cloud Firestore**: almacena los datos de usuarios, agentes, conversaciones y mensajes.
+- **Cloud Firestore**: almacena los datos de usuarios, agentes, conversaciones, mensajes y memorias.
 - **Firebase Analytics**: recopila datos de uso agregados.
 - Política de privacidad de Google: [https://policies.google.com/privacy](https://policies.google.com/privacy)
 
 ### 4.2. Google Gemini Live API
 
-- Procesa el audio y texto en tiempo real para generar las respuestas de los agentes de IA.
+- Procesa el audio y texto en tiempo real para generar las respuestas de los agentes de IA. Cuando las memorias están activadas, el contexto de esas memorias puede enviarse como parte de las instrucciones de sistema de una sesión.
 - Los datos enviados a Gemini se rigen por la política de privacidad de Google Cloud.
 - Política de Gemini: [https://ai.google.dev/privacy](https://ai.google.dev/privacy)
 
@@ -107,6 +109,7 @@ No compartimos información personal con ningún otro tercero, salvo obligación
 | Cuenta de usuario (Auth) | Hasta que el usuario solicite su eliminación |
 | Agentes personalizados | Hasta que el usuario los elimine o solicite la eliminación de la cuenta |
 | Conversaciones y mensajes | Hasta que el usuario los elimine o solicite la eliminación de la cuenta |
+| Memorias persistentes | Hasta que el usuario las elimine o solicite la eliminación de la cuenta; desactivar el guardado impide crear nuevas memorias |
 | Logs de seguridad (IP) | 3 días (configurable, por defecto) |
 | Datos de trial gratuito (IP) | 1 hora tras el inicio del trial |
 | Datos de analítica | Según la política de retención de Firebase Analytics |
@@ -122,6 +125,7 @@ Si resides en la Unión Europea (GDPR) o California (CCPA), tienes los siguiente
 - **Acceso**: solicitar una copia de tus datos personales.
 - **Rectificación**: solicitar la corrección de datos inexactos.
 - **Supresión**: solicitar la eliminación de tus datos personales ("derecho al olvido").
+- **Control de memorias**: consultar, exportar o eliminar las memorias desde Configuración, y desactivar el guardado automático.
 - **Limitación**: solicitar que limitemos el tratamiento de tus datos.
 - **Portabilidad**: recibir tus datos en un formato estructizado y transferible.
 - **Oposición**: oponerte al tratamiento de tus datos basado en interés legítimo.
@@ -140,7 +144,8 @@ Implementamos las siguientes medidas de seguridad:
 - **Bloqueo temporal de IPs abusivas**: IPs que exceden los límites son bloqueadas temporalmente.
 - **Headers de seguridad**: nosniff, DENY frame, strict referrer policy, same-site CORP, restricción de permisos de micrófono.
 - **Verificación de tokens**: el backend verifica los tokens de Firebase Auth antes de permitir acceso a datos.
-- **Reglas de Firestore**: cada usuario solo puede acceder a sus propios datos.
+- **Reglas de Firestore**: cada usuario solo puede acceder a sus propios datos, incluidas sus memorias.
+- **Minimización**: la aplicación limita el tamaño, las categorías y el contenido de las memorias, y rechaza tipos de información especialmente sensible.
 
 A pesar de estas medidas, ningún sistema es 100% seguro. No podemos garantizar la seguridad absoluta de tus datos.
 

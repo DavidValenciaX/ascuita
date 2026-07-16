@@ -23,8 +23,9 @@ Actualmente el repositorio usa una arquitectura `monorepo`:
 * **Boca procedural sincronizada con audio**: el lip sync usa análisis de audio y visemas inspirados en Adobe Character Animator; la boca se dibuja dinámicamente sobre una textura de canvas aplicada al personaje 3D.
 * **Agentes personalizables**: puedes elegir presets, crear agentes propios y ajustar nombre, personalidad, voz y color.
 * **Autenticación con Google (Firebase Auth)**: los usuarios pueden iniciar sesión con su cuenta de Google. El backend verifica los tokens de Firebase Admin SDK.
-* **Trial gratuito para invitados**: los usuarios no autenticados pueden probar la aplicación durante un tiempo limitado (por defecto 60 segundos) antes de necesitar iniciar sesión.
+* **Trial gratuito para invitados**: los usuarios no autenticados pueden probar la aplicación durante un tiempo limitado (por defecto 3 minutos) antes de necesitar iniciar sesión.
 * **Persistencia de conversaciones (Firestore)**: las conversaciones y mensajes se guardan en Firestore. Los usuarios pueden ver su historial y retomar conversaciones anteriores.
+* **Memorias persistentes para usuarios registrados**: si el usuario activa la opción, Ascuita puede guardar recuerdos breves y no sensibles que el modelo considere útiles para personalizar futuras conversaciones. Se pueden revisar, exportar, borrar o desactivar desde Configuración.
 * **Soporte en español e inglés**: la interfaz cambia de idioma según el navegador y permite alternar idioma desde la configuración.
 * **Panel de configuración de animación**: incluye controles para ajustar sensibilidad, suavizado y comportamiento de la boca.
 * **Temas claro/oscuro**: la escena 3D puede alternar entre tema oscuro y claro.
@@ -138,6 +139,7 @@ npm run build:web
 * `npm run build:api`: compila el backend.
 * `npm run build:web`: compila el frontend.
 * `npm run build`: compila frontend y backend.
+* `npm run test:rules`: ejecuta los tests de reglas de Firestore mediante el emulador local.
 * `npm run preview:web`: sirve localmente el build de producción del frontend.
 
 ## Despliegue
@@ -182,7 +184,9 @@ El backend se gestiona con PM2 usando `apps/api/ecosystem.config.cjs`, que defin
 
 ### Reglas de Firestore
 
-El workflow `deploy-firestore-rules.yml` despliega las reglas definidas en `firestore.rules` cada vez que cambian. Las reglas permiten que cada usuario solo lea y escriba sus propios datos (agentes, conversaciones y mensajes) bajo `users/{uid}/...`.
+El workflow `deploy-firestore-rules.yml` despliega las reglas definidas en `firestore.rules` cada vez que cambian. Las reglas permiten que cada usuario solo lea y escriba sus propios datos (agentes, conversaciones, mensajes y memorias) bajo `users/{uid}/...`.
+
+Las memorias se almacenan en `users/{uid}/memories/{memoryId}` con una categoría (`preference`, `personal_fact`, `goal` o `context`), contenido breve y marcas de tiempo. Gemini Live puede solicitar guardar o eliminar una memoria mediante function calling, pero el navegador valida la solicitud y Firestore vuelve a comprobar la autorización y el esquema. Los usuarios invitados no reciben estas herramientas ni tienen almacenamiento de memorias.
 
 Importante: `GEMINI_API_KEY` y las credenciales de Firebase Admin solo deben existir en el backend y nunca en el build del frontend.
 

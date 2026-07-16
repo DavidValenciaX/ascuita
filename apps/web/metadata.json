@@ -1,6 +1,6 @@
 {
   "name": "Ascuita",
-  "description": "An interactive tool that allows you to design, test, and banter with custom AI characters on the fly.",
+  "description": "An interactive tool for designing, testing, and talking with custom AI characters, with optional persistent memories for signed-in users.",
   "requestFramePermissions": [
     "microphone"
   ]

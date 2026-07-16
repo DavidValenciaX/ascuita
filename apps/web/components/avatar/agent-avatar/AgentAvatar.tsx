@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { useEffect, useRef } from 'react';
-import { Modality, Type } from '@google/genai';
+import {
+  Modality,
+  Type,
+  type FunctionDeclaration,
+} from '@google/genai';
 import { LiveServerToolCall } from '@google/genai';
 
 import BasicFace from '../basic-face/BasicFace';
@@ -13,6 +17,9 @@ import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/
 import { useLanguage } from '@/lib/i18n';
 import { AGENT_COLORS } from '@/lib/presets/agents';
 import { saveUserAgent } from '@/hooks/useUserAgents';
+import { useUserMemories } from '@/hooks/useUserMemories';
+import { createMemoryToolDeclarations } from '@/lib/memory-tools';
+import { executeMemoryToolCall } from '@/lib/memory-tool-handler';
 
 function buildResumePrompt(
   language: 'es' | 'en',
@@ -60,33 +67,26 @@ export default function AgentAvatar() {
   const clearPendingResume = useConversationResume(state => state.clearPending);
   const { sceneTheme } = useUI();
   const { language } = useLanguage();
+  const {
+    memories,
+    memoryEnabled,
+    saveMemory,
+    deleteMemory,
+  } = useUserMemories();
   const effectiveUserName = user.name?.trim() || user.authDisplayName?.trim() || authUserName?.trim() || '';
 
   // Set the configuration for the Live API
   useEffect(() => {
-    setConfig({
-      responseModalities: [Modality.AUDIO],
-      inputAudioTranscription: {},
-      outputAudioTranscription: {},
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: current.voice },
-        },
-      },
-      systemInstruction: {
-        parts: [
-          {
-            text: createSystemInstructions(current, user, language),
-          },
-        ],
-      },
-      tools: [
-        { googleSearch: {} },
-        ...(current.isPreset ? [] : [{
-          functionDeclarations: [
+    const functionDeclarations: FunctionDeclaration[] = [
+      ...(isAuthenticated && memoryEnabled
+        ? createMemoryToolDeclarations()
+        : []),
+      ...(!current.isPreset
+        ? ([
             {
               name: 'set_agent_name',
-              description: 'Proposes a new name for the agent. The name is not saved until the user confirms and confirm_agent_name is called.',
+              description:
+                'Proposes a new name for the agent. The name is not saved until the user confirms and confirm_agent_name is called.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
@@ -100,7 +100,8 @@ export default function AgentAvatar() {
             },
             {
               name: 'confirm_agent_name',
-              description: 'Confirms and permanently saves the proposed agent name after the user has verbally agreed to the change.',
+              description:
+                'Confirms and permanently saves the proposed agent name after the user has verbally agreed to the change.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {},
@@ -109,13 +110,15 @@ export default function AgentAvatar() {
             },
             {
               name: 'set_agent_personality',
-              description: 'Proposes a new personality description for the agent. The personality is not saved until the user confirms and confirm_agent_personality is called.',
+              description:
+                'Proposes a new personality description for the agent. The personality is not saved until the user confirms and confirm_agent_personality is called.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
                   personality: {
                     type: Type.STRING,
-                    description: 'The new personality description the user wants the agent to have',
+                    description:
+                      'The new personality description the user wants the agent to have',
                   },
                 },
                 required: ['personality'],
@@ -123,7 +126,8 @@ export default function AgentAvatar() {
             },
             {
               name: 'confirm_agent_personality',
-              description: 'Confirms and permanently saves the proposed agent personality after the user has verbally agreed to the change.',
+              description:
+                'Confirms and permanently saves the proposed agent personality after the user has verbally agreed to the change.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {},
@@ -132,13 +136,15 @@ export default function AgentAvatar() {
             },
             {
               name: 'set_agent_color',
-              description: 'Proposes a new avatar color for the agent. The color is not saved until the user confirms and confirm_agent_color is called.',
+              description:
+                'Proposes a new avatar color for the agent. The color is not saved until the user confirms and confirm_agent_color is called.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {
                   color: {
                     type: Type.STRING,
-                    description: 'The hex color value the user wants the agent avatar to be',
+                    description:
+                      'The hex color value the user wants the agent avatar to be',
                     enum: AGENT_COLORS,
                   },
                 },
@@ -147,25 +153,77 @@ export default function AgentAvatar() {
             },
             {
               name: 'confirm_agent_color',
-              description: 'Confirms and permanently saves the proposed avatar color after the user has verbally agreed to the change.',
+              description:
+                'Confirms and permanently saves the proposed avatar color after the user has verbally agreed to the change.',
               parameters: {
                 type: Type.OBJECT,
                 properties: {},
                 required: [],
               },
             },
-          ],
-        }]),
+          ] satisfies FunctionDeclaration[])
+        : []),
+    ];
+
+    setConfig({
+      responseModalities: [Modality.AUDIO],
+      inputAudioTranscription: {},
+      outputAudioTranscription: {},
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: current.voice },
+        },
+      },
+      systemInstruction: {
+        parts: [
+          {
+            text: createSystemInstructions(current, user, language, {
+              memories,
+              memoryEnabled: isAuthenticated && memoryEnabled,
+            }),
+          },
+        ],
+      },
+      tools: [
+        { googleSearch: {} },
+        ...((isAuthenticated && memoryEnabled) || !current.isPreset
+          ? [{ functionDeclarations }]
+          : []),
       ],
     });
-  }, [setConfig, user, current, language]);
+  }, [
+    setConfig,
+    user,
+    current,
+    language,
+    memories,
+    isAuthenticated,
+    memoryEnabled,
+  ]);
 
   // Handle function calls from the model (e.g. saving a name given by voice)
   useEffect(() => {
     const handleToolCall = async (toolCall: LiveServerToolCall) => {
       const responses = [];
       for (const fc of toolCall.functionCalls ?? []) {
-        if (fc.name === 'set_agent_name') {
+        const memoryToolResult = await executeMemoryToolCall(
+          fc.name,
+          (fc.args || {}) as Record<string, unknown>,
+          {
+            isAuthenticated,
+            memoryEnabled,
+            sourceAgentId: current.id,
+            saveMemory,
+            deleteMemory,
+          }
+        );
+        if (memoryToolResult) {
+          responses.push({
+            id: fc.id as string,
+            name: fc.name,
+            response: { result: memoryToolResult.result },
+          });
+        } else if (fc.name === 'set_agent_name') {
           const newName = (fc.args as { name: string }).name;
           pendingNameRef.current = newName;
           responses.push({
@@ -256,7 +314,15 @@ export default function AgentAvatar() {
     return () => {
       client.off('toolcall', handleToolCall);
     };
-  }, [client, current.id, updateAgent]);
+  }, [
+    client,
+    current.id,
+    updateAgent,
+    isAuthenticated,
+    memoryEnabled,
+    saveMemory,
+    deleteMemory,
+  ]);
 
   // Initiate the session when the Live API connection is established
   // Instruct the model to send an initial greeting message

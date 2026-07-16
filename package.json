@@ -15,10 +15,12 @@
     "build": "npm run build:web && npm run build:api",
     "test": "npm run test:api && npm run test:web",
     "test:api": "npm run test -w apps/api",
-    "test:web": "npm run test -w apps/web"
+    "test:web": "npm run test -w apps/web",
+    "test:rules": "firebase emulators:exec --only firestore --project ascuita-rules-test \"npm run test:rules -w apps/web\""
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "firebase-tools": "^14.7.0"
   },
   "engines": {
     "node": ">=20.0.0"

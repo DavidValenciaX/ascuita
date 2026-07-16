@@ -1,6 +1,6 @@
 # Términos y Condiciones de Ascuita
 
-**Última actualización: 28 de junio de 2026**
+**Última actualización: 15 de julio de 2026**
 
 Estos Términos y Condiciones ("los Términos") regulan el uso de la aplicación web Ascuita ("el Servicio") operada por **David Valencia** ("el Operador", "nosotros"). Al acceder o utilizar el Servicio, aceptas quedar vinculado por estos Términos. Si no estás de acuerdo con alguno de los términos, no utilices el Servicio.
 
@@ -13,6 +13,7 @@ Ascuita es una aplicación web que permite a los usuarios crear, configurar y co
 - Creación y gestión de agentes de IA personalizables.
 - Conversaciones de voz en tiempo real con los agentes.
 - Persistencia de conversaciones y agentes asociados a la cuenta del usuario.
+- Memorias persistentes opcionales para personalizar futuras conversaciones de usuarios registrados.
 - Un modo de prueba gratuita para usuarios no autenticados con duración limitada.
 
 ---
@@ -72,7 +73,7 @@ El incumplimiento de estas normas puede resultar en **bloqueo temporal o permane
 
 ### 5.1. Propiedad
 
-Mantienes la propiedad del contenido que creas en el Servicio (agentes, conversaciones, mensajes). Al utilizar el Servicio, nos otorgas una licencia no exclusiva, gratuita y temporal para procesar y almacenar dicho contenido con el único fin de proporcionar el Servicio.
+Mantienes la propiedad del contenido que creas en el Servicio (agentes, conversaciones, mensajes, perfil y memorias). Al utilizar el Servicio, nos otorgas una licencia no exclusiva, gratuita y temporal para procesar y almacenar dicho contenido con el único fin de proporcionar el Servicio.
 
 ### 5.2. Responsabilidad
 
@@ -80,13 +81,14 @@ Eres el único responsable del contenido que generas y compartes con los agentes
 
 ### 5.3. Almacenamiento
 
-El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a las políticas de Google. Los usuarios no autenticados (trial gratuito) no tienen almacenamiento persistente de conversaciones.
+El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a las políticas de Google. Las memorias solo se guardan para usuarios autenticados que activen la opción correspondiente. Los usuarios no autenticados (trial gratuito) no tienen almacenamiento persistente de conversaciones ni de memorias.
 
 ---
 
 ## 6. Inteligencia artificial y precisión
 
 - Las respuestas de los agentes de IA son generadas por modelos de lenguaje (Google Gemini) y **pueden contener errores, inexactitudes o contenido inapropiado**.
+- Las memorias pueden ser incompletas, desactualizadas o incorrectas porque el modelo decide cuándo proponerlas. Debes revisar y eliminar cualquier memoria que no sea exacta.
 - El Servicio **no debe utilizarse** para decisiones críticas en áreas como salud, finanzas, legal, seguridad u otras donde los errores puedan causar daños significativos.
 - El Operador no garantiza la precisión, fiabilidad o idoneidad de las respuestas generadas.
 - El audio se procesa en tiempo real y no se almacena permanentemente.
@@ -125,7 +127,7 @@ En la máxima medida permitida por la ley aplicable:
 - El Operador **no garantiza** que el Servicio sea ininterrumpido, seguro o libre de errores.
 - El Operador **no será responsable** de:
   - Daños indirectos, incidentales, especiales, consecuentes o punitivos.
-  - Pérdida de datos, conversaciones o agentes almacenados.
+  - Pérdida de datos, conversaciones, agentes o memorias almacenados.
   - Contenido generado por la IA que sea inexacto, ofensivo o dañino.
   - Interrupciones del Servicio por mantenimiento, fallos técnicos o causas de fuerza mayor.
   - Accesos no autorizados a tu cuenta.

@@ -1,6 +1,6 @@
 # Ascuita Privacy Policy
 
-**Last updated: June 28, 2026**
+**Last updated: July 15, 2026**
 
 This Privacy Policy describes how Ascuita ("the Service", "we", "us") collects, uses, and protects the personal information of users ("you", "the User") when using the Ascuita web application.
 
@@ -29,6 +29,7 @@ When using the Service, you may create and store:
 - **Custom agents**: name, personality, body color, and selected voice.
 - **Conversations**: records of conversations held with AI agents, including agent identifier, start and end dates, and message count.
 - **Messages**: transcribed text of your messages (automatically transcribed voice input) and the AI agent's responses.
+- **Profile and persistent memories**: your preferred name, optional information you provide about yourself, and, if you enable automatic memories, brief non-sensitive memories that the agent considers useful for future conversations. Memories are stored as separate records with categories and creation/update dates.
 
 ### 1.3. Real-time audio data
 
@@ -47,7 +48,7 @@ If you use the Service without signing in, we collect:
 - **IP address**: to control the free trial duration (3 minutes by default) and prevent abuse.
 - **Real-time audio**: streamed to the Gemini Live API in the same manner as authenticated users.
 
-No conversation content is stored for unauthenticated users.
+No conversation content or memories are stored for unauthenticated users. Guests also receive no local memory storage.
 
 ---
 
@@ -55,7 +56,8 @@ No conversation content is stored for unauthenticated users.
 
 We use the collected information to:
 
-- **Provide the Service**: authenticate users, store and retrieve conversations and agents, and process AI interactions.
+- **Provide the Service**: authenticate users, store and retrieve conversations, agents, and memories, and process AI interactions.
+- **Personalize conversations**: when you enable automatic memories, use brief non-sensitive memories across sessions to adapt responses. The model decides when to request a memory, but the application validates the request before saving it.
 - **Improve the Service**: analyze usage patterns through Firebase Analytics to identify areas for improvement.
 - **Ensure security**: prevent abuse, enforce rate limiting, detect and block malicious IPs, and maintain security logs.
 - **Communicate with you**: respond to inquiries, notify you of important changes to the Service or this Policy.
@@ -68,7 +70,7 @@ We do not sell, rent, or trade your personal information to third parties.
 
 For users in the European Union, data processing is based on:
 
-- **Consent** (Art. 6(1)(a) GDPR): by signing in with Google and accepting this Policy.
+- **Consent** (Art. 6(1)(a) GDPR): by signing in with Google and accepting this Policy; automatic memories additionally require enabling that option in Settings.
 - **Performance of a contract** (Art. 6(1)(b) GDPR): to provide the Service's functionality.
 - **Legitimate interest** (Art. 6(1)(f) GDPR): for security, abuse prevention, and analytics.
 
@@ -81,13 +83,13 @@ We share data with the following service providers, under their respective priva
 ### 4.1. Google Firebase
 
 - **Firebase Authentication**: manages Google authentication.
-- **Cloud Firestore**: stores user data, agents, conversations, and messages.
+- **Cloud Firestore**: stores user data, agents, conversations, messages, and memories.
 - **Firebase Analytics**: collects aggregated usage data.
 - Google Privacy Policy: [https://policies.google.com/privacy](https://policies.google.com/privacy)
 
 ### 4.2. Google Gemini Live API
 
-- Processes real-time audio and text to generate AI agent responses.
+- Processes real-time audio and text to generate AI agent responses. When memories are enabled, memory context may be sent as part of a session's system instructions.
 - Data sent to Gemini is governed by Google Cloud's privacy policy.
 - Gemini Privacy: [https://ai.google.dev/privacy](https://ai.google.dev/privacy)
 
@@ -107,6 +109,7 @@ We do not share personal information with any other third party, except as requi
 | User account (Auth) | Until the user requests deletion |
 | Custom agents | Until the user deletes them or requests account deletion |
 | Conversations and messages | Until the user deletes them or requests account deletion |
+| Persistent memories | Until the user deletes them or requests account deletion |
 | Security logs (IP) | 3 days (configurable, default) |
 | Free trial data (IP) | 1 hour after trial start |
 | Analytics data | Per Firebase Analytics retention policy |
@@ -122,6 +125,7 @@ If you reside in the European Union (GDPR) or California (CCPA), you have the fo
 - **Access**: request a copy of your personal data.
 - **Rectification**: request correction of inaccurate data.
 - **Erasure**: request deletion of your personal data ("right to be forgotten").
+- **Memory controls**: view, export, or delete memories in Settings, and disable automatic saving.
 - **Restriction**: request that we limit the processing of your data.
 - **Portability**: receive your data in a structured, transferable format.
 - **Objection**: object to the processing of your data based on legitimate interest.
@@ -140,7 +144,8 @@ We implement the following security measures:
 - **Temporary IP blocking**: IPs that exceed limits are temporarily blocked.
 - **Security headers**: nosniff, DENY frame, strict referrer policy, same-site CORP, microphone permission restriction.
 - **Token verification**: the backend verifies Firebase Auth tokens before allowing data access.
-- **Firestore rules**: each user can only access their own data.
+- **Firestore rules**: each user can only access their own data, including their memories.
+- **Data minimization**: the application limits memory size, categories, and content, and rejects especially sensitive types of information.
 
 Despite these measures, no system is 100% secure. We cannot guarantee the absolute security of your data.
 

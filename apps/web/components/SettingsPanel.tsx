@@ -13,7 +13,7 @@ import {
   useUI,
   useUser,
 } from '@/lib/state';
-import { useAgent } from '@/lib/state';
+import { useAgent, useAuthGate } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
 import {
   Agent,
@@ -27,8 +27,19 @@ import { useLanguage } from '@/lib/i18n';
 import { createSystemInstructions } from '@/lib/prompts';
 import { saveUserProfile } from '@/hooks/useUserProfile';
 import { useUserAgents } from '@/hooks/useUserAgents';
+import { useUserMemories } from '@/hooks/useUserMemories';
+import type { MemoryCategory } from '@/lib/memories';
 
-type Tab = 'profile' | 'agents' | 'speech' | 'fire' | 'avatar' | 'appearance' | 'language' | 'legal';
+type Tab =
+  | 'profile'
+  | 'memories'
+  | 'agents'
+  | 'speech'
+  | 'fire'
+  | 'avatar'
+  | 'appearance'
+  | 'language'
+  | 'legal';
 
 // ── Speech animation slider config ─────────────────────────────────────────
 
@@ -264,6 +275,168 @@ function ProfileTab() {
           placeholder={t('profileAboutYouPlaceholder')}
         />
       </div>
+    </div>
+  );
+}
+
+function formatMemoryDate(timestamp: number, language: string) {
+  if (!timestamp) return '';
+  return new Date(timestamp).toLocaleString(language === 'es' ? 'es-ES' : 'en-US');
+}
+
+const memoryCategoryTranslationKeys: Record<
+  MemoryCategory,
+  | 'memoryCategoryPreference'
+  | 'memoryCategoryPersonalFact'
+  | 'memoryCategoryGoal'
+  | 'memoryCategoryContext'
+> = {
+  preference: 'memoryCategoryPreference',
+  personal_fact: 'memoryCategoryPersonalFact',
+  goal: 'memoryCategoryGoal',
+  context: 'memoryCategoryContext',
+};
+
+function MemoriesTab() {
+  const { authReady, isAuthenticated } = useAuthGate();
+  const {
+    memories,
+    memoryEnabled,
+    loading,
+    deleteMemory,
+    clearMemories,
+    setMemoryEnabled,
+  } = useUserMemories();
+  const { disconnect } = useLiveAPIContext();
+  const { language, t } = useTranslation();
+
+  async function toggleMemorySaving() {
+    const result = await setMemoryEnabled(!memoryEnabled);
+    if (result.success) {
+      disconnect();
+    }
+  }
+
+  async function handleClear() {
+    if (!window.confirm(t('memoriesClearConfirm'))) return;
+    await clearMemories();
+  }
+
+  function handleExport() {
+    try {
+      const payload = JSON.stringify(
+        {
+          exportedAt: new Date().toISOString(),
+          memories,
+        },
+        null,
+        2
+      );
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'ascuita-memories.json';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.alert(t('memoriesExportError'));
+    }
+  }
+
+  return (
+    <div className="settingsPanel__tab">
+      <h2>{t('memoriesTitle')}</h2>
+      <p className="settingsPanel__desc">{t('memoriesDesc')}</p>
+      {!authReady || !isAuthenticated ? (
+        <p className="settingsPanel__desc">{t('memoriesLoginRequired')}</p>
+      ) : (
+        <>
+          <label className="settingsPanel__themeToggle">
+            <input
+              type="checkbox"
+              checked={memoryEnabled}
+              onChange={() => {
+                void toggleMemorySaving();
+              }}
+            />
+            <span className="settingsPanel__themeTrack" aria-hidden="true">
+              <span className="settingsPanel__themeThumb">
+                <span className="icon">
+                  {memoryEnabled ? 'psychology' : 'psychology_alt'}
+                </span>
+              </span>
+            </span>
+            <span className="settingsPanel__themeText">
+              <strong>{t('memoriesEnabled')}</strong>
+              <small>
+                {memoryEnabled
+                  ? t('memoriesEnabledDesc')
+                  : t('memoriesDisabledDesc')}
+              </small>
+            </span>
+          </label>
+
+          <div className="settingsPanel__memoryActions">
+            <button
+              type="button"
+              className="button"
+              onClick={handleExport}
+              disabled={memories.length === 0}
+            >
+              <span className="icon">download</span>
+              {t('memoriesExport')}
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                void handleClear();
+              }}
+              disabled={memories.length === 0}
+            >
+              <span className="icon">delete_sweep</span>
+              {t('memoriesClear')}
+            </button>
+          </div>
+
+          {loading || memories.length === 0 ? (
+            <p className="settingsPanel__desc">
+              {loading ? t('chatsLoading') : t('memoriesEmpty')}
+            </p>
+          ) : (
+            <ul className="settingsPanel__memoryList">
+              {memories.map(memory => (
+                <li key={memory.id} className="settingsPanel__memoryItem">
+                  <div className="settingsPanel__memoryContent">
+                    <div className="settingsPanel__memoryMeta">
+                      <strong>
+                        {t(memoryCategoryTranslationKeys[memory.category])}
+                      </strong>
+                      <small>
+                        {t('memoriesDate')}{' '}
+                        {formatMemoryDate(memory.updatedAt, language)}
+                      </small>
+                    </div>
+                    <p>{memory.content}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="settingsPanel__agentEdit"
+                    onClick={() => {
+                      void deleteMemory(memory.id);
+                    }}
+                    title={t('memoriesDelete')}
+                    aria-label={t('memoriesDelete')}
+                  >
+                    <span className="icon">delete</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -777,6 +950,7 @@ export default function SettingsPanel() {
 
   const basicTabs: [Tab, string, string][] = [
     ['profile', 'person', t('tabProfile')],
+    ['memories', 'psychology', t('tabMemories')],
     ['agents', 'group', t('tabAgents')],
     ['appearance', 'palette', t('tabAppearance')],
     ['language', 'language', t('tabLanguage')],
@@ -857,6 +1031,7 @@ export default function SettingsPanel() {
 
         <div className="settingsPanel__content">
           {activeTab === 'profile' && <ProfileTab />}
+          {activeTab === 'memories' && <MemoriesTab />}
           {activeTab === 'agents' && <AgentsTab />}
           {activeTab === 'speech' && <SpeechTab />}
           {activeTab === 'fire' && <FireSettingsTab />}

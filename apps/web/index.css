@@ -261,6 +261,7 @@ header:hover .createButton {
   border-radius: 50%;
   display: inline-flex;
   padding: 2px;
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.22),
@@ -1830,6 +1831,64 @@ input[type='range'] {
   color: var(--gray-300);
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* MemoriesTab */
+.settingsPanel__memoryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settingsPanel__memoryActions .button {
+  font-size: 13px;
+}
+
+.settingsPanel__memoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsPanel__memoryItem {
+  align-items: flex-start;
+  background: var(--Neutral-15);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.settingsPanel__memoryContent {
+  min-width: 0;
+}
+
+.settingsPanel__memoryMeta {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.settingsPanel__memoryMeta strong {
+  color: var(--Blue-400);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.settingsPanel__memoryMeta small {
+  color: var(--Neutral-60);
+  font-size: 11px;
+}
+
+.settingsPanel__memoryContent p {
+  color: var(--Neutral-90);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 /* AgentsTab */
