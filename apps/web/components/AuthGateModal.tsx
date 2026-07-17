@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithGooglePopup } from '../firebase';
+import { signInWithGoogle } from '../firebase';
 import { useAuthGate } from '@/lib/state';
 import { useTranslation, useLanguage } from '@/lib/i18n';
 
@@ -25,7 +25,7 @@ export default function AuthGateModal() {
     setError('');
 
     try {
-      await signInWithGooglePopup();
+      await signInWithGoogle();
     } catch (signInError) {
       setError(
         signInError instanceof Error

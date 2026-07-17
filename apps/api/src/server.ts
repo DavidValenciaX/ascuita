@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { getConfig, isAllowedOrigin } from './config.js';
 import { appendAbuseLog } from './lib/abuse-log.js';
 import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
+import accountRoute from './routes/account.js';
 import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
 
@@ -123,6 +124,7 @@ app.addHook('onRequest', async (request, reply) => {
 });
 
 await app.register(websocket);
+await app.register(accountRoute);
 await app.register(healthRoute);
 await app.register(liveRoute);
 

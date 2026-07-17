@@ -58,6 +58,9 @@ export class AudioRecorder extends EventEmitter {
       try {
         this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+        }
         this.source = this.audioContext.createMediaStreamSource(this.stream);
 
         const workletName = 'audio-recorder-worklet';
@@ -106,9 +109,14 @@ export class AudioRecorder extends EventEmitter {
     const handleStop = () => {
       this.source?.disconnect();
       this.stream?.getTracks().forEach(track => track.stop());
+      const context = this.audioContext;
       this.stream = undefined;
+      this.audioContext = undefined;
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
+      if (context && context.state !== 'closed') {
+        void context.close().catch(() => {});
+      }
     };
     if (this.starting) {
       this.starting.then(handleStop);

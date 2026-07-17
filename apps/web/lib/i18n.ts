@@ -54,6 +54,26 @@ export const translations: Translations = {
         profileNicknamePlaceholder: 'Optional nickname or preferred name',
         profileAboutYou: 'Optional information about you',
         profileAboutYouPlaceholder: 'Optional context such as interests, preferences, hobbies, goals, or things you want Ascuita to remember about you.',
+        accountSignOut: 'Sign out',
+        accountSigningOut: 'Signing out...',
+        accountDelete: 'Delete account and data',
+        accountDeleteDescription:
+            'This permanently deletes your Ascuita data, conversations, agents, memories, and Firebase account.',
+        accountSignOutError: 'Could not sign out. Please try again.',
+        accountDeleteConfirm:
+            'Delete your Ascuita account and all associated data? This cannot be undone.',
+        accountDeleting: 'Deleting account...',
+        accountDeleteError: 'The account could not be deleted. Please try again.',
+        accountDeletionTitle: 'Delete your Ascuita account',
+        accountDeletionIntro:
+            'Use this page to permanently delete your Ascuita account and associated data without reinstalling the app.',
+        accountDeletionSignIn: 'Sign in with Google to continue',
+        accountDeletionDelete: 'Delete account and data',
+        accountDeletionSignedIn: 'Signed in as {email}',
+        accountDeletionSuccess:
+            'Your Ascuita account and associated data have been deleted.',
+        accountDeletionError:
+            'We could not delete your account. Please try again later.',
         tabMemories: 'Memories',
         memoriesTitle: 'Persistent memories',
         memoriesDesc: 'For signed-in users, Ascuita keeps concise, non-sensitive facts by default to personalize future conversations. You can turn this off at any time.',
@@ -185,6 +205,26 @@ export const translations: Translations = {
         profileNicknamePlaceholder: 'Apodo o nombre preferido opcional',
         profileAboutYou: 'Información opcional sobre ti',
         profileAboutYouPlaceholder: 'Contexto opcional como intereses, preferencias, hobbies, objetivos o cosas que quieras que Ascuita recuerde sobre ti.',
+        accountSignOut: 'Cerrar sesión',
+        accountSigningOut: 'Cerrando sesión...',
+        accountDelete: 'Eliminar cuenta y datos',
+        accountDeleteDescription:
+            'Esto elimina permanentemente tus datos de Ascuita, conversaciones, agentes, memorias y cuenta de Firebase.',
+        accountSignOutError: 'No se pudo cerrar la sesión. Inténtalo de nuevo.',
+        accountDeleteConfirm:
+            '¿Eliminar tu cuenta de Ascuita y todos los datos asociados? Esta acción no se puede deshacer.',
+        accountDeleting: 'Eliminando cuenta...',
+        accountDeleteError: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
+        accountDeletionTitle: 'Eliminar tu cuenta de Ascuita',
+        accountDeletionIntro:
+            'Usa esta página para eliminar permanentemente tu cuenta de Ascuita y los datos asociados sin reinstalar la aplicación.',
+        accountDeletionSignIn: 'Inicia sesión con Google para continuar',
+        accountDeletionDelete: 'Eliminar cuenta y datos',
+        accountDeletionSignedIn: 'Sesión iniciada como {email}',
+        accountDeletionSuccess:
+            'Tu cuenta de Ascuita y los datos asociados fueron eliminados.',
+        accountDeletionError:
+            'No pudimos eliminar tu cuenta. Inténtalo de nuevo más tarde.',
         tabMemories: 'Memorias',
         memoriesTitle: 'Memorias persistentes',
         memoriesDesc: 'Para usuarios registrados, Ascuita conserva por defecto datos breves y no sensibles para personalizar futuras conversaciones. Puedes desactivarlo en cualquier momento.',

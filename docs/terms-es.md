@@ -2,13 +2,13 @@
 
 **Última actualización: 16 de julio de 2026**
 
-Estos Términos y Condiciones ("los Términos") regulan el uso de la aplicación web Ascuita ("el Servicio") operada por **David Valencia** ("el Operador", "nosotros"). Al acceder o utilizar el Servicio, aceptas quedar vinculado por estos Términos. Si no estás de acuerdo con alguno de los términos, no utilices el Servicio.
+Estos Términos y Condiciones ("los Términos") regulan el uso de las aplicaciones web y móvil Ascuita ("el Servicio") operadas por **David Valencia** ("el Operador", "nosotros"). Al acceder o utilizar el Servicio, aceptas quedar vinculado por estos Términos. Si no estás de acuerdo con alguno de los términos, no utilices el Servicio.
 
 ---
 
 ## 1. Descripción del Servicio
 
-Ascuita es una aplicación web que permite a los usuarios crear, configurar y conversar con personajes de inteligencia artificial en tiempo real mediante la API de Google Gemini Live. El Servicio incluye:
+Ascuita es una aplicación web y móvil que permite a los usuarios crear, configurar y conversar con personajes de inteligencia artificial en tiempo real mediante la API de Google Gemini Live. El Servicio incluye:
 
 - Creación y gestión de agentes de IA personalizables.
 - Conversaciones de voz en tiempo real con los agentes.
@@ -43,7 +43,7 @@ Eres responsable de mantener la confidencialidad de tu cuenta de Google y de cer
 
 ### 3.3. Eliminación de cuenta
 
-Puedes solicitar la eliminación de tu cuenta y todos tus datos escribiendo a **contacto@davidvalencia.site**.
+Puedes eliminar tu cuenta y todos tus datos desde Configuración, desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta) o escribiendo a **contacto@davidvalencia.site**.
 
 ---
 

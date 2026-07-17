@@ -29,6 +29,9 @@ import { saveUserProfile } from '@/hooks/useUserProfile';
 import { useUserAgents } from '@/hooks/useUserAgents';
 import { useUserMemories } from '@/hooks/useUserMemories';
 import type { MemoryCategory } from '@/lib/memories';
+import { auth, signOutFromGoogle } from '../firebase';
+import { deleteAccount } from '@/lib/account-deletion';
+import { exportJsonFile } from '@/lib/file-sharing';
 
 type Tab =
   | 'profile'
@@ -199,6 +202,11 @@ function ProfileTab() {
     setInfo,
   } = useUser();
   const { t } = useTranslation();
+  const { disconnect } = useLiveAPIContext();
+  const { isAuthenticated } = useAuthGate();
+  const [accountAction, setAccountAction] = useState<
+    'idle' | 'signing-out' | 'deleting' | 'error'
+  >('idle');
   const persistProfile = () => {
     void saveUserProfile({ name, info });
   };
@@ -212,6 +220,35 @@ function ProfileTab() {
           })
           .join(', ')
       : t('profileUnavailable');
+
+  async function handleSignOut() {
+    setAccountAction('signing-out');
+    try {
+      disconnect();
+      await signOutFromGoogle();
+      setAccountAction('idle');
+    } catch {
+      setAccountAction('error');
+    }
+  }
+
+  async function handleDeleteAccount() {
+    const user = auth.currentUser;
+    if (!user || !window.confirm(t('accountDeleteConfirm'))) {
+      return;
+    }
+
+    setAccountAction('deleting');
+    try {
+      const token = await user.getIdToken(true);
+      await deleteAccount(token);
+      disconnect();
+      await signOutFromGoogle();
+      setAccountAction('idle');
+    } catch {
+      setAccountAction('error');
+    }
+  }
 
   return (
     <div className="settingsPanel__tab">
@@ -275,6 +312,38 @@ function ProfileTab() {
           placeholder={t('profileAboutYouPlaceholder')}
         />
       </div>
+      {isAuthenticated ? (
+        <div className="settingsPanel__accountActions">
+          <p className="settingsPanel__desc">{t('accountDeleteDescription')}</p>
+          <button
+            type="button"
+            className="button"
+            disabled={accountAction !== 'idle'}
+            onClick={() => {
+              void handleSignOut();
+            }}
+          >
+            {accountAction === 'signing-out'
+              ? t('accountSigningOut')
+              : t('accountSignOut')}
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={accountAction !== 'idle'}
+            onClick={() => {
+              void handleDeleteAccount();
+            }}
+          >
+            {accountAction === 'deleting'
+              ? t('accountDeleting')
+              : t('accountDelete')}
+          </button>
+          {accountAction === 'error' ? (
+            <p className="settingsPanel__desc">{t('accountDeleteError')}</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -333,13 +402,7 @@ function MemoriesTab() {
         null,
         2
       );
-      const blob = new Blob([payload], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'ascuita-memories.json';
-      anchor.click();
-      URL.revokeObjectURL(url);
+      exportJsonFile('ascuita-memories.json', payload);
     } catch {
       window.alert(t('memoriesExportError'));
     }
@@ -924,6 +987,8 @@ function LegalTab() {
   const { language, t } = useTranslation();
   const privacyHref = language === 'es' ? '/privacidad' : '/privacy';
   const termsHref = language === 'es' ? '/terminos' : '/terms';
+  const accountDeletionHref =
+    language === 'es' ? '/eliminar-cuenta' : '/delete-account';
 
   return (
     <div className="settingsPanel__tab">
@@ -936,6 +1001,10 @@ function LegalTab() {
         <a href={termsHref} className="settingsPanel__legalLink">
           <span className="icon">description</span>
           {t('legalTerms')}
+        </a>
+        <a href={accountDeletionHref} className="settingsPanel__legalLink">
+          <span className="icon">person_remove</span>
+          {t('accountDelete')}
         </a>
       </div>
     </div>

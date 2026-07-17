@@ -56,3 +56,32 @@ export function getAdminDb() {
   }
   return getFirestore(app);
 }
+
+export async function deleteFirebaseUserData(uid: string) {
+  const db = getAdminDb();
+  if (!db) {
+    throw new Error('Firebase Admin is not configured');
+  }
+
+  await db.recursiveDelete(db.collection('users').doc(uid));
+}
+
+export async function deleteFirebaseUserAccount(uid: string) {
+  const app = getFirebaseAdminApp();
+  if (!app) {
+    throw new Error('Firebase Admin is not configured');
+  }
+
+  try {
+    await getAuth(app).deleteUser(uid);
+  } catch (error) {
+    if (
+      !error ||
+      typeof error !== 'object' ||
+      !('code' in error) ||
+      error.code !== 'auth/user-not-found'
+    ) {
+      throw error;
+    }
+  }
+}

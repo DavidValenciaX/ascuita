@@ -14,6 +14,7 @@ describe('parseCorsOrigin', () => {
       'http://127.0.0.1:5173',
       'http://localhost:4173',
       'http://127.0.0.1:4173',
+      'https://localhost',
     ]);
   });
 
@@ -24,6 +25,7 @@ describe('parseCorsOrigin', () => {
       'http://127.0.0.1:5173',
       'http://localhost:4173',
       'http://127.0.0.1:4173',
+      'https://localhost',
     ]);
   });
 
@@ -53,6 +55,12 @@ describe('isAllowedOrigin', () => {
 
   it('returns false when origin is not in the allowed list', () => {
     expect(isAllowedOrigin(allowed, 'https://evil.com')).toBe(false);
+  });
+
+  it('allows the Capacitor Android origin when configured', () => {
+    expect(isAllowedOrigin(['https://localhost'], 'https://localhost')).toBe(
+      true
+    );
   });
 
   it('returns true when origin is undefined', () => {
@@ -144,6 +152,7 @@ describe('getConfig', () => {
       'http://127.0.0.1:5173',
       'http://localhost:4173',
       'http://127.0.0.1:4173',
+      'https://localhost',
     ]);
     expect(config.geminiApiKey).toBeUndefined();
     expect(config.geminiModel).toBe('gemini-3.1-flash-live-preview');

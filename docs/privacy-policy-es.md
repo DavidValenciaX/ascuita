@@ -2,7 +2,7 @@
 
 **Última actualización: 16 de julio de 2026**
 
-Esta Política de Privacidad describe cómo Ascuita ("el Servicio", "nosotros", "nos") recopila, utiliza y protege la información personal de los usuarios ("tú", "el Usuario") al utilizar la aplicación web Ascuita.
+Esta Política de Privacidad describe cómo Ascuita ("el Servicio", "nosotros", "nos") recopila, utiliza y protege la información personal de los usuarios ("tú", "el Usuario") al utilizar la aplicación web o móvil Ascuita.
 
 El responsable del tratamiento de datos personales es **David Valencia**, con domicilio digital de contacto en **contacto@davidvalencia.site**.
 
@@ -33,7 +33,7 @@ Al utilizar el Servicio, puedes crear y almacenar:
 
 ### 1.3. Datos de audio en tiempo real
 
-El Servicio transmite tu voz en tiempo real al backend, que la reenvía a la API de Google Gemini Live para generar respuestas. Este audio **no se almacena permanentemente** en nuestros servidores; se procesa de forma transitoria durante la sesión activa y se descarta al finalizar.
+El Servicio transmite tu voz en tiempo real al backend, que la reenvía a la API de Google Gemini Live para generar respuestas. En Android, esta función requiere el permiso del micrófono y solo se activa durante una sesión de conversación. Este audio **no se almacena permanentemente** en nuestros servidores; se procesa de forma transitoria durante la sesión activa y se descarta al finalizar.
 
 ### 1.4. Datos técnicos y de uso
 
@@ -116,7 +116,7 @@ No compartimos información personal con ningún otro tercero, salvo obligación
 | Datos de trial gratuito (IP) | 1 hora tras el inicio del trial |
 | Datos de analítica | Según la política de retención de Firebase Analytics |
 
-Puedes solicitar la eliminación de todos tus datos en cualquier momento escribiendo a **contacto@davidvalencia.site**.
+Puedes eliminar tu cuenta y todos tus datos desde Configuración o desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta). También puedes escribir a **contacto@davidvalencia.site**.
 
 ---
 

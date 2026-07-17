@@ -36,7 +36,7 @@ import {
 } from '@/hooks/useUserProfile';
 import { useUserAgents } from '@/hooks/useUserAgents';
 import { useEffect } from 'react';
-import { auth, onAuthStateChanged } from './firebase';
+import { auth, onIdTokenChanged } from './firebase';
 
 /**
  * Main application component that provides a streaming interface for Live API.
@@ -57,7 +57,7 @@ function App() {
   useUserAgents();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async user => {
+    const unsubscribe = onIdTokenChanged(auth, async user => {
       const token = user ? await user.getIdToken() : null;
       setAuthState({
         authReady: true,

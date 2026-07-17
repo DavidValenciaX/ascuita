@@ -19,6 +19,8 @@
  */
 
 import cn from 'classnames';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 
 import { memo, ReactNode, useEffect, useRef, useState } from 'react';
 import { AudioRecorder } from '../../../lib/audio-recorder';
@@ -46,6 +48,7 @@ function ControlTray({ children }: ControlTrayProps) {
     fatalError,
     displayError,
     audioReady,
+    audioStreamer,
     connect,
   } =
     useLiveAPIContext();
@@ -113,6 +116,27 @@ function ControlTray({ children }: ControlTrayProps) {
       audioRecorder.off('data', onData);
     };
   }, [connected, client, muted, introPlaying, audioRecorder]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    const listener = App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        audioRecorder.stop();
+        client.disconnect();
+        return;
+      }
+
+      void audioRecorder.audioContext?.resume();
+      void audioStreamer?.context.resume();
+    });
+
+    return () => {
+      void listener.then(handle => handle.remove());
+    };
+  }, [audioRecorder, audioStreamer, client]);
 
   return (
     <section className="control-tray">

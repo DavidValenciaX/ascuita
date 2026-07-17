@@ -229,7 +229,7 @@ button .icon {
 }
 
 header {
-  padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 20px calc(20px + env(safe-area-inset-left));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -314,6 +314,7 @@ header:hover .createButton {
   color: var(--gray-300);
   display: flex;
   height: 100vh;
+  min-height: 100dvh;
   width: 100vw;
 }
 
@@ -512,7 +513,7 @@ header:hover .createButton {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  padding-bottom: 22px;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom));
   z-index: 12;
 }
 
@@ -1703,6 +1704,18 @@ input[type='range'] {
   padding: 10px 12px;
   resize: vertical;
   width: 100%;
+}
+
+.settingsPanel__accountActions {
+  border-top: 1px solid var(--Neutral-30);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 18px;
+}
+
+.settingsPanel__accountActions .settingsPanel__desc {
+  flex-basis: 100%;
 }
 
 .settingsPanel__tabHeader {

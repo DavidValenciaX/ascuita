@@ -84,7 +84,7 @@ WS_MAX_AUDIO_BYTES_PER_WINDOW=7500000
 WS_TEMPORARY_BLOCK_DURATION_MS=900000
 ```
 
-`CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173` y el dominio de producción.
+`CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
 
 ### 3. Crear variables del frontend
 
@@ -141,6 +141,11 @@ npm run build:web
 * `npm run build`: compila frontend y backend.
 * `npm run test:rules`: ejecuta los tests de reglas de Firestore mediante el emulador local.
 * `npm run preview:web`: sirve localmente el build de producción del frontend.
+* `npm run mobile:sync`: compila la web móvil y sincroniza Capacitor con Android.
+* `npm run mobile:open`: abre el proyecto Android en Android Studio.
+* `npm run mobile:apk`: genera un APK debug instalable.
+* `npm run mobile:apk:release`: genera un APK release si existe la configuración de firma.
+* `npm run mobile:aab`: genera el AAB release para Google Play.
 
 ## Despliegue
 
@@ -180,6 +185,8 @@ Variables esperadas en la VPS para `apps/api/.env`:
 * `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
 * Variables de seguridad y rate limiting (opcionales, con valores por defecto)
 
+Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
+
 El backend se gestiona con PM2 usando `apps/api/ecosystem.config.cjs`, que define el proceso `ascuita-api` en modo fork.
 
 ### Reglas de Firestore
@@ -196,6 +203,12 @@ Importante: `GEMINI_API_KEY` y las credenciales de Firebase Admin solo deben exi
 * **Backend**: Node.js, Fastify, WebSocket, `@google/genai`, Firebase Admin SDK.
 * **Despliegue**: Firebase Hosting (frontend), VPS Ubuntu + Nginx + PM2 (backend), GitHub Actions (CI/CD).
 * **Base de datos**: Cloud Firestore con reglas de seguridad por usuario.
+
+## Aplicación Android
+
+La guía completa de Capacitor, Firebase Android, firma, comandos de APK/AAB y checklist de Play Store está en [docs/mobile-android.md](docs/mobile-android.md).
+
+El `applicationId` Android es `app.ascuita`. Google Play requiere un AAB para nuevas aplicaciones; el APK se usa para pruebas y distribución directa.
 
 ## Licencia y Atribución
 

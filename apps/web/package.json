@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:mobile": "node scripts/validate-mobile-env.mjs && vite build --mode mobile",
     "preview": "vite preview",
+    "cap:sync": "npm run build:mobile && cap sync android",
+    "cap:open": "cap open android",
+    "cap:apk": "npm run cap:sync && node scripts/run-gradle.mjs assembleDebug",
+    "cap:apk:release": "npm run cap:sync && node scripts/validate-release-signing.mjs && node scripts/run-gradle.mjs assembleRelease",
+    "cap:aab": "npm run cap:sync && node scripts/validate-release-signing.mjs && node scripts/run-gradle.mjs bundleRelease",
     "test": "vitest run",
     "test:rules": "vitest run --config vitest.rules.config.ts",
     "test:watch": "vitest"
@@ -15,6 +21,14 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@google/genai": "^1.29.1",
     "classnames": "^2.5.1",
     "eventemitter3": "^5.0.1",
@@ -29,6 +43,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@firebase/rules-unit-testing": "^5.0.1",
     "@types/lodash": "^4.17.21",
     "@types/node": "^22.14.0",

@@ -2,7 +2,7 @@
 
 **Last updated: July 16, 2026**
 
-This Privacy Policy describes how Ascuita ("the Service", "we", "us") collects, uses, and protects the personal information of users ("you", "the User") when using the Ascuita web application.
+This Privacy Policy describes how Ascuita ("the Service", "we", "us") collects, uses, and protects the personal information of users ("you", "the User") when using the Ascuita web or mobile application.
 
 The data controller responsible for personal data is **David Valencia**, who can be contacted at **contacto@davidvalencia.site**.
 
@@ -33,7 +33,7 @@ When using the Service, you may create and store:
 
 ### 1.3. Real-time audio data
 
-The Service streams your voice in real time to the backend, which forwards it to the Google Gemini Live API to generate responses. This audio is **not permanently stored** on our servers; it is processed transiently during the active session and discarded upon completion.
+The Service streams your voice in real time to the backend, which forwards it to the Google Gemini Live API to generate responses. On Android, this feature requires microphone permission and is only active during a conversation session. This audio is **not permanently stored** on our servers; it is processed transiently during the active session and discarded upon completion.
 
 ### 1.4. Technical and usage data
 
@@ -116,7 +116,7 @@ We do not share personal information with any other third party, except as requi
 | Free trial data (IP) | 1 hour after trial start |
 | Analytics data | Per Firebase Analytics retention policy |
 
-You may request deletion of all your data at any time by writing to **contacto@davidvalencia.site**.
+You may delete your account and all associated data from Settings or through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta). You may also write to **contacto@davidvalencia.site**.
 
 ---
 

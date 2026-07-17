@@ -22,6 +22,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import App from './App';
+import AccountDeletionPage from './components/legal/AccountDeletionPage';
 import LegalPage from './components/legal/LegalPage';
 import './firebase';
 
@@ -32,6 +33,10 @@ import termsEs from '../../docs/terms-es.md?raw';
 
 function getLegalRoute() {
   const path = window.location.pathname.replace(/\/+$/, '');
+
+  if (path === '/eliminar-cuenta' || path === '/delete-account') {
+    return <AccountDeletionPage />;
+  }
 
   switch (path) {
     case '/privacy':

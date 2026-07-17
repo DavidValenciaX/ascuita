@@ -1,15 +1,10 @@
 import { ChangeEvent } from 'react';
 import { InnerFireConfig, normalizeInnerFireConfig } from '@/lib/fire/config';
+import { exportJsonFile } from '@/lib/file-sharing';
 
 export function exportFireConfig(config: InnerFireConfig) {
   const json = JSON.stringify(config, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'ascuita-fire-config.json';
-  anchor.click();
-  URL.revokeObjectURL(url);
+  exportJsonFile('ascuita-fire-config.json', json);
 }
 
 export function importFireConfigFromInput(

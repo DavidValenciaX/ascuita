@@ -2,13 +2,13 @@
 
 **Last updated: July 16, 2026**
 
-These Terms of Service ("the Terms") govern the use of the Ascuita web application ("the Service") operated by **David Valencia** ("the Operator", "we"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree to any of the terms, do not use the Service.
+These Terms of Service ("the Terms") govern the use of the Ascuita web and mobile applications ("the Service") operated by **David Valencia** ("the Operator", "we"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree to any of the terms, do not use the Service.
 
 ---
 
 ## 1. Service Description
 
-Ascuita is a web application that allows users to create, configure, and converse with artificial intelligence characters in real time using the Google Gemini Live API. The Service includes:
+Ascuita is a web and mobile application that allows users to create, configure, and converse with artificial intelligence characters in real time using the Google Gemini Live API. The Service includes:
 
 - Creation and management of customizable AI agents.
 - Real-time voice conversations with agents.
@@ -43,7 +43,7 @@ You are responsible for maintaining the confidentiality of your Google account a
 
 ### 3.3. Account Deletion
 
-You may request deletion of your account and all your data by writing to **contacto@davidvalencia.site**.
+You may delete your account and all associated data from Settings, through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta), or by writing to **contacto@davidvalencia.site**.
 
 ---
 
