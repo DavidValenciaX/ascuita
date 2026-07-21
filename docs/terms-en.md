@@ -103,23 +103,36 @@ User content is stored in Google Cloud Firestore and is subject to Google's poli
 
 ---
 
-## 8. Intellectual Property
+## 8. Pricing and Subscriptions
 
-### 8.1. Service
+- Unless expressly stated otherwise, the Service is currently provided free of charge.
+- The Operator reserves the right to introduce paid features, premium plans, subscriptions, usage limits, in-app purchases, or other commercial models related to the Service in the future.
+- If a paid plan is introduced, the applicable price, included features, billing frequency, applicable taxes, and essential payment terms will be presented to the user before any charge is made.
+- The Operator may modify the prices, features, or terms of paid plans at any time on a prospective basis. Any material changes will be notified in advance through the Service, by email, or by other appropriate means.
+- Unless expressly stated otherwise, price changes will not affect a subscription or billing period that has already been paid, and will instead apply starting with the next applicable renewal or purchase.
+- If a paid plan includes automatic renewal, this will be clearly disclosed before purchase. The user may cancel future renewals at any time through the means made available in the Service, while retaining access until the end of the already paid period.
+- Failure to pay, chargebacks, or inability to process payment may result in suspension or cancellation of paid features.
+- Unless otherwise required by applicable law or expressly stated in the relevant offer, payments are non-refundable.
+
+---
+
+## 9. Intellectual Property
+
+### 9.1. Service
 
 The original project code was developed by Google LLC under the Apache 2.0 license. Modifications made by David Valencia are published under the same Apache 2.0 license. See the [LICENSE](../LICENSE) file for details.
 
-### 8.2. Trademarks and Names
+### 9.2. Trademarks and Names
 
 "Ascuita," the logo, and other branding elements are property of David Valencia. Google, Gemini, Firebase, and other trademarks are property of their respective owners.
 
-### 8.3. Code License
+### 9.3. Code License
 
 The source code is available under the Apache 2.0 license. Use of the source code is governed by that license, independent of these Terms.
 
 ---
 
-## 9. Limitation of Liability
+## 10. Limitation of Liability
 
 To the maximum extent permitted by applicable law:
 
@@ -135,7 +148,7 @@ To the maximum extent permitted by applicable law:
 
 ---
 
-## 10. Disclaimer of Warranties
+## 11. Disclaimer of Warranties
 
 - The Service uses third-party infrastructure (Google Firebase, Google Gemini, VPS) that may experience interruptions beyond the Operator's control.
 - The Operator does not guarantee continuous availability of the backend or Google services.
@@ -143,7 +156,7 @@ To the maximum extent permitted by applicable law:
 
 ---
 
-## 11. Suspension and Termination
+## 12. Suspension and Termination
 
 - The Operator reserves the right to **suspend or terminate** access for any user who violates these Terms.
 - The Operator may **block IPs** temporarily or permanently for abusive behavior, without prior notice.
@@ -152,7 +165,7 @@ To the maximum extent permitted by applicable law:
 
 ---
 
-## 12. Modifications to the Service and Terms
+## 13. Modifications to the Service and Terms
 
 - The Operator may modify the Service, add or remove features at any time.
 - The Terms may be updated periodically. Significant changes will be notified through the Service or by email.
@@ -160,7 +173,7 @@ To the maximum extent permitted by applicable law:
 
 ---
 
-## 13. Governing Law and Jurisdiction
+## 14. Governing Law and Jurisdiction
 
 As a global service, these Terms are interpreted in accordance with the laws applicable in the user's jurisdiction. In case of dispute, the parties shall attempt to resolve it amicably before pursuing legal action.
 
@@ -168,13 +181,13 @@ For disputes that cannot be resolved amicably, the competent jurisdiction shall 
 
 ---
 
-## 14. Third-Party Links
+## 15. Third-Party Links
 
 The Service may contain links to third-party websites or services (Google, etc.). The Operator does not control and is not responsible for the content, policies, or practices of third parties.
 
 ---
 
-## 15. Contact
+## 16. Contact
 
 For any questions about these Terms of Service, contact:
 

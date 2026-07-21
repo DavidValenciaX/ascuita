@@ -103,23 +103,36 @@ El contenido del usuario se almacena en Google Cloud Firestore y está sujeto a 
 
 ---
 
-## 8. Propiedad intelectual
+## 8. Precios y Suscripciones
 
-### 8.1. Del Servicio
+- Salvo que se indique expresamente lo contrario, el Servicio es actualmente gratuito.
+- El Operador se reserva el derecho de introducir en el futuro funcionalidades de pago, planes premium, suscripciones, límites de uso, compras dentro de la aplicación u otras modalidades comerciales relacionadas con el Servicio.
+- En caso de introducirse un plan de pago, el precio aplicable, las funcionalidades incluidas, la periodicidad de facturación, los impuestos aplicables y las condiciones esenciales de pago se mostrarán al usuario antes de realizar cualquier cargo.
+- El Operador podrá modificar los precios, características o condiciones de los planes de pago en cualquier momento con efecto prospectivo. Cualquier cambio material será notificado con antelación razonable a través del Servicio, por correo electrónico o por otros medios apropiados.
+- Salvo que se indique expresamente lo contrario, los cambios de precio no afectarán al período de suscripción o facturación ya abonado, sino a la siguiente renovación o compra aplicable.
+- Si un plan de pago incluye renovación automática, ello se indicará de forma clara antes de la contratación. El usuario podrá cancelar la renovación futura en cualquier momento desde los medios habilitados por el Servicio, sin perjuicio de conservar el acceso hasta el final del período ya pagado.
+- La falta de pago, la reversión de cargos o la imposibilidad de procesar un pago podrán dar lugar a la suspensión o cancelación de las funcionalidades de pago.
+- Salvo que la ley aplicable disponga lo contrario o que se indique expresamente en la oferta correspondiente, los importes pagados no son reembolsables.
+
+---
+
+## 9. Propiedad intelectual
+
+### 9.1. Del Servicio
 
 El código original del proyecto fue desarrollado por Google LLC bajo licencia Apache 2.0. Las modificaciones realizadas por David Valencia se publican bajo la misma licencia Apache 2.0. Consulta el archivo [LICENSE](../LICENSE) para más detalles.
 
-### 8.2. Marcas y nombres
+### 9.2. Marcas y nombres
 
 "Ascuita", el logotipo y otros elementos de marca son propiedad de David Valencia. Google, Gemini, Firebase y otras marcas son propiedad de sus respectivos titulares.
 
-### 8.3. Licencia de código
+### 9.3. Licencia de código
 
 El código fuente está disponible bajo licencia Apache 2.0. La utilización del código fuente se rige por dicha licencia, independientemente de estos Términos.
 
 ---
 
-## 9. Limitación de responsabilidad
+## 10. Limitación de responsabilidad
 
 En la máxima medida permitida por la ley aplicable:
 
@@ -135,7 +148,7 @@ En la máxima medida permitida por la ley aplicable:
 
 ---
 
-## 10. Exención de garantías
+## 11. Exención de garantías
 
 - El Servicio utiliza infraestructura de terceros (Google Firebase, Google Gemini, VPS) que puede experimentar interrupciones ajenas al control del Operador.
 - El Operador no garantiza la disponibilidad continua del backend ni de los servicios de Google.
@@ -143,7 +156,7 @@ En la máxima medida permitida por la ley aplicable:
 
 ---
 
-## 11. Suspensión y terminación
+## 12. Suspensión y terminación
 
 - El Operador se reserva el derecho de **suspender o terminar** el acceso de cualquier usuario que infrinja estos Términos.
 - El Operador puede **bloquear IPs** temporal o permanentemente por comportamiento abusivo, sin previo aviso.
@@ -152,7 +165,7 @@ En la máxima medida permitida por la ley aplicable:
 
 ---
 
-## 12. Modificaciones del Servicio y de los Términos
+## 13. Modificaciones del Servicio y de los Términos
 
 - El Operador puede modificar el Servicio, añadir o eliminar funcionalidades en cualquier momento.
 - Los Términos pueden actualizarse periódicamente. Se notificarán cambios significativos en el Servicio o por correo electrónico.
@@ -160,7 +173,7 @@ En la máxima medida permitida por la ley aplicable:
 
 ---
 
-## 13. Ley aplicable y jurisdicción
+## 14. Ley aplicable y jurisdicción
 
 Al tratarse de un servicio global, estos Términos se interpretan de acuerdo con las leyes aplicables en la jurisdicción del usuario. En caso de disputa, las partes intentarán resolverla de forma amistosa antes de recurrir a vías legales.
 
@@ -168,13 +181,13 @@ Para disputas que no puedan resolverse amistosamente, la jurisdicción competent
 
 ---
 
-## 14. Enlaces a terceros
+## 15. Enlaces a terceros
 
 El Servicio puede contener enlaces a sitios web o servicios de terceros (Google, etc.). El Operador no controla ni es responsable del contenido, políticas o prácticas de terceros.
 
 ---
 
-## 15. Contacto
+## 16. Contacto
 
 Para cualquier pregunta sobre estos Términos y Condiciones, contacta a:
 
