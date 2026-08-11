@@ -1,4 +1,4 @@
-name: Deploy backend to VPS
+name: Deploy backend to Cloud Run
 
 on:
   push:
@@ -6,48 +6,138 @@ on:
       - main
     paths:
       - 'apps/api/**'
+      - 'Dockerfile.api'
+      - '.dockerignore'
       - '.github/workflows/deploy-backend.yml'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+  CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
+  CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
+  CLOUD_RUN_GEMINI_SECRET: ${{ vars.CLOUD_RUN_GEMINI_SECRET }}
+  FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+  GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+  CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+  LOG_LEVEL: info
+  CLOUD_RUN_CPU: "1"
+  CLOUD_RUN_MEMORY: 1Gi
+  CLOUD_RUN_CONCURRENCY: "80"
+  CLOUD_RUN_MIN_INSTANCES: "1"
+  CLOUD_RUN_MAX_INSTANCES: "1"
+  CLOUD_RUN_TIMEOUT_SECONDS: "3600"
+  SECURITY_LOG_RETENTION_DAYS: ${{ vars.SECURITY_LOG_RETENTION_DAYS }}
+  FREE_TRIAL_DURATION_MS: ${{ vars.FREE_TRIAL_DURATION_MS }}
+  HTTP_RATE_LIMIT_WINDOW_MS: ${{ vars.HTTP_RATE_LIMIT_WINDOW_MS }}
+  HTTP_RATE_LIMIT_MAX_REQUESTS: ${{ vars.HTTP_RATE_LIMIT_MAX_REQUESTS }}
+  WS_CONNECT_WINDOW_MS: ${{ vars.WS_CONNECT_WINDOW_MS }}
+  WS_MAX_CONNECT_ATTEMPTS_PER_IP: ${{ vars.WS_MAX_CONNECT_ATTEMPTS_PER_IP }}
+  WS_MAX_CONCURRENT_CONNECTIONS_PER_IP: ${{ vars.WS_MAX_CONCURRENT_CONNECTIONS_PER_IP }}
+  WS_MESSAGE_WINDOW_MS: ${{ vars.WS_MESSAGE_WINDOW_MS }}
+  WS_MAX_MESSAGES_PER_WINDOW: ${{ vars.WS_MAX_MESSAGES_PER_WINDOW }}
+  WS_MAX_PAYLOAD_BYTES: ${{ vars.WS_MAX_PAYLOAD_BYTES }}
+  WS_AUDIO_BYTE_WINDOW_MS: ${{ vars.WS_AUDIO_BYTE_WINDOW_MS }}
+  WS_MAX_AUDIO_BYTES_PER_WINDOW: ${{ vars.WS_MAX_AUDIO_BYTES_PER_WINDOW }}
+  WS_TEMPORARY_BLOCK_DURATION_MS: ${{ vars.WS_TEMPORARY_BLOCK_DURATION_MS }}
 
 jobs:
   deploy_backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - name: Install dependencies
         run: npm ci
+
       - name: Run tests
         run: npm run test:api
+
       - name: Build
         run: npm run build:api
-      - name: Copy backend files to VPS
-        uses: appleboy/scp-action@v0.1.7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          source: 'package.json,package-lock.json,apps/api'
-          target: '/home/ubuntu/ascuita-api'
-      - name: Install, build and restart backend
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            set -e
-            cd /home/ubuntu/ascuita-api
-            npm ci
-            npm run build:api
-            cd apps/api
-            pm2 delete ascuita-api || true
-            pm2 start ecosystem.config.cjs --only ascuita-api
-            pm2 save
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push backend image
+        env:
+          IMAGE_URI: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}
+        run: |
+          docker build -f Dockerfile.api -t "${IMAGE_URI}" .
+          docker push "${IMAGE_URI}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Write Cloud Run environment file
+        shell: bash
+        run: |
+          cat > backend-cloudrun.env.yaml <<EOF
+          HOST: "0.0.0.0"
+          NODE_ENV: "production"
+          LOG_LEVEL: "${LOG_LEVEL}"
+          FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
+          GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.1-flash-live-preview}"
+          CORS_ORIGIN: "${CORS_ORIGIN}"
+          SECURITY_LOG_TARGET: "stdout"
+          SECURITY_LOG_RETENTION_DAYS: "${SECURITY_LOG_RETENTION_DAYS:-3}"
+          FREE_TRIAL_DURATION_MS: "${FREE_TRIAL_DURATION_MS:-180000}"
+          HTTP_RATE_LIMIT_WINDOW_MS: "${HTTP_RATE_LIMIT_WINDOW_MS:-60000}"
+          HTTP_RATE_LIMIT_MAX_REQUESTS: "${HTTP_RATE_LIMIT_MAX_REQUESTS:-300}"
+          WS_CONNECT_WINDOW_MS: "${WS_CONNECT_WINDOW_MS:-300000}"
+          WS_MAX_CONNECT_ATTEMPTS_PER_IP: "${WS_MAX_CONNECT_ATTEMPTS_PER_IP:-20}"
+          WS_MAX_CONCURRENT_CONNECTIONS_PER_IP: "${WS_MAX_CONCURRENT_CONNECTIONS_PER_IP:-3}"
+          WS_MESSAGE_WINDOW_MS: "${WS_MESSAGE_WINDOW_MS:-60000}"
+          WS_MAX_MESSAGES_PER_WINDOW: "${WS_MAX_MESSAGES_PER_WINDOW:-2400}"
+          WS_MAX_PAYLOAD_BYTES: "${WS_MAX_PAYLOAD_BYTES:-262144}"
+          WS_AUDIO_BYTE_WINDOW_MS: "${WS_AUDIO_BYTE_WINDOW_MS:-60000}"
+          WS_MAX_AUDIO_BYTES_PER_WINDOW: "${WS_MAX_AUDIO_BYTES_PER_WINDOW:-7500000}"
+          WS_TEMPORARY_BLOCK_DURATION_MS: "${WS_TEMPORARY_BLOCK_DURATION_MS:-900000}"
+          EOF
+
+      - name: Deploy to Cloud Run
+        shell: bash
+        run: |
+          gcloud run deploy "${CLOUD_RUN_SERVICE}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --image "${IMAGE_URI}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --service-account "${CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT}" \
+            --port 8080 \
+            --cpu "${CLOUD_RUN_CPU}" \
+            --memory "${CLOUD_RUN_MEMORY}" \
+            --concurrency "${CLOUD_RUN_CONCURRENCY}" \
+            --min-instances "${CLOUD_RUN_MIN_INSTANCES}" \
+            --max-instances "${CLOUD_RUN_MAX_INSTANCES}" \
+            --timeout "${CLOUD_RUN_TIMEOUT_SECONDS}" \
+            --env-vars-file backend-cloudrun.env.yaml \
+            --set-secrets "GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest"
+
+      - name: Show deployed service URL
+        shell: bash
+        run: |
+          gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --format='value(status.url)'

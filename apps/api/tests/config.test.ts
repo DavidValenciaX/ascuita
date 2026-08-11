@@ -4,6 +4,8 @@ import {
   isAllowedOrigin,
   parseNumber,
   getConfig,
+  getDefaultHost,
+  isRunningInCloudRun,
 } from '../src/config.js';
 
 describe('parseCorsOrigin', () => {
@@ -120,6 +122,7 @@ describe('getConfig', () => {
     'WS_MAX_AUDIO_BYTES_PER_WINDOW',
     'WS_TEMPORARY_BLOCK_DURATION_MS',
     'FREE_TRIAL_DURATION_MS',
+    'K_SERVICE',
   ];
 
   let savedEnv: Record<string, string | undefined>;
@@ -173,6 +176,12 @@ describe('getConfig', () => {
     expect(config.freeTrialDurationMs).toBe(180_000);
   });
 
+  it('uses 0.0.0.0 by default on Cloud Run', () => {
+    process.env.K_SERVICE = 'ascuita-api';
+    const config = getConfig();
+    expect(config.host).toBe('0.0.0.0');
+  });
+
   it('uses env vars when set', () => {
     process.env.HOST = '0.0.0.0';
     process.env.PORT = '8080';
@@ -198,5 +207,29 @@ describe('getConfig', () => {
     const config = getConfig();
     expect(config.securityLogRetentionDays).toBe(3);
     expect(config.wsMaxMessagesPerWindow).toBe(2400);
+  });
+});
+
+describe('Cloud Run helpers', () => {
+  const savedKService = process.env.K_SERVICE;
+
+  afterEach(() => {
+    if (savedKService === undefined) {
+      delete process.env.K_SERVICE;
+    } else {
+      process.env.K_SERVICE = savedKService;
+    }
+  });
+
+  it('detects when the process runs on Cloud Run', () => {
+    process.env.K_SERVICE = 'ascuita-api';
+    expect(isRunningInCloudRun()).toBe(true);
+    expect(getDefaultHost()).toBe('0.0.0.0');
+  });
+
+  it('falls back to localhost outside Cloud Run', () => {
+    delete process.env.K_SERVICE;
+    expect(isRunningInCloudRun()).toBe(false);
+    expect(getDefaultHost()).toBe('127.0.0.1');
   });
 });

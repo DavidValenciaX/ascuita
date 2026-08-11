@@ -33,19 +33,34 @@ function getDailyLogPath(logDir: string, timestamp: number) {
   return path.join(logDir, `security-${isoDate}.ndjson`);
 }
 
+function shouldLogToStdout() {
+  return process.env.SECURITY_LOG_TARGET === 'stdout' || Boolean(process.env.K_SERVICE);
+}
+
 export function appendAbuseLog(
   logDir: string,
   retentionDays: number,
   event: AbuseLogEvent
 ) {
   const timestamp = event.ts || Date.now();
-  pruneOldLogs(logDir, retentionDays);
-  ensureDirectory(logDir);
-
   const payload = {
     ...event,
     ts: timestamp,
   };
+
+  if (shouldLogToStdout()) {
+    process.stdout.write(
+      `${JSON.stringify({
+        severity: 'WARNING',
+        loggingEvent: 'ascuita.security',
+        ...payload,
+      })}\n`
+    );
+    return;
+  }
+
+  pruneOldLogs(logDir, retentionDays);
+  ensureDirectory(logDir);
 
   fs.appendFileSync(
     getDailyLogPath(logDir, timestamp),

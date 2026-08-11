@@ -1,4 +1,4 @@
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -14,26 +14,37 @@ function hasFirebaseAdminEnv() {
   );
 }
 
-function getFirebaseAdminApp() {
-  if (!hasFirebaseAdminEnv()) {
-    return null;
-  }
+function hasGoogleRuntimeCredentials() {
+  return Boolean(process.env.K_SERVICE || process.env.GOOGLE_CLOUD_PROJECT);
+}
 
+function getFirebaseAdminApp() {
   if (getApps().length) {
     return getApps()[0];
   }
 
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: getPrivateKey(),
-    }),
-  });
+  if (hasFirebaseAdminEnv()) {
+    return initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: getPrivateKey(),
+      }),
+    });
+  }
+
+  if (hasGoogleRuntimeCredentials()) {
+    return initializeApp({
+      credential: applicationDefault(),
+      projectId: process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT,
+    });
+  }
+
+  return null;
 }
 
 export function isFirebaseAdminConfigured() {
-  return hasFirebaseAdminEnv();
+  return hasFirebaseAdminEnv() || hasGoogleRuntimeCredentials();
 }
 
 export async function verifyFirebaseIdToken(idToken?: string | null) {

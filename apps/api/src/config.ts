@@ -24,12 +24,21 @@ type AppConfig = {
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
 const DEFAULT_CORS_ORIGINS = [
   'https://ascuita.web.app',
+  'https://ascuita.firebaseapp.com',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:4173',
   'http://127.0.0.1:4173',
   'https://localhost',
 ];
+
+export function isRunningInCloudRun() {
+  return Boolean(process.env.K_SERVICE);
+}
+
+export function getDefaultHost() {
+  return isRunningInCloudRun() ? '0.0.0.0' : '127.0.0.1';
+}
 
 export function parseCorsOrigin(value?: string): string[] {
   if (!value) {
@@ -60,7 +69,7 @@ export function parseNumber(value: string | undefined, fallback: number) {
 
 export function getConfig(): AppConfig {
   return {
-    host: process.env.HOST || '127.0.0.1',
+    host: process.env.HOST || getDefaultHost(),
     port: Number(process.env.PORT || '3000'),
     corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN),
     geminiApiKey: process.env.GEMINI_API_KEY,
