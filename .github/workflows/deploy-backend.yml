@@ -78,12 +78,9 @@ jobs:
         shell: bash
         run: |
           cat > backend-cloudrun.env.yaml <<EOF
-          HOST: "0.0.0.0"
-          NODE_ENV: "production"
           FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
           GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.1-flash-live-preview}"
           CORS_ORIGIN: "${CORS_ORIGIN}"
-          SECURITY_LOG_TARGET: "stdout"
           EOF
 
       - name: Deploy to Cloud Run

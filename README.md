@@ -176,7 +176,7 @@ Variables esperadas en GitHub para el workflow de backend:
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
-En Cloud Run, el backend escucha en `PORT` y usa `HOST=0.0.0.0`. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin puede usar la service account adjunta al servicio, evitando guardar `FIREBASE_PRIVATE_KEY` en producción.
+En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin puede usar la service account adjunta al servicio, evitando guardar `FIREBASE_PRIVATE_KEY` en producción.
 El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore
