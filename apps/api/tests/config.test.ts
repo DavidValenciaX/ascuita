@@ -12,6 +12,7 @@ describe('parseCorsOrigin', () => {
   it('returns default origins when value is undefined', () => {
     expect(parseCorsOrigin(undefined)).toEqual([
       'https://ascuita.web.app',
+      'https://ascuita.firebaseapp.com',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'http://localhost:4173',
@@ -23,6 +24,7 @@ describe('parseCorsOrigin', () => {
   it('returns default origins when value is an empty string', () => {
     expect(parseCorsOrigin('')).toEqual([
       'https://ascuita.web.app',
+      'https://ascuita.firebaseapp.com',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'http://localhost:4173',
@@ -151,6 +153,7 @@ describe('getConfig', () => {
     expect(config.port).toBe(3000);
     expect(config.corsOrigin).toEqual([
       'https://ascuita.web.app',
+      'https://ascuita.firebaseapp.com',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'http://localhost:4173',
