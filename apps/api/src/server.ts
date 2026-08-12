@@ -5,7 +5,7 @@ import Fastify from 'fastify';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getConfig, isAllowedOrigin } from './config.js';
+import { getConfig, isAllowedOrigin, isRunningInCloudRun } from './config.js';
 import { appendAbuseLog } from './lib/abuse-log.js';
 import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
 import accountRoute from './routes/account.js';
@@ -152,7 +152,10 @@ const start = async () => {
         geminiConfigured: Boolean(config.geminiApiKey),
         geminiModel: config.geminiModel,
         firebaseAdminConfigured: isFirebaseAdminConfigured(),
-        securityLogDir: path.resolve(process.cwd(), config.securityLogDir),
+        cloudRun: isRunningInCloudRun(),
+        securityLogDestination: isRunningInCloudRun()
+          ? 'cloud-logging'
+          : path.resolve(process.cwd(), config.securityLogDir),
         securityLogRetentionDays: config.securityLogRetentionDays,
       },
       'Ascuita API started'

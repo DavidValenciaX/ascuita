@@ -15,9 +15,21 @@ function getDailyLogPath(logDir: string, timestamp: number) {
 
 describe('appendAbuseLog', () => {
   const createdDirs: string[] = [];
+  const savedSecurityLogTarget = process.env.SECURITY_LOG_TARGET;
+  const savedKService = process.env.K_SERVICE;
 
   afterEach(() => {
     vi.useRealTimers();
+    if (savedSecurityLogTarget === undefined) {
+      delete process.env.SECURITY_LOG_TARGET;
+    } else {
+      process.env.SECURITY_LOG_TARGET = savedSecurityLogTarget;
+    }
+    if (savedKService === undefined) {
+      delete process.env.K_SERVICE;
+    } else {
+      process.env.K_SERVICE = savedKService;
+    }
 
     for (const dir of createdDirs.splice(0)) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -94,5 +106,25 @@ describe('appendAbuseLog', () => {
       .trim()
       .split('\n');
     expect(JSON.parse(contents[0]!).ts).toBe(now);
+  });
+
+  it('writes structured security events to stdout on Cloud Run', () => {
+    const writeSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    process.env.SECURITY_LOG_TARGET = 'stdout';
+
+    appendAbuseLog('ignored', 3, {
+      type: 'security.block',
+      ip: '9.9.9.9',
+      reason: 'too_many_messages',
+      metadata: { count: 4 },
+      ts: 123,
+    });
+
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    expect(writeSpy.mock.calls[0]?.[0]).toContain('"loggingEvent":"ascuita.security"');
+    expect(writeSpy.mock.calls[0]?.[0]).toContain('"reason":"too_many_messages"');
   });
 });

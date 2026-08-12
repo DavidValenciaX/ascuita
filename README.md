@@ -5,7 +5,7 @@ Ascuita es una aplicación web para crear, probar y conversar con personajes de 
 Actualmente el repositorio usa una arquitectura `monorepo`:
 
 * `apps/web`: frontend Vite + React + Zustand desplegado en Firebase Hosting.
-* `apps/api`: backend Node + Fastify + WebSocket desplegado en una VPS y encargado de hablar con Gemini Live API de forma segura.
+* `apps/api`: backend Node + Fastify + WebSocket desplegado en Cloud Run y encargado de hablar con Gemini Live API de forma segura.
 
 ## Capturas de pantalla
 
@@ -57,34 +57,22 @@ Crea `apps/api/.env` con este contenido (consulta `apps/api/.env.example` para l
 ```env
 HOST=127.0.0.1
 PORT=3000
-LOG_LEVEL=info
 CORS_ORIGIN=http://localhost:5173
 GEMINI_API_KEY=tu_clave_real
 GEMINI_MODEL=gemini-3.1-flash-live-preview
 
 # Firebase Admin SDK (necesario para Auth y Firestore en el backend)
+# En local usa GOOGLE_APPLICATION_CREDENTIALS; en Cloud Run se usa
+# la service account adjunta al servicio.
 FIREBASE_PROJECT_ID=tu_project_id
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@tu-project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\ntu_clave\n-----END PRIVATE KEY-----\n"
+GOOGLE_APPLICATION_CREDENTIALS=C:\Users\David\Downloads\Programacion\AI_apps\ascuita\firebase_service_account.json
 
-# Seguridad y rate limiting (opcional, tienen valores por defecto)
+# Configuración opcional
 SECURITY_LOG_DIR=logs/security
-SECURITY_LOG_RETENTION_DAYS=3
-FREE_TRIAL_DURATION_MS=180000
-HTTP_RATE_LIMIT_WINDOW_MS=60000
-HTTP_RATE_LIMIT_MAX_REQUESTS=300
-WS_CONNECT_WINDOW_MS=300000
-WS_MAX_CONNECT_ATTEMPTS_PER_IP=20
-WS_MAX_CONCURRENT_CONNECTIONS_PER_IP=3
-WS_MESSAGE_WINDOW_MS=60000
-WS_MAX_MESSAGES_PER_WINDOW=2400
-WS_MAX_PAYLOAD_BYTES=262144
-WS_AUDIO_BYTE_WINDOW_MS=60000
-WS_MAX_AUDIO_BYTES_PER_WINDOW=7500000
-WS_TEMPORARY_BLOCK_DURATION_MS=900000
 ```
 
 `CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
+Los parámetros de `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno.
 
 ### 3. Crear variables del frontend
 
@@ -152,8 +140,8 @@ npm run build:web
 La arquitectura de despliegue actual es esta:
 
 * `apps/web` se despliega a Firebase Hosting mediante GitHub Actions.
-* `apps/api` se despliega a una VPS Ubuntu con `Nginx + pm2` mediante GitHub Actions.
-* `Nginx` expone HTTPS y reenvía tráfico WebSocket al backend Node.
+* `apps/api` se despliega a Cloud Run mediante GitHub Actions.
+* Artifact Registry almacena la imagen del backend.
 * Las reglas de Firestore se despliegan con un workflow dedicado.
 
 ### Frontend en Firebase
@@ -169,25 +157,26 @@ Secrets requeridos por el workflow:
 
 * `FIREBASE_SERVICE_ACCOUNT_ASCUITA`: clave de la cuenta de servicio de Firebase.
 
-### Backend en VPS
+### Backend en Cloud Run
 
 Secrets requeridos por el workflow de backend en GitHub:
 
-* `VPS_HOST`: IP o dominio de la VPS.
-* `VPS_USER`: usuario SSH (típicamente `ubuntu`).
-* `VPS_SSH_KEY`: clave privada SSH.
-* `VPS_PORT`: puerto SSH.
+* `GCP_WORKLOAD_IDENTITY_PROVIDER`: provider de Workload Identity Federation usado por GitHub Actions.
+* `GCP_DEPLOYER_SERVICE_ACCOUNT`: service account que GitHub Actions usará para construir y desplegar.
 
-Variables esperadas en la VPS para `apps/api/.env`:
+Variables esperadas en GitHub para el workflow de backend:
 
-* `HOST`, `PORT`, `LOG_LEVEL`, `CORS_ORIGIN`
-* `GEMINI_API_KEY`, `GEMINI_MODEL`
-* `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
-* Variables de seguridad y rate limiting (opcionales, con valores por defecto)
+* `GCP_PROJECT_ID`, `GCP_REGION`
+* `ARTIFACT_REGISTRY_REPOSITORY`
+* `CLOUD_RUN_SERVICE`
+* `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
+* `CLOUD_RUN_GEMINI_SECRET`: nombre del secreto de Secret Manager que contiene `GEMINI_API_KEY`
+* `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
-El backend se gestiona con PM2 usando `apps/api/ecosystem.config.cjs`, que define el proceso `ascuita-api` en modo fork.
+En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`.
+El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore
 
@@ -195,13 +184,13 @@ El workflow `deploy-firestore-rules.yml` despliega las reglas definidas en `fire
 
 Las memorias se almacenan en `users/{uid}/memories/{memoryId}` con una categoría (`preference`, `personal_fact`, `goal` o `context`), contenido breve y marcas de tiempo. Para usuarios registrados están activadas por defecto, aunque pueden desactivarse desde Configuración. Gemini Live puede solicitar guardar o eliminar una memoria mediante function calling, pero el navegador valida la solicitud y Firestore vuelve a comprobar la autorización y el esquema. Los usuarios invitados no reciben estas herramientas ni tienen almacenamiento de memorias.
 
-Importante: `GEMINI_API_KEY` y las credenciales de Firebase Admin solo deben existir en el backend y nunca en el build del frontend.
+Importante: `GEMINI_API_KEY` solo debe existir en el backend y nunca en el build del frontend. En producción se recomienda usar Secret Manager para `GEMINI_API_KEY` y Application Default Credentials para Firebase Admin en lugar de guardar una private key.
 
 ## Stack Tecnológico
 
 * **Frontend**: React 19, Vite, Three.js, Zustand, Firebase (Auth + Firestore).
 * **Backend**: Node.js, Fastify, WebSocket, `@google/genai`, Firebase Admin SDK.
-* **Despliegue**: Firebase Hosting (frontend), VPS Ubuntu + Nginx + PM2 (backend), GitHub Actions (CI/CD).
+* **Despliegue**: Firebase Hosting (frontend), Cloud Run + Artifact Registry (backend), GitHub Actions (CI/CD).
 * **Base de datos**: Cloud Firestore con reglas de seguridad por usuario.
 
 ## Aplicación Android

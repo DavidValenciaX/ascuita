@@ -1,0 +1,16 @@
+node_modules
+apps/*/node_modules
+apps/*/dist
+.git
+.github
+docs
+android
+coverage
+*.log
+.env
+.env.*
+!.env.example
+!.env.mobile.example
+deploy_service_account.json
+firebase_service_account.json
+firestore-debug.log

@@ -3,7 +3,8 @@
       "public": "apps/web/dist",
       "ignore": [
         "firebase.json",
-        "service_account.json",
+        "deploy_service_account.json",
+        "firebase_service_account.json",
         "**/.*",
         "**/node_modules/**"
       ],

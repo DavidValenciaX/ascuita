@@ -27,8 +27,8 @@ dist-ssr
 *.sln
 *.sw?
 
-service_account.json
-ascuita-firebase-adminsdk-fbsvc-c82433fa23.json
+deploy_service_account.json
+firebase_service_account.json
 
 taste.md
 
