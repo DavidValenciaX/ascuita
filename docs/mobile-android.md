@@ -38,7 +38,7 @@ java -version
 
 4. En Firebase Authentication habilita el proveedor Google. La aplicación usa autenticación nativa en Android y sincroniza la credencial con el SDK Web.
 
-5. En la VPS, configura `CORS_ORIGIN` incluyendo la web pública y el origen Android Capacitor:
+5. En la configuración del backend, define `CORS_ORIGIN` incluyendo la web pública y el origen Android Capacitor:
 
    ```env
    CORS_ORIGIN=https://ascuita.web.app,https://localhost

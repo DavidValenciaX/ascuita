@@ -1,6 +1,6 @@
 # Términos y Condiciones de Ascuita
 
-**Última actualización: 16 de julio de 2026**
+Última actualización: agosto 11 de agosto de 2026
 
 Estos Términos y Condiciones ("los Términos") regulan el uso de las aplicaciones web y móvil Ascuita ("el Servicio") operadas por **David Valencia** ("el Operador", "nosotros"). Al acceder o utilizar el Servicio, aceptas quedar vinculado por estos Términos. Si no estás de acuerdo con alguno de los términos, no utilices el Servicio.
 
@@ -43,7 +43,7 @@ Eres responsable de mantener la confidencialidad de tu cuenta de Google y de cer
 
 ### 3.3. Eliminación de cuenta
 
-Puedes eliminar tu cuenta y todos tus datos desde Configuración, desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta) o escribiendo a **contacto@davidvalencia.site**.
+Puedes eliminar tu cuenta y todos tus datos desde Configuración, desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta) o escribiendo a **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -150,7 +150,7 @@ En la máxima medida permitida por la ley aplicable:
 
 ## 11. Exención de garantías
 
-- El Servicio utiliza infraestructura de terceros (Google Firebase, Google Gemini, VPS) que puede experimentar interrupciones ajenas al control del Operador.
+- El Servicio utiliza infraestructura de terceros (Google Firebase, Google Gemini, Google Cloud Run) que puede experimentar interrupciones ajenas al control del Operador.
 - El Operador no garantiza la disponibilidad continua del backend ni de los servicios de Google.
 - Las funcionalidades del Servicio pueden cambiar, suspenderse o eliminarse sin previo aviso.
 
@@ -191,7 +191,7 @@ El Servicio puede contener enlaces a sitios web o servicios de terceros (Google,
 
 Para cualquier pregunta sobre estos Términos y Condiciones, contacta a:
 
-- **Email**: contacto@davidvalencia.site
+- **Email**: <contacto@davidvalencia.site>
 - **Operador**: David Valencia
 
 ---

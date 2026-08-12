@@ -30,7 +30,7 @@ Actualmente el repositorio usa una arquitectura `monorepo`:
 * **Panel de configuración de animación**: incluye controles para ajustar sensibilidad, suavizado y comportamiento de la boca.
 * **Temas claro/oscuro**: la escena 3D puede alternar entre tema oscuro y claro.
 * **Gemini Live API securizada**: el navegador ya no usa la API key directamente; el backend actúa como proxy seguro hacia Gemini Live.
-* **Seguridad y rate limiting**: el backend implementa rate limiting HTTP y WebSocket, límites de conexiones concurrentes por IP, límites de tamaño de payload, límites de bytes de audio por ventana de tiempo, bloqueo temporal de IPs abusivas, headers de seguridad y logs de abuso con retención configurable.
+* **Seguridad y rate limiting**: el backend implementa rate limiting HTTP y WebSocket, límites de conexiones concurrentes por IP, límites de tamaño de payload, límites de bytes de audio por ventana de tiempo, bloqueo temporal de IPs abusivas, headers de seguridad y logs de abuso estructurados en Cloud Logging.
 * **Endpoint de salud**: el backend expone `GET /health` para monitoreo.
 
 ## Requisitos
@@ -66,13 +66,10 @@ GEMINI_MODEL=gemini-3.1-flash-live-preview
 # la service account adjunta al servicio.
 FIREBASE_PROJECT_ID=tu_project_id
 GOOGLE_APPLICATION_CREDENTIALS=C:\Users\David\Downloads\Programacion\AI_apps\ascuita\firebase_service_account.json
-
-# Configuración opcional
-SECURITY_LOG_DIR=logs/security
 ```
 
 `CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
-Los parámetros de `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno.
+Los parámetros de `LOG_LEVEL`, rate limiting y trial gratuito están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno. Los eventos de seguridad se emiten siempre por `stdout` y se consumen desde Cloud Logging en producción.
 
 ### 3. Crear variables del frontend
 
@@ -176,7 +173,7 @@ Variables esperadas en GitHub para el workflow de backend:
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
 En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`.
-El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
+El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting y trial gratuito se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore
 

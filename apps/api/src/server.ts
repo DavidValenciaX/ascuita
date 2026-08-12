@@ -77,16 +77,12 @@ function logSecurityEvent(
   reason: string,
   metadata?: Record<string, unknown>
 ) {
-  appendAbuseLog(
-    path.resolve(process.cwd(), config.securityLogDir),
-    config.securityLogRetentionDays,
-    {
-      type: 'http.rate_limit',
-      ip,
-      reason,
-      metadata,
-    }
-  );
+  appendAbuseLog({
+    type: 'http.rate_limit',
+    ip,
+    reason,
+    metadata,
+  });
 }
 
 const app = Fastify({
@@ -153,10 +149,7 @@ const start = async () => {
         geminiModel: config.geminiModel,
         firebaseAdminConfigured: isFirebaseAdminConfigured(),
         cloudRun: isRunningInCloudRun(),
-        securityLogDestination: isRunningInCloudRun()
-          ? 'cloud-logging'
-          : path.resolve(process.cwd(), config.securityLogDir),
-        securityLogRetentionDays: config.securityLogRetentionDays,
+        securityLogDestination: 'stdout',
       },
       'Ascuita API started'
     );

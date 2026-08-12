@@ -110,8 +110,6 @@ describe('getConfig', () => {
     'GEMINI_API_KEY',
     'GEMINI_MODEL',
     'LOG_LEVEL',
-    'SECURITY_LOG_DIR',
-    'SECURITY_LOG_RETENTION_DAYS',
     'HTTP_RATE_LIMIT_WINDOW_MS',
     'HTTP_RATE_LIMIT_MAX_REQUESTS',
     'WS_CONNECT_WINDOW_MS',
@@ -163,8 +161,6 @@ describe('getConfig', () => {
     expect(config.geminiApiKey).toBeUndefined();
     expect(config.geminiModel).toBe('gemini-3.1-flash-live-preview');
     expect(config.logLevel).toBe('info');
-    expect(config.securityLogDir).toBe('logs/security');
-    expect(config.securityLogRetentionDays).toBe(3);
     expect(config.httpRateLimitWindowMs).toBe(60_000);
     expect(config.httpRateLimitMaxRequests).toBe(300);
     expect(config.wsConnectWindowMs).toBe(300_000);
@@ -204,7 +200,6 @@ describe('getConfig', () => {
 
   it('keeps runtime limits fixed even if env vars are present', () => {
     process.env.LOG_LEVEL = 'debug';
-    process.env.SECURITY_LOG_RETENTION_DAYS = '7';
     process.env.HTTP_RATE_LIMIT_WINDOW_MS = '10';
     process.env.HTTP_RATE_LIMIT_MAX_REQUESTS = '11';
     process.env.WS_CONNECT_WINDOW_MS = '12';
@@ -219,7 +214,6 @@ describe('getConfig', () => {
     process.env.FREE_TRIAL_DURATION_MS = '21';
     const config = getConfig();
     expect(config.logLevel).toBe('info');
-    expect(config.securityLogRetentionDays).toBe(3);
     expect(config.wsMaxMessagesPerWindow).toBe(2400);
     expect(config.httpRateLimitWindowMs).toBe(60_000);
     expect(config.httpRateLimitMaxRequests).toBe(300);

@@ -5,8 +5,6 @@ type AppConfig = {
   geminiApiKey?: string;
   geminiModel: string;
   logLevel: string;
-  securityLogDir: string;
-  securityLogRetentionDays: number;
   httpRateLimitWindowMs: number;
   httpRateLimitMaxRequests: number;
   wsConnectWindowMs: number;
@@ -23,7 +21,6 @@ type AppConfig = {
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
 const DEFAULT_LOG_LEVEL = 'info';
-const DEFAULT_SECURITY_LOG_RETENTION_DAYS = 3;
 const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 300;
 const DEFAULT_WS_CONNECT_WINDOW_MS = 300_000;
@@ -89,8 +86,6 @@ export function getConfig(): AppConfig {
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     logLevel: DEFAULT_LOG_LEVEL,
-    securityLogDir: process.env.SECURITY_LOG_DIR || 'logs/security',
-    securityLogRetentionDays: DEFAULT_SECURITY_LOG_RETENTION_DAYS,
     httpRateLimitWindowMs: DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS,
     httpRateLimitMaxRequests: DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS,
     wsConnectWindowMs: DEFAULT_WS_CONNECT_WINDOW_MS,

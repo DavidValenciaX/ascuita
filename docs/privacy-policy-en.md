@@ -1,10 +1,10 @@
 # Ascuita Privacy Policy
 
-**Last updated: July 16, 2026**
+Last updated: August 11, 2026
 
 This Privacy Policy describes how Ascuita ("the Service", "we", "us") collects, uses, and protects the personal information of users ("you", "the User") when using the Ascuita web or mobile application.
 
-The data controller responsible for personal data is **David Valencia**, who can be contacted at **contacto@davidvalencia.site**.
+The data controller responsible for personal data is **David Valencia**, who can be contacted at **<contacto@davidvalencia.site>**.
 
 By creating an account or using the Service, you agree to the practices described in this Privacy Policy.
 
@@ -37,7 +37,7 @@ The Service streams your voice in real time to the backend, which forwards it to
 
 ### 1.4. Technical and usage data
 
-- **IP address**: used for security, rate limiting, and abuse prevention. Temporarily stored in security logs with configurable retention (default: 3 days).
+- **IP address**: used for security, rate limiting, and abuse prevention. Temporarily recorded in Google Cloud Logging security logs according to the retention policy configured for the project.
 - **Analytics data**: Firebase Analytics collects aggregated and anonymized data about Service usage (events, sessions, device, browser, approximate location).
 - **Standard HTTP headers**: browser type, operating system, preferred language.
 
@@ -97,7 +97,7 @@ We share data with the following service providers, under their respective priva
 
 ### 4.3. Backend hosting provider
 
-- The backend is hosted on a VPS that processes WebSocket connections.
+- The backend is hosted on Google Cloud Run, which processes WebSocket connections.
 - The user's IP address is processed on the server for security and rate limiting.
 
 We do not share personal information with any other third party, except as required by law.
@@ -112,11 +112,11 @@ We do not share personal information with any other third party, except as requi
 | Custom agents | Until the user deletes them or requests account deletion |
 | Conversations and messages | Until the user deletes them or requests account deletion |
 | Persistent memories | Until the user deletes them or requests account deletion |
-| Security logs (IP) | 3 days (configurable, default) |
+| Security logs (IP) | According to the retention policy configured in Google Cloud Logging |
 | Free trial data (IP) | 1 hour after trial start |
 | Analytics data | Per Firebase Analytics retention policy |
 
-You may delete your account and all associated data from Settings or through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta). You may also write to **contacto@davidvalencia.site**.
+You may delete your account and all associated data from Settings or through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta). You may also write to **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -133,7 +133,7 @@ If you reside in the European Union (GDPR) or California (CCPA), you have the fo
 - **Objection**: object to the processing of your data based on legitimate interest.
 - **Withdrawal of consent**: at any time, without affecting the legality of prior processing.
 
-To exercise these rights, write to **contacto@davidvalencia.site**.
+To exercise these rights, write to **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -155,7 +155,7 @@ Despite these measures, no system is 100% secure. We cannot guarantee the absolu
 
 ## 8. International Transfers
 
-Your data is processed on Google servers (Firebase, Gemini) and on a VPS that may be located outside your country of residence. By using the Service, you consent to the international transfer of your data under the conditions of the service providers.
+Your data is processed on Google servers (Firebase, Gemini, and Cloud Run) that may be located outside your country of residence. By using the Service, you consent to the international transfer of your data under the conditions of the service providers.
 
 Google participates in data transfer frameworks such as the EU-U.S. Data Privacy Framework.
 
@@ -173,7 +173,7 @@ We do not use advertising or third-party tracking cookies.
 
 The Service is intended for users aged **13 or older**. We do not knowingly collect personal information from children under 13.
 
-If you are a parent or guardian and believe a child under 13 has provided personal data, please contact us at **contacto@davidvalencia.site** to have such information removed.
+If you are a parent or guardian and believe a child under 13 has provided personal data, please contact us at **<contacto@davidvalencia.site>** to have such information removed.
 
 ---
 
@@ -193,7 +193,7 @@ We may update this Privacy Policy at any time. We will notify significant change
 
 For any questions, requests, or exercise of rights regarding this Privacy Policy, contact:
 
-- **Email**: contacto@davidvalencia.site
+- **Email**: <contacto@davidvalencia.site>
 - **Responsible**: David Valencia
 
 ---

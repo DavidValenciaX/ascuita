@@ -1,6 +1,6 @@
 # Ascuita Terms of Service
 
-**Last updated: July 16, 2026**
+Last updated: August 11, 2026
 
 These Terms of Service ("the Terms") govern the use of the Ascuita web and mobile applications ("the Service") operated by **David Valencia** ("the Operator", "we"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree to any of the terms, do not use the Service.
 
@@ -43,7 +43,7 @@ You are responsible for maintaining the confidentiality of your Google account a
 
 ### 3.3. Account Deletion
 
-You may delete your account and all associated data from Settings, through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta), or by writing to **contacto@davidvalencia.site**.
+You may delete your account and all associated data from Settings, through [the external account deletion page](https://ascuita.web.app/eliminar-cuenta), or by writing to **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -150,7 +150,7 @@ To the maximum extent permitted by applicable law:
 
 ## 11. Disclaimer of Warranties
 
-- The Service uses third-party infrastructure (Google Firebase, Google Gemini, VPS) that may experience interruptions beyond the Operator's control.
+- The Service uses third-party infrastructure (Google Firebase, Google Gemini, Google Cloud Run) that may experience interruptions beyond the Operator's control.
 - The Operator does not guarantee continuous availability of the backend or Google services.
 - Service features may change, be suspended, or be removed without prior notice.
 
@@ -191,7 +191,7 @@ The Service may contain links to third-party websites or services (Google, etc.)
 
 For any questions about these Terms of Service, contact:
 
-- **Email**: contacto@davidvalencia.site
+- **Email**: <contacto@davidvalencia.site>
 - **Operator**: David Valencia
 
 ---

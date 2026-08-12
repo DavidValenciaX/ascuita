@@ -6,7 +6,6 @@ import {
   Session,
 } from '@google/genai';
 import { FastifyPluginAsync } from 'fastify';
-import path from 'node:path';
 import { getConfig, isAllowedOrigin } from '../config.js';
 import { appendAbuseLog } from '../lib/abuse-log.js';
 import {
@@ -189,18 +188,13 @@ export function getAudioPayloadBytes(message: RealtimeInputMessage) {
   }, 0);
 }
 
-function getSecurityLogDir() {
-  return path.resolve(process.cwd(), getConfig().securityLogDir);
-}
-
 function logSecurityEvent(
   type: string,
   ip: string,
   reason: string,
   metadata?: Record<string, unknown>
 ) {
-  const config = getConfig();
-  appendAbuseLog(getSecurityLogDir(), config.securityLogRetentionDays, {
+  appendAbuseLog({
     type,
     ip,
     reason,

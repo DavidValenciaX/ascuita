@@ -1,10 +1,10 @@
 # Política de Privacidad de Ascuita
 
-**Última actualización: 16 de julio de 2026**
+Última actualización: 11 de agosto de 2026
 
 Esta Política de Privacidad describe cómo Ascuita ("el Servicio", "nosotros", "nos") recopila, utiliza y protege la información personal de los usuarios ("tú", "el Usuario") al utilizar la aplicación web o móvil Ascuita.
 
-El responsable del tratamiento de datos personales es **David Valencia**, con domicilio digital de contacto en **contacto@davidvalencia.site**.
+El responsable del tratamiento de datos personales es **David Valencia**, con domicilio digital de contacto en **<contacto@davidvalencia.site>**.
 
 Al crear una cuenta o utilizar el Servicio, aceptas las prácticas descritas en esta Política de Privacidad.
 
@@ -37,7 +37,7 @@ El Servicio transmite tu voz en tiempo real al backend, que la reenvía a la API
 
 ### 1.4. Datos técnicos y de uso
 
-- **Dirección IP**: utilizada para seguridad, rate limiting y prevención de abuso. Se almacena temporalmente en los logs de seguridad con una retención configurable (por defecto, 3 días).
+- **Dirección IP**: utilizada para seguridad, rate limiting y prevención de abuso. Se registra temporalmente en los logs de seguridad de Google Cloud Logging según la política de retención configurada en el proyecto.
 - **Datos de analítica**: Firebase Analytics recopila datos agregados y anonimizados sobre el uso del Servicio (eventos, sesiones, dispositivo, navegador, ubicación aproximada).
 - **Headers HTTP estándar**: tipo de navegador, sistema operativo, idioma preferido.
 
@@ -97,7 +97,7 @@ Compartimos datos con los siguientes proveedores de servicios, bajo sus respecti
 
 ### 4.3. Proveedor de hosting del backend
 
-- El backend está alojado en una VPS que procesa las conexiones WebSocket.
+- El backend está alojado en Google Cloud Run, que procesa las conexiones WebSocket.
 - La dirección IP del usuario se procesa en el servidor para seguridad y rate limiting.
 
 No compartimos información personal con ningún otro tercero, salvo obligación legal.
@@ -112,11 +112,11 @@ No compartimos información personal con ningún otro tercero, salvo obligación
 | Agentes personalizados | Hasta que el usuario los elimine o solicite la eliminación de la cuenta |
 | Conversaciones y mensajes | Hasta que el usuario los elimine o solicite la eliminación de la cuenta |
 | Memorias persistentes | Hasta que el usuario las elimine o solicite la eliminación de la cuenta; desactivar el guardado impide crear nuevas memorias |
-| Logs de seguridad (IP) | 3 días (configurable, por defecto) |
+| Logs de seguridad (IP) | Según la política de retención configurada en Google Cloud Logging |
 | Datos de trial gratuito (IP) | 1 hora tras el inicio del trial |
 | Datos de analítica | Según la política de retención de Firebase Analytics |
 
-Puedes eliminar tu cuenta y todos tus datos desde Configuración o desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta). También puedes escribir a **contacto@davidvalencia.site**.
+Puedes eliminar tu cuenta y todos tus datos desde Configuración o desde [la página externa de eliminación](https://ascuita.web.app/eliminar-cuenta). También puedes escribir a **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -133,7 +133,7 @@ Si resides en la Unión Europea (GDPR) o California (CCPA), tienes los siguiente
 - **Oposición**: oponerte al tratamiento de tus datos basado en interés legítimo.
 - **Retirada del consentimiento**: en cualquier momento, sin afectar la legalidad del tratamiento previo.
 
-Para ejercer estos derechos, escribe a **contacto@davidvalencia.site**.
+Para ejercer estos derechos, escribe a **<contacto@davidvalencia.site>**.
 
 ---
 
@@ -155,7 +155,7 @@ A pesar de estas medidas, ningún sistema es 100% seguro. No podemos garantizar 
 
 ## 8. Transferencias internacionales
 
-Tus datos se procesan en servidores de Google (Firebase, Gemini) y en una VPS que puede estar ubicada fuera de tu país de residencia. Al utilizar el Servicio, aceptas la transferencia internacional de tus datos según las condiciones de los proveedores de servicios.
+Tus datos se procesan en servidores de Google (Firebase, Gemini y Cloud Run) que pueden estar ubicados fuera de tu país de residencia. Al utilizar el Servicio, aceptas la transferencia internacional de tus datos según las condiciones de los proveedores de servicios.
 
 Google participa en marcos de transferencia de datos como el EU-U.S. Data Privacy Framework.
 
@@ -173,7 +173,7 @@ No utilizamos cookies de publicidad ni de seguimiento de terceros.
 
 El Servicio está dirigido a personas de **13 años o más**. No recopilamos deliberadamente información personal de menores de 13 años.
 
-Si eres padre o tutor y crees que un menor de 13 años ha proporcionado datos personales, contáctanos en **contacto@davidvalencia.site** para eliminar dicha información.
+Si eres padre o tutor y crees que un menor de 13 años ha proporcionado datos personales, contáctanos en **<contacto@davidvalencia.site>** para eliminar dicha información.
 
 ---
 
@@ -193,7 +193,7 @@ Podemos actualizar esta Política de Privacidad en cualquier momento. Notificare
 
 Para cualquier pregunta, solicitud o ejercicio de derechos sobre esta Política de Privacidad, contacta a:
 
-- **Email**: contacto@davidvalencia.site
+- **Email**: <contacto@davidvalencia.site>
 - **Responsable**: David Valencia
 
 ---

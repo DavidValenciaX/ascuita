@@ -237,7 +237,7 @@
    - Security measures including HTTP and WebSocket rate limiting,
      concurrent connection limits per IP, payload size limits, audio
      byte rate limits, temporary IP blocking, security headers and
-     abuse logging with configurable retention.
+     structured abuse logging.
    - Health check endpoint (GET /health).
    - Internationalization (i18n) with support for Spanish and English.
    - Light/dark theme switching for the 3D scene.
@@ -246,9 +246,8 @@
    - Customizable agents with adjustable name, personality, voice and
      color, including preset and personal agents.
    - Automated deployment via GitHub Actions: frontend to Firebase
-     Hosting, backend to VPS (Ubuntu + Nginx + PM2), and Firestore
+     Hosting, backend to Cloud Run + Artifact Registry, and Firestore
      rules deployment.
-   - PM2 process management configuration (ecosystem.config.cjs).
 
    All modifications are licensed under the same Apache License,
    Version 2.0, as the original work.
