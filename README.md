@@ -62,8 +62,9 @@ GEMINI_API_KEY=tu_clave_real
 GEMINI_MODEL=gemini-3.1-flash-live-preview
 
 # Firebase Admin SDK (necesario para Auth y Firestore en el backend)
-# En local usa GOOGLE_APPLICATION_CREDENTIALS; en Cloud Run se usa
-# la service account adjunta al servicio.
+# En local usa el archivo firebase_service_account.json mediante
+# GOOGLE_APPLICATION_CREDENTIALS (también se detecta automáticamente en
+# la raíz del proyecto); en Cloud Run se usa la service account adjunta al servicio
 FIREBASE_PROJECT_ID=tu_project_id
 GOOGLE_APPLICATION_CREDENTIALS=C:\Users\David\Downloads\Programacion\AI_apps\ascuita\firebase_service_account.json
 ```

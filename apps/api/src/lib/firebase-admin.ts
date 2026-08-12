@@ -1,17 +1,52 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-function getPrivateKey() {
-  return process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-}
+type ServiceAccount = {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+};
 
-function hasFirebaseAdminEnv() {
-  return Boolean(
-    process.env.FIREBASE_PROJECT_ID &&
-      process.env.FIREBASE_CLIENT_EMAIL &&
-      getPrivateKey()
-  );
+function getLocalServiceAccount(): ServiceAccount | null {
+  if (process.env.K_SERVICE) {
+    return null;
+  }
+
+  const configuredPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const candidates = [
+    configuredPath,
+    path.resolve(process.cwd(), 'firebase_service_account.json'),
+    path.resolve(process.cwd(), '..', 'firebase_service_account.json'),
+    path.resolve(process.cwd(), '..', '..', 'firebase_service_account.json'),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of new Set(candidates)) {
+    if (!existsSync(candidate)) {
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(readFileSync(candidate, 'utf8')) as {
+        project_id?: string;
+        client_email?: string;
+        private_key?: string;
+      };
+      if (parsed.project_id && parsed.client_email && parsed.private_key) {
+        return {
+          projectId: parsed.project_id,
+          clientEmail: parsed.client_email,
+          privateKey: parsed.private_key,
+        };
+      }
+    } catch {
+      // Fall back to Application Default Credentials when the local file is invalid.
+    }
+  }
+
+  return null;
 }
 
 function hasGoogleRuntimeCredentials() {
@@ -27,13 +62,11 @@ function getFirebaseAdminApp() {
     return getApps()[0];
   }
 
-  if (hasFirebaseAdminEnv()) {
+  const localServiceAccount = getLocalServiceAccount();
+  if (localServiceAccount) {
     return initializeApp({
-      credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: getPrivateKey(),
-      }),
+      credential: cert(localServiceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID || localServiceAccount.projectId,
     });
   }
 
@@ -48,7 +81,7 @@ function getFirebaseAdminApp() {
 }
 
 export function isFirebaseAdminConfigured() {
-  return hasFirebaseAdminEnv() || hasGoogleRuntimeCredentials();
+  return Boolean(getLocalServiceAccount()) || hasGoogleRuntimeCredentials();
 }
 
 export async function verifyFirebaseIdToken(idToken?: string | null) {

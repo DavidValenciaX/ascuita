@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-const DEFAULT_API_BASE_URL = 'https://ascuita-api.duckdns.org';
+const DEFAULT_API_BASE_URL = 'https://ascuita-api-94806719884.us-central1.run.app';
 
 /**
  * Public URL used by the frontend to reach the backend proxy.
