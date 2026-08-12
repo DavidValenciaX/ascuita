@@ -191,7 +191,6 @@ describe('getConfig', () => {
     process.env.CORS_ORIGIN = 'https://custom.com, https://other.com';
     process.env.GEMINI_API_KEY = 'test-key';
     process.env.GEMINI_MODEL = 'gemini-custom';
-    process.env.SECURITY_LOG_RETENTION_DAYS = '7';
     const config = getConfig();
     expect(config.host).toBe('0.0.0.0');
     expect(config.port).toBe(8080);
@@ -201,15 +200,38 @@ describe('getConfig', () => {
     ]);
     expect(config.geminiApiKey).toBe('test-key');
     expect(config.geminiModel).toBe('gemini-custom');
-    expect(config.securityLogRetentionDays).toBe(7);
   });
 
-  it('falls back to defaults for invalid numeric env values', () => {
-    process.env.SECURITY_LOG_RETENTION_DAYS = 'not-a-number';
-    process.env.WS_MAX_MESSAGES_PER_WINDOW = '-5';
+  it('keeps runtime limits fixed even if env vars are present', () => {
+    process.env.LOG_LEVEL = 'debug';
+    process.env.SECURITY_LOG_RETENTION_DAYS = '7';
+    process.env.HTTP_RATE_LIMIT_WINDOW_MS = '10';
+    process.env.HTTP_RATE_LIMIT_MAX_REQUESTS = '11';
+    process.env.WS_CONNECT_WINDOW_MS = '12';
+    process.env.WS_MAX_CONNECT_ATTEMPTS_PER_IP = '13';
+    process.env.WS_MAX_CONCURRENT_CONNECTIONS_PER_IP = '14';
+    process.env.WS_MESSAGE_WINDOW_MS = '15';
+    process.env.WS_MAX_MESSAGES_PER_WINDOW = '16';
+    process.env.WS_MAX_PAYLOAD_BYTES = '17';
+    process.env.WS_AUDIO_BYTE_WINDOW_MS = '18';
+    process.env.WS_MAX_AUDIO_BYTES_PER_WINDOW = '19';
+    process.env.WS_TEMPORARY_BLOCK_DURATION_MS = '20';
+    process.env.FREE_TRIAL_DURATION_MS = '21';
     const config = getConfig();
+    expect(config.logLevel).toBe('info');
     expect(config.securityLogRetentionDays).toBe(3);
     expect(config.wsMaxMessagesPerWindow).toBe(2400);
+    expect(config.httpRateLimitWindowMs).toBe(60_000);
+    expect(config.httpRateLimitMaxRequests).toBe(300);
+    expect(config.wsConnectWindowMs).toBe(300_000);
+    expect(config.wsMaxConnectAttemptsPerIp).toBe(20);
+    expect(config.wsMaxConcurrentConnectionsPerIp).toBe(3);
+    expect(config.wsMessageWindowMs).toBe(60_000);
+    expect(config.wsMaxPayloadBytes).toBe(262_144);
+    expect(config.wsAudioByteWindowMs).toBe(60_000);
+    expect(config.wsMaxAudioBytesPerWindow).toBe(7_500_000);
+    expect(config.wsTemporaryBlockDurationMs).toBe(15 * 60_000);
+    expect(config.freeTrialDurationMs).toBe(180_000);
   });
 });
 

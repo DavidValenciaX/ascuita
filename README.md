@@ -57,7 +57,6 @@ Crea `apps/api/.env` con este contenido (consulta `apps/api/.env.example` para l
 ```env
 HOST=127.0.0.1
 PORT=3000
-LOG_LEVEL=info
 CORS_ORIGIN=http://localhost:5173
 GEMINI_API_KEY=tu_clave_real
 GEMINI_MODEL=gemini-3.1-flash-live-preview
@@ -69,24 +68,12 @@ FIREBASE_PROJECT_ID=tu_project_id
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@tu-project.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\ntu_clave\n-----END PRIVATE KEY-----\n"
 
-# Seguridad y rate limiting (opcional, tienen valores por defecto)
+# Configuración opcional
 SECURITY_LOG_DIR=logs/security
-SECURITY_LOG_RETENTION_DAYS=3
-FREE_TRIAL_DURATION_MS=180000
-HTTP_RATE_LIMIT_WINDOW_MS=60000
-HTTP_RATE_LIMIT_MAX_REQUESTS=300
-WS_CONNECT_WINDOW_MS=300000
-WS_MAX_CONNECT_ATTEMPTS_PER_IP=20
-WS_MAX_CONCURRENT_CONNECTIONS_PER_IP=3
-WS_MESSAGE_WINDOW_MS=60000
-WS_MAX_MESSAGES_PER_WINDOW=2400
-WS_MAX_PAYLOAD_BYTES=262144
-WS_AUDIO_BYTE_WINDOW_MS=60000
-WS_MAX_AUDIO_BYTES_PER_WINDOW=7500000
-WS_TEMPORARY_BLOCK_DURATION_MS=900000
 ```
 
 `CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
+Los parámetros de `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno.
 
 ### 3. Crear variables del frontend
 
@@ -186,12 +173,11 @@ Variables esperadas en GitHub para el workflow de backend:
 * `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
 * `CLOUD_RUN_GEMINI_SECRET`: nombre del secreto de Secret Manager que contiene `GEMINI_API_KEY`
 * `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
-* Variables opcionales de seguridad y rate limiting: `FREE_TRIAL_DURATION_MS`, `HTTP_RATE_LIMIT_WINDOW_MS`, `HTTP_RATE_LIMIT_MAX_REQUESTS`, `WS_CONNECT_WINDOW_MS`, `WS_MAX_CONNECT_ATTEMPTS_PER_IP`, `WS_MAX_CONCURRENT_CONNECTIONS_PER_IP`, `WS_MESSAGE_WINDOW_MS`, `WS_MAX_MESSAGES_PER_WINDOW`, `WS_MAX_PAYLOAD_BYTES`, `WS_AUDIO_BYTE_WINDOW_MS`, `WS_MAX_AUDIO_BYTES_PER_WINDOW`, `WS_TEMPORARY_BLOCK_DURATION_MS`
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
 En Cloud Run, el backend escucha en `PORT` y usa `HOST=0.0.0.0`. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin puede usar la service account adjunta al servicio, evitando guardar `FIREBASE_PRIVATE_KEY` en producción.
-El workflow fija en código `LOG_LEVEL=info`, `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`, por lo que esos valores ya no necesitan existir como variables de GitHub.
+El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting, trial gratuito y retención de logs se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore
 

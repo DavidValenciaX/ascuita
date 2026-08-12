@@ -22,6 +22,20 @@ type AppConfig = {
 };
 
 const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
+const DEFAULT_LOG_LEVEL = 'info';
+const DEFAULT_SECURITY_LOG_RETENTION_DAYS = 3;
+const DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 300;
+const DEFAULT_WS_CONNECT_WINDOW_MS = 300_000;
+const DEFAULT_WS_MAX_CONNECT_ATTEMPTS_PER_IP = 20;
+const DEFAULT_WS_MAX_CONCURRENT_CONNECTIONS_PER_IP = 3;
+const DEFAULT_WS_MESSAGE_WINDOW_MS = 60_000;
+const DEFAULT_WS_MAX_MESSAGES_PER_WINDOW = 2400;
+const DEFAULT_WS_MAX_PAYLOAD_BYTES = 262_144;
+const DEFAULT_WS_AUDIO_BYTE_WINDOW_MS = 60_000;
+const DEFAULT_WS_MAX_AUDIO_BYTES_PER_WINDOW = 7_500_000;
+const DEFAULT_WS_TEMPORARY_BLOCK_DURATION_MS = 15 * 60_000;
+const DEFAULT_FREE_TRIAL_DURATION_MS = 180_000;
 const DEFAULT_CORS_ORIGINS = [
   'https://ascuita.web.app',
   'https://ascuita.firebaseapp.com',
@@ -74,59 +88,20 @@ export function getConfig(): AppConfig {
     corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN),
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
-    logLevel: process.env.LOG_LEVEL || 'info',
+    logLevel: DEFAULT_LOG_LEVEL,
     securityLogDir: process.env.SECURITY_LOG_DIR || 'logs/security',
-    securityLogRetentionDays: parseNumber(
-      process.env.SECURITY_LOG_RETENTION_DAYS,
-      3
-    ),
-    httpRateLimitWindowMs: parseNumber(
-      process.env.HTTP_RATE_LIMIT_WINDOW_MS,
-      60_000
-    ),
-    httpRateLimitMaxRequests: parseNumber(
-      process.env.HTTP_RATE_LIMIT_MAX_REQUESTS,
-      300
-    ),
-    wsConnectWindowMs: parseNumber(
-      process.env.WS_CONNECT_WINDOW_MS,
-      300_000
-    ),
-    wsMaxConnectAttemptsPerIp: parseNumber(
-      process.env.WS_MAX_CONNECT_ATTEMPTS_PER_IP,
-      20
-    ),
-    wsMaxConcurrentConnectionsPerIp: parseNumber(
-      process.env.WS_MAX_CONCURRENT_CONNECTIONS_PER_IP,
-      3
-    ),
-    wsMessageWindowMs: parseNumber(
-      process.env.WS_MESSAGE_WINDOW_MS,
-      60_000
-    ),
-    wsMaxMessagesPerWindow: parseNumber(
-      process.env.WS_MAX_MESSAGES_PER_WINDOW,
-      2400
-    ),
-    wsMaxPayloadBytes: parseNumber(
-      process.env.WS_MAX_PAYLOAD_BYTES,
-      262_144
-    ),
-    wsAudioByteWindowMs: parseNumber(
-      process.env.WS_AUDIO_BYTE_WINDOW_MS,
-      60_000
-    ),
-    wsMaxAudioBytesPerWindow: parseNumber(
-      process.env.WS_MAX_AUDIO_BYTES_PER_WINDOW,
-      7_500_000
-    ),
-    wsTemporaryBlockDurationMs: parseNumber(
-      process.env.WS_TEMPORARY_BLOCK_DURATION_MS,
-      15 * 60_000
-    ),
-    freeTrialDurationMs: parseNumber(
-      process.env.FREE_TRIAL_DURATION_MS,
-      180_000
-    ),
+    securityLogRetentionDays: DEFAULT_SECURITY_LOG_RETENTION_DAYS,
+    httpRateLimitWindowMs: DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS,
+    httpRateLimitMaxRequests: DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS,
+    wsConnectWindowMs: DEFAULT_WS_CONNECT_WINDOW_MS,
+    wsMaxConnectAttemptsPerIp: DEFAULT_WS_MAX_CONNECT_ATTEMPTS_PER_IP,
+    wsMaxConcurrentConnectionsPerIp: DEFAULT_WS_MAX_CONCURRENT_CONNECTIONS_PER_IP,
+    wsMessageWindowMs: DEFAULT_WS_MESSAGE_WINDOW_MS,
+    wsMaxMessagesPerWindow: DEFAULT_WS_MAX_MESSAGES_PER_WINDOW,
+    wsMaxPayloadBytes: DEFAULT_WS_MAX_PAYLOAD_BYTES,
+    wsAudioByteWindowMs: DEFAULT_WS_AUDIO_BYTE_WINDOW_MS,
+    wsMaxAudioBytesPerWindow: DEFAULT_WS_MAX_AUDIO_BYTES_PER_WINDOW,
+    wsTemporaryBlockDurationMs: DEFAULT_WS_TEMPORARY_BLOCK_DURATION_MS,
+    freeTrialDurationMs: DEFAULT_FREE_TRIAL_DURATION_MS,
   };
 }
