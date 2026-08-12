@@ -11,6 +11,6 @@ coverage
 .env.*
 !.env.example
 !.env.mobile.example
-service_account.json
-ascuita-firebase-adminsdk-fbsvc-c82433fa23.json
+deploy_service_account.json
+firebase_service_account.json
 firestore-debug.log

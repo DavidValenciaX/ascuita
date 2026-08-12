@@ -15,7 +15,11 @@ function hasFirebaseAdminEnv() {
 }
 
 function hasGoogleRuntimeCredentials() {
-  return Boolean(process.env.K_SERVICE || process.env.GOOGLE_CLOUD_PROJECT);
+  return Boolean(
+    process.env.K_SERVICE ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS
+  );
 }
 
 function getFirebaseAdminApp() {
