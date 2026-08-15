@@ -20,6 +20,7 @@ vi.mock('../../src/lib/firebase-admin.js', () => ({
 import {
   safeJsonParse,
   getErrorMessage,
+  withLongLivedLiveConfig,
   extractTextFromServerMessage,
   extractTranscriptionFromServerMessage,
   isServerTurnComplete,
@@ -66,6 +67,37 @@ describe('getErrorMessage', () => {
 
   it('stringifies numbers', () => {
     expect(getErrorMessage(42)).toBe('42');
+  });
+});
+
+describe('withLongLivedLiveConfig', () => {
+  it('enables context compression and transparent resumption by default', () => {
+    expect(withLongLivedLiveConfig({})).toMatchObject({
+      contextWindowCompression: { slidingWindow: {} },
+      sessionResumption: { transparent: true },
+    });
+  });
+
+  it('preserves an existing resumption handle and configuration', () => {
+    expect(
+      withLongLivedLiveConfig({
+        sessionResumption: {
+          handle: 'existing-handle',
+          transparent: false,
+        },
+        contextWindowCompression: {
+          slidingWindow: { targetTokens: '12000' },
+        },
+      })
+    ).toMatchObject({
+      contextWindowCompression: {
+        slidingWindow: { targetTokens: '12000' },
+      },
+      sessionResumption: {
+        handle: 'existing-handle',
+        transparent: false,
+      },
+    });
   });
 });
 

@@ -90,6 +90,19 @@ export function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+export function withLongLivedLiveConfig(config: LiveConnectConfig): LiveConnectConfig {
+  return {
+    ...config,
+    contextWindowCompression: config.contextWindowCompression ?? {
+      slidingWindow: {},
+    },
+    sessionResumption: {
+      ...(config.sessionResumption ?? {}),
+      transparent: config.sessionResumption?.transparent ?? true,
+    },
+  };
+}
+
 export function extractTextFromServerMessage(serverMessage: unknown): string {
   if (!serverMessage || typeof serverMessage !== 'object') return '';
   const msg = serverMessage as Record<string, unknown>;
@@ -716,16 +729,38 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           }
 
           try {
+            const liveConfig = withLongLivedLiveConfig(message.payload.config);
             session = await genAI.live.connect({
               model: currentModel,
-              config: {
-                ...message.payload.config,
-              },
+              config: liveConfig,
               callbacks: {
                 onopen: () => {
                   send({ type: 'open' });
                 },
                 onmessage: async serverMessage => {
+                  if (serverMessage.sessionResumptionUpdate) {
+                    request.log.info(
+                      {
+                        resumable:
+                          serverMessage.sessionResumptionUpdate.resumable === true,
+                        hasHandle: Boolean(
+                          serverMessage.sessionResumptionUpdate.newHandle
+                        ),
+                        lastConsumedClientMessageIndex:
+                          serverMessage.sessionResumptionUpdate
+                            .lastConsumedClientMessageIndex,
+                      },
+                      'Gemini Live session resumption update'
+                    );
+                  }
+
+                  if (serverMessage.goAway) {
+                    request.log.warn(
+                      { timeLeft: serverMessage.goAway.timeLeft },
+                      'Gemini Live sent GoAway'
+                    );
+                  }
+
                   send({
                     type: 'server_message',
                     payload: serverMessage,
@@ -789,10 +824,19 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                   });
                 },
                 onclose: event => {
+                  request.log.warn(
+                    {
+                      code: event.code,
+                      reason: event.reason || '',
+                      wasClean: event.wasClean,
+                    },
+                    'Gemini Live session closed'
+                  );
                   send({
                     type: 'close',
                     payload: {
-                      reason: event.reason || '',
+                      reason:
+                        event.reason || `Gemini session closed (code ${event.code})`,
                     },
                   });
                   session = undefined;

@@ -211,7 +211,7 @@ export function useLiveApi({
     if (!config) {
       throw new Error('config has not been set');
     }
-    client.disconnect();
+    client.disconnect(true);
     setFatalError(null);
     setDisplayError(null);
     setConnecting(true);

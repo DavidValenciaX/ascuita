@@ -139,6 +139,9 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   public readonly model: string = DEFAULT_LIVE_API_MODEL;
   protected ws?: WebSocket;
 
+  private sessionResumptionHandle?: string;
+  private sessionResumptionKey?: string;
+
   private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
   public get status() {
     return this._status;
@@ -163,7 +166,31 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       return false;
     }
 
-    this.disconnect();
+    const nextSessionResumptionKey = `${agent?.id || ''}:${conversationId || ''}`;
+    if (
+      this.sessionResumptionKey &&
+      this.sessionResumptionKey !== nextSessionResumptionKey
+    ) {
+      this.sessionResumptionHandle = undefined;
+    }
+    this.sessionResumptionKey = nextSessionResumptionKey;
+
+    const configuredSessionResumption = config.sessionResumption;
+    const sessionResumptionHandle =
+      configuredSessionResumption?.handle || this.sessionResumptionHandle;
+    const connectConfig: LiveConnectConfig = {
+      ...config,
+      contextWindowCompression: config.contextWindowCompression ?? {
+        slidingWindow: {},
+      },
+      sessionResumption: {
+        ...(configuredSessionResumption ?? {}),
+        handle: sessionResumptionHandle,
+        transparent: configuredSessionResumption?.transparent ?? true,
+      },
+    };
+
+    this.disconnect(true);
     this._status = 'connecting';
 
     return new Promise(resolve => {
@@ -176,7 +203,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
           this.sendMessage({
             type: 'connect',
             payload: {
-              config,
+              config: connectConfig,
               model: this.model,
               authToken,
               agentId: agent?.id,
@@ -212,11 +239,16 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     });
   }
 
-  public disconnect() {
+  public disconnect(preserveSessionResumption = false) {
     this.sendMessage({ type: 'disconnect' });
     this.ws?.close();
     this.ws = undefined;
     this._status = 'disconnected';
+
+    if (!preserveSessionResumption) {
+      this.sessionResumptionHandle = undefined;
+      this.sessionResumptionKey = undefined;
+    }
 
     this.log('client.close', `Disconnected`);
     return true;
@@ -304,7 +336,23 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     try {
       const message = JSON.parse(event.data) as InboundMessage;
 
-      if (message.type === 'server_message') {
+    if (message.type === 'server_message') {
+        const update = message.payload.sessionResumptionUpdate;
+        if (update?.resumable && update.newHandle) {
+          this.sessionResumptionHandle = update.newHandle;
+          this.log('server.sessionResumption', {
+            resumable: true,
+            lastConsumedClientMessageIndex:
+              update.lastConsumedClientMessageIndex,
+          });
+        }
+
+        if (message.payload.goAway) {
+          this.log('server.goAway', {
+            timeLeft: message.payload.goAway.timeLeft,
+          });
+        }
+
         this.onMessage(message.payload);
         return;
       }
