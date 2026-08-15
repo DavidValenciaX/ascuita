@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { getConfig, isAllowedOrigin, isRunningInCloudRun } from './config.js';
 import { appendAbuseLog } from './lib/abuse-log.js';
 import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
+import { ServerLifecycle } from './lib/lifecycle.js';
 import { RedisUnavailableError, securityState } from './lib/security-state.js';
 import accountRoute from './routes/account.js';
 import healthRoute from './routes/health.js';
@@ -35,6 +36,9 @@ for (const envPath of envCandidates) {
 }
 
 const config = getConfig();
+const lifecycle = new ServerLifecycle();
+const PROBE_PATHS = new Set(['/health', '/ready']);
+const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function getClientKey(ip: string) {
   return ip || 'unknown';
@@ -86,6 +90,11 @@ await app.register(cors, {
 app.addHook('onRequest', async (request, reply) => {
   reply.headers(securityHeaders());
 
+  const requestPath = request.url.split('?', 1)[0];
+  if (PROBE_PATHS.has(requestPath)) {
+    return;
+  }
+
   try {
     const rateState = await securityState.incrementCounter(
       'http',
@@ -116,7 +125,15 @@ app.addHook('onRequest', async (request, reply) => {
 
 await app.register(websocket);
 await app.register(accountRoute);
-await app.register(healthRoute);
+await app.register(healthRoute, {
+  isServing: () => lifecycle.isReady(),
+  checkReadiness: async () => [
+    {
+      name: 'securityState',
+      ready: await securityState.checkReadiness(),
+    },
+  ],
+});
 await app.register(liveRoute);
 
 app.setErrorHandler((error, request, reply) => {
@@ -139,6 +156,7 @@ const start = async () => {
       host: config.host,
       port: config.port,
     });
+    lifecycle.markReady();
 
     app.log.info(
       {
@@ -157,19 +175,65 @@ const start = async () => {
     );
   } catch (error) {
     app.log.error({ err: error }, 'Failed to start Ascuita API');
+    lifecycle.beginShutdown();
+    await securityState.close().catch(closeError => {
+      app.log.error(
+        { err: closeError },
+        'Failed to close security state after startup failure'
+      );
+    });
     process.exit(1);
   }
 };
 
-const shutdown = async (signal: string) => {
-  app.log.info({ signal }, 'Shutting down Ascuita API');
-  try {
-    await app.close();
-    await securityState.close();
-  } catch (error) {
-    app.log.error({ err: error }, 'Failed to shut down Ascuita API cleanly');
-    process.exitCode = 1;
+let shutdownPromise: Promise<void> | null = null;
+
+const shutdown = (signal: string) => {
+  if (shutdownPromise) {
+    return shutdownPromise;
   }
+
+  lifecycle.beginShutdown();
+  app.log.info({ signal }, 'Shutting down Ascuita API');
+
+  shutdownPromise = (async () => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let shutdownTimedOut = false;
+    try {
+      const closePromise = (async () => {
+        await app.close();
+        await securityState.close();
+      })();
+
+      await Promise.race([
+        closePromise,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => {
+            shutdownTimedOut = true;
+            reject(
+              new Error(
+                `Graceful shutdown exceeded ${SHUTDOWN_TIMEOUT_MS}ms`
+              )
+            );
+          }, SHUTDOWN_TIMEOUT_MS);
+        }),
+      ]);
+      lifecycle.markStopped();
+      app.log.info('Ascuita API shut down cleanly');
+    } catch (error) {
+      app.log.error({ err: error }, 'Failed to shut down Ascuita API cleanly');
+      process.exitCode = 1;
+      if (shutdownTimedOut) {
+        process.exit(1);
+      }
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+  })();
+
+  return shutdownPromise;
 };
 
 process.once('SIGTERM', () => void shutdown('SIGTERM'));

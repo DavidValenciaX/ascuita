@@ -24,9 +24,12 @@ COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 
 EXPOSE 8080
 
 WORKDIR /app/apps/api
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD ["node", "scripts/smoke-test.mjs", "http://127.0.0.1:8080"]
 
 CMD ["node", "dist/server.js"]

@@ -109,6 +109,23 @@ export class SecurityStateStore {
     return this.redisUrl ? 'redis' : 'memory';
   }
 
+  async checkReadiness() {
+    if (!this.redisUrl) {
+      return !this.redisRequired;
+    }
+
+    if (!this.client?.isReady) {
+      return false;
+    }
+
+    try {
+      await this.client.ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async connect() {
     if (!this.redisUrl) {
       if (this.redisRequired) {

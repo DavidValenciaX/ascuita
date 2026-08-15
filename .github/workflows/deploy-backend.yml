@@ -121,6 +121,15 @@ jobs:
             --env-vars-file backend-cloudrun.env.yaml \
             --set-secrets "GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest"
 
+      - name: Smoke test deployed API
+        shell: bash
+        run: |
+          SERVICE_URL=$(gcloud run services describe "${CLOUD_RUN_SERVICE}" \
+            --project "${GCP_PROJECT_ID}" \
+            --region "${GCP_REGION}" \
+            --format='value(status.url)')
+          node apps/api/scripts/smoke-test.mjs "${SERVICE_URL}"
+
       - name: Show deployed service URL
         shell: bash
         run: |

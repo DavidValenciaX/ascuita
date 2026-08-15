@@ -29,6 +29,11 @@ services:
       REDIS_REQUIRED: "true"
     volumes:
       - ./firebase_service_account.json:/run/secrets/firebase_service_account.json:ro
+    healthcheck:
+      test: ["CMD", "node", "scripts/smoke-test.mjs", "http://127.0.0.1:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       redis:
         condition: service_healthy

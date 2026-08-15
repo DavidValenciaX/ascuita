@@ -31,7 +31,7 @@ Actualmente el repositorio usa una arquitectura `monorepo`:
 * **Temas claro/oscuro**: la escena 3D puede alternar entre tema oscuro y claro.
 * **Gemini Live API securizada**: el navegador ya no usa la API key directamente; el backend actúa como proxy seguro hacia Gemini Live.
 * **Seguridad y rate limiting**: el backend implementa rate limiting HTTP y WebSocket, límites de conexiones concurrentes por IP, límites de tamaño de payload, límites de bytes de audio por ventana de tiempo, bloqueo temporal de IPs abusivas, headers de seguridad y logs de abuso estructurados en Cloud Logging.
-* **Endpoint de salud**: el backend expone `GET /health` para monitoreo.
+* **Health checks operativos**: el backend expone `GET /health` como liveness y `GET /ready` como readiness, incluyendo la disponibilidad de Redis cuando se usa.
 
 ## Requisitos
 
@@ -79,6 +79,12 @@ npm run docker:redis:up
 ```
 
 Después añade `REDIS_URL=redis://127.0.0.1:6379` a `apps/api/.env` antes de arrancar el backend con `npm run dev:api`. Para detener el contenedor usa `npm run docker:redis:down`.
+
+Con el backend levantado puedes ejecutar el smoke test contra ambos endpoints:
+
+```powershell
+npm run smoke:api -- http://localhost:3000
+```
 
 ### 3. Crear variables del frontend
 
@@ -146,6 +152,7 @@ docker compose -f compose.local.yaml down
 * `npm run dev:api`: inicia el backend en modo desarrollo.
 * `npm run dev:web`: inicia el frontend en modo desarrollo.
 * `npm run build:api`: compila el backend.
+* `npm run smoke:api -- <url>`: comprueba los endpoints de liveness y readiness del backend.
 * `npm run build:web`: compila el frontend.
 * `npm run build`: compila frontend y backend.
 * `npm run test:rules`: ejecuta los tests de reglas de Firestore mediante el emulador local.
@@ -202,6 +209,7 @@ Variables esperadas en GitHub para el workflow de backend:
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
 En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`. Redis debe ser accesible mediante la red privada de GCP; el workflow despliega el valor de `REDIS_URL` desde una variable de GitHub.
+El workflow ejecuta un smoke test contra `/health` y `/ready` después de cada despliegue. Durante el apagado, el API deja de anunciar readiness, cierra las conexiones HTTP/WebSocket y libera Redis antes de terminar; si el cierre excede el tiempo de gracia, el proceso termina con error para que la plataforma pueda reemplazar la instancia.
 El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting y trial gratuito se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore

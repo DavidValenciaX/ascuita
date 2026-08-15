@@ -29,6 +29,24 @@ describe('SecurityStateStore memory backend', () => {
     });
   });
 
+  it('reports the memory backend as ready when Redis is not required', async () => {
+    const store = new SecurityStateStore({
+      redisUrl: '',
+      redisRequired: false,
+    });
+
+    await expect(store.checkReadiness()).resolves.toBe(true);
+  });
+
+  it('reports the memory backend as unavailable when Redis is required', async () => {
+    const store = new SecurityStateStore({
+      redisUrl: '',
+      redisRequired: true,
+    });
+
+    await expect(store.checkReadiness()).resolves.toBe(false);
+  });
+
   it('expires temporary blocks and retains guest trial start during retention', async () => {
     vi.useFakeTimers();
     const store = new SecurityStateStore({ redisUrl: '', redisRequired: false });
