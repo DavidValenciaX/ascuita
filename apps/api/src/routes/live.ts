@@ -13,6 +13,11 @@ import {
   verifyFirebaseIdToken,
   getAdminDb,
 } from '../lib/firebase-admin.js';
+import {
+  RedisUnavailableError,
+  securityState,
+  type ConnectionLease,
+} from '../lib/security-state.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
 type ClientMessage =
@@ -67,22 +72,7 @@ type CounterState = {
   resetAt: number;
 };
 
-const wsConnectAttempts = new Map<string, CounterState>();
-const wsMessageCounts = new Map<string, CounterState>();
-const wsActiveConnections = new Map<string, number>();
-const wsAudioByteCounts = new Map<string, CounterState>();
-const blockedClients = new Map<string, { expiresAt: number; reason: string }>();
-const guestTrialStarts = new Map<string, number>();
 const GUEST_TRIAL_RETENTION_MS = 60 * 60_000;
-
-function cleanupExpiredGuestTrials() {
-  const now = Date.now();
-  for (const [key, start] of guestTrialStarts) {
-    if (now - start > GUEST_TRIAL_RETENTION_MS) {
-      guestTrialStarts.delete(key);
-    }
-  }
-}
 
 export function safeJsonParse(raw: Buffer): ClientMessage {
   try {
@@ -202,31 +192,24 @@ function logSecurityEvent(
   });
 }
 
-function getActiveBlock(clientKey: string) {
-  const block = blockedClients.get(clientKey);
-  if (!block) {
-    return null;
-  }
-
-  if (block.expiresAt <= Date.now()) {
-    blockedClients.delete(clientKey);
-    return null;
-  }
-
-  return block;
+async function getActiveBlock(clientKey: string) {
+  return securityState.getBlock(clientKey);
 }
 
-function blockClient(
+async function blockClient(
   clientKey: string,
   reason: string,
   metadata?: Record<string, unknown>
 ) {
   const config = getConfig();
-  const expiresAt = Date.now() + config.wsTemporaryBlockDurationMs;
-  blockedClients.set(clientKey, { expiresAt, reason });
+  const block = await securityState.block(
+    clientKey,
+    reason,
+    config.wsTemporaryBlockDurationMs
+  );
   logSecurityEvent('security.block', clientKey, reason, {
     ...metadata,
-    expiresAt,
+    expiresAt: block.expiresAt,
     blockDurationMs: config.wsTemporaryBlockDurationMs,
   });
 }
@@ -271,14 +254,27 @@ const liveRoute: FastifyPluginAsync = async fastify => {
   fastify.get(
     '/live',
     { websocket: true },
-    (socket, request) => {
+    async (socket, request) => {
       const config = getConfig();
       const clientKey = getClientKey(request.ip);
       const originHeader =
         typeof request.headers.origin === 'string'
           ? request.headers.origin
           : null;
-      const activeBlock = getActiveBlock(clientKey);
+      const failSecurityState = (error: unknown) => {
+        if (!(error instanceof RedisUnavailableError)) {
+          request.log.error({ err: error }, 'Security state store failed');
+        }
+        socket.close(1013, 'Security state store unavailable');
+      };
+
+      let activeBlock;
+      try {
+        activeBlock = await getActiveBlock(clientKey);
+      } catch (error) {
+        failSecurityState(error);
+        return;
+      }
 
       if (activeBlock) {
         request.log.warn(
@@ -305,11 +301,17 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         return;
       }
 
-      const connectAttemptState = incrementCounter(
-        wsConnectAttempts,
-        clientKey,
-        config.wsConnectWindowMs
-      );
+      let connectAttemptState;
+      try {
+        connectAttemptState = await securityState.incrementCounter(
+          'ws-connect',
+          clientKey,
+          config.wsConnectWindowMs
+        );
+      } catch (error) {
+        failSecurityState(error);
+        return;
+      }
 
       if (
         connectAttemptState.count > config.wsMaxConnectAttemptsPerIp
@@ -318,15 +320,31 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           { ip: request.ip },
           'Rejected WebSocket connection due to connect rate limit'
         );
-        blockClient(clientKey, 'too_many_connection_attempts', {
-          count: connectAttemptState.count,
-        });
+        try {
+          await blockClient(clientKey, 'too_many_connection_attempts', {
+            count: connectAttemptState.count,
+          });
+        } catch (error) {
+          failSecurityState(error);
+          return;
+        }
         socket.close(1008, 'Too many connection attempts');
         return;
       }
 
-      const activeConnections = wsActiveConnections.get(clientKey) || 0;
-      if (activeConnections >= config.wsMaxConcurrentConnectionsPerIp) {
+      let connectionLease: ConnectionLease | null;
+      try {
+        connectionLease = await securityState.acquireConnectionLease(
+          clientKey,
+          config.wsMaxConcurrentConnectionsPerIp,
+          config.wsConnectionLeaseDurationMs
+        );
+      } catch (error) {
+        failSecurityState(error);
+        return;
+      }
+
+      if (!connectionLease) {
         request.log.warn(
           { ip: request.ip },
           'Rejected WebSocket connection due to concurrent connection limit'
@@ -336,14 +354,43 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           clientKey,
           'too_many_concurrent_connections',
           {
-            activeConnections,
+            maxConnections: config.wsMaxConcurrentConnectionsPerIp,
           }
         );
         socket.close(1008, 'Too many concurrent connections');
         return;
       }
 
-      wsActiveConnections.set(clientKey, activeConnections + 1);
+      let leaseReleased = false;
+      let leaseRefreshTimer: ReturnType<typeof setInterval> | undefined;
+
+      const releaseConnectionLease = async () => {
+        if (leaseReleased) {
+          return;
+        }
+        leaseReleased = true;
+        if (leaseRefreshTimer) {
+          clearInterval(leaseRefreshTimer);
+          leaseRefreshTimer = undefined;
+        }
+        try {
+          await securityState.releaseConnectionLease(connectionLease);
+        } catch (error) {
+          request.log.warn({ err: error }, 'Error releasing WebSocket lease');
+        }
+      };
+
+      leaseRefreshTimer = setInterval(() => {
+        void securityState
+          .refreshConnectionLease(
+            connectionLease,
+            config.wsConnectionLeaseDurationMs
+          )
+          .catch(error => {
+            request.log.warn({ err: error }, 'Error refreshing WebSocket lease');
+            socket.close(1013, 'Security state store unavailable');
+          });
+      }, Math.max(1000, Math.floor(config.wsConnectionLeaseDurationMs / 3)));
 
       const apiKey = process.env.GEMINI_API_KEY;
       const defaultModel =
@@ -495,32 +542,47 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('message', async (raw: unknown) => {
-        if (getPayloadSize(raw) > config.wsMaxPayloadBytes) {
+        const payloadBytes = getPayloadSize(raw);
+        if (payloadBytes > config.wsMaxPayloadBytes) {
           request.log.warn(
             { ip: request.ip },
             'Closing WebSocket connection due to oversized payload'
           );
-          blockClient(clientKey, 'payload_too_large', {
-            payloadBytes: getPayloadSize(raw),
-          });
+          try {
+            await blockClient(clientKey, 'payload_too_large', { payloadBytes });
+          } catch (error) {
+            failSecurityState(error);
+            return;
+          }
           socket.close(1009, 'Payload too large');
           return;
         }
 
-        const messageRateState = incrementCounter(
-          wsMessageCounts,
-          clientKey,
-          config.wsMessageWindowMs
-        );
+        let messageRateState;
+        try {
+          messageRateState = await securityState.incrementCounter(
+            'ws-message',
+            clientKey,
+            config.wsMessageWindowMs
+          );
+        } catch (error) {
+          failSecurityState(error);
+          return;
+        }
 
         if (messageRateState.count > config.wsMaxMessagesPerWindow) {
           request.log.warn(
             { ip: request.ip },
             'Closing WebSocket connection due to message rate limit'
           );
-          blockClient(clientKey, 'too_many_messages', {
-            count: messageRateState.count,
-          });
+          try {
+            await blockClient(clientKey, 'too_many_messages', {
+              count: messageRateState.count,
+            });
+          } catch (error) {
+            failSecurityState(error);
+            return;
+          }
           socket.close(1008, 'Too many messages');
           return;
         }
@@ -574,13 +636,18 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             );
 
             if (!decodedToken) {
-              cleanupExpiredGuestTrials();
               const now = Date.now();
-              const trialStart = guestTrialStarts.get(clientKey);
-              if (!trialStart) {
-                guestTrialStarts.set(clientKey, now);
+              let trialStart;
+              try {
+                trialStart = await securityState.getOrStartGuestTrial(
+                  clientKey,
+                  GUEST_TRIAL_RETENTION_MS
+                );
+              } catch (error) {
+                failSecurityState(error);
+                return;
               }
-              const elapsed = now - (trialStart ?? now);
+              const elapsed = now - trialStart;
               const remaining = config.freeTrialDurationMs - elapsed;
               if (remaining <= 0) {
                 send({
@@ -786,22 +853,33 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           if (isRealtimeInputMessage(message)) {
             const audioBytes = getAudioPayloadBytes(message);
             if (audioBytes > 0) {
-              const audioRateState = incrementCounter(
-                wsAudioByteCounts,
-                clientKey,
-                config.wsAudioByteWindowMs
-              );
-              audioRateState.count += audioBytes - 1;
+              let audioRateState;
+              try {
+                audioRateState = await securityState.incrementCounter(
+                  'ws-audio',
+                  clientKey,
+                  config.wsAudioByteWindowMs,
+                  audioBytes
+                );
+              } catch (error) {
+                failSecurityState(error);
+                return;
+              }
 
               if (audioRateState.count > config.wsMaxAudioBytesPerWindow) {
                 request.log.warn(
                   { ip: request.ip, audioBytes: audioRateState.count },
                   'Closing WebSocket connection due to audio byte rate limit'
                 );
-                blockClient(clientKey, 'audio_rate_limit_exceeded', {
-                  audioBytes: audioRateState.count,
-                  windowMs: config.wsAudioByteWindowMs,
-                });
+                try {
+                  await blockClient(clientKey, 'audio_rate_limit_exceeded', {
+                    audioBytes: audioRateState.count,
+                    windowMs: config.wsAudioByteWindowMs,
+                  });
+                } catch (error) {
+                  failSecurityState(error);
+                  return;
+                }
                 socket.close(1008, 'Audio rate limit exceeded');
                 return;
               }
@@ -840,19 +918,15 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('close', () => {
-        const remainingConnections = (wsActiveConnections.get(clientKey) || 1) - 1;
-        if (remainingConnections > 0) {
-          wsActiveConnections.set(clientKey, remainingConnections);
-        } else {
-          wsActiveConnections.delete(clientKey);
-        }
+        void releaseConnectionLease();
         closeSession();
-        endConversation();
+        void endConversation();
         request.log.info('WebSocket client disconnected from /live');
       });
 
       socket.on('error', (error: Error) => {
         request.log.error({ err: error }, 'WebSocket error on /live');
+        void releaseConnectionLease();
         closeSession();
       });
     }

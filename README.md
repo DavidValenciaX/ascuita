@@ -70,7 +70,15 @@ GOOGLE_APPLICATION_CREDENTIALS=C:\Users\David\Downloads\Programacion\AI_apps\asc
 ```
 
 `CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
-Los parámetros de `LOG_LEVEL`, rate limiting y trial gratuito están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno. Los eventos de seguridad se emiten siempre por `stdout` y se consumen desde Cloud Logging en producción.
+Los parámetros de `LOG_LEVEL`, rate limiting y trial gratuito están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno. Los contadores, bloqueos, trials y leases usan Redis cuando `REDIS_URL` está definida. Fuera de Cloud Run, si no se define `REDIS_URL`, se usa un fallback en memoria solo para desarrollo. En Cloud Run Redis es obligatorio.
+
+Para levantar Redis localmente:
+
+```bash
+npm run docker:redis:up
+```
+
+Después añade `REDIS_URL=redis://127.0.0.1:6379` a `apps/api/.env` antes de arrancar el backend con `npm run dev:api`. Para detener el contenedor usa `npm run docker:redis:down`.
 
 ### 3. Crear variables del frontend
 
@@ -117,6 +125,21 @@ npm run build:api
 npm run build:web
 ```
 
+### Ejecutar backend y Redis en Docker
+
+El backend ya tiene una imagen de producción en [`Dockerfile.api`](Dockerfile.api). Para ejecutarlo localmente junto con Redis usa `compose.local.yaml`:
+
+```powershell
+$env:GEMINI_API_KEY = 'tu_clave_real'
+docker compose -f compose.local.yaml up --build api
+```
+
+El archivo `firebase_service_account.json` debe existir en la raíz del proyecto. El backend queda disponible en `http://localhost:3000` y Redis en `localhost:6379`. Para detenerlos:
+
+```powershell
+docker compose -f compose.local.yaml down
+```
+
 ## Scripts
 
 * `npm run dev`: inicia backend y frontend a la vez.
@@ -127,6 +150,10 @@ npm run build:web
 * `npm run build`: compila frontend y backend.
 * `npm run test:rules`: ejecuta los tests de reglas de Firestore mediante el emulador local.
 * `npm run preview:web`: sirve localmente el build de producción del frontend.
+* `npm run docker:redis:up`: inicia Redis local.
+* `npm run docker:redis:down`: detiene los contenedores locales.
+* `npm run docker:api:up`: construye y ejecuta el backend junto con Redis en Docker.
+* `npm run docker:api:down`: detiene el backend y Redis locales.
 * `npm run mobile:sync`: compila la web móvil y sincroniza Capacitor con Android.
 * `npm run mobile:open`: abre el proyecto Android en Android Studio.
 * `npm run mobile:apk`: genera un APK debug instalable.
@@ -169,11 +196,12 @@ Variables esperadas en GitHub para el workflow de backend:
 * `CLOUD_RUN_SERVICE`
 * `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
 * `CLOUD_RUN_GEMINI_SECRET`: nombre del secreto de Secret Manager que contiene `GEMINI_API_KEY`
-* `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
+  * `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`, `REDIS_URL`
+  * `CLOUD_RUN_VPC_NETWORK`, `CLOUD_RUN_VPC_SUBNET`: red privada y subred usadas por Cloud Run para acceder a Memorystore
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
-En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`.
+En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`. Redis debe ser accesible mediante la red privada de GCP; el workflow despliega el valor de `REDIS_URL` desde una variable de GitHub.
 El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting y trial gratuito se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
 
 ### Reglas de Firestore

@@ -10,6 +10,7 @@ type AppConfig = {
   wsConnectWindowMs: number;
   wsMaxConnectAttemptsPerIp: number;
   wsMaxConcurrentConnectionsPerIp: number;
+  wsConnectionLeaseDurationMs: number;
   wsMessageWindowMs: number;
   wsMaxMessagesPerWindow: number;
   wsMaxPayloadBytes: number;
@@ -26,6 +27,7 @@ const DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS = 300;
 const DEFAULT_WS_CONNECT_WINDOW_MS = 300_000;
 const DEFAULT_WS_MAX_CONNECT_ATTEMPTS_PER_IP = 20;
 const DEFAULT_WS_MAX_CONCURRENT_CONNECTIONS_PER_IP = 3;
+const DEFAULT_WS_CONNECTION_LEASE_DURATION_MS = 30_000;
 const DEFAULT_WS_MESSAGE_WINDOW_MS = 60_000;
 const DEFAULT_WS_MAX_MESSAGES_PER_WINDOW = 2400;
 const DEFAULT_WS_MAX_PAYLOAD_BYTES = 262_144;
@@ -91,6 +93,7 @@ export function getConfig(): AppConfig {
     wsConnectWindowMs: DEFAULT_WS_CONNECT_WINDOW_MS,
     wsMaxConnectAttemptsPerIp: DEFAULT_WS_MAX_CONNECT_ATTEMPTS_PER_IP,
     wsMaxConcurrentConnectionsPerIp: DEFAULT_WS_MAX_CONCURRENT_CONNECTIONS_PER_IP,
+    wsConnectionLeaseDurationMs: DEFAULT_WS_CONNECTION_LEASE_DURATION_MS,
     wsMessageWindowMs: DEFAULT_WS_MESSAGE_WINDOW_MS,
     wsMaxMessagesPerWindow: DEFAULT_WS_MAX_MESSAGES_PER_WINDOW,
     wsMaxPayloadBytes: DEFAULT_WS_MAX_PAYLOAD_BYTES,

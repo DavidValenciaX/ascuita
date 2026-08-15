@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { getConfig, isAllowedOrigin, isRunningInCloudRun } from './config.js';
 import { appendAbuseLog } from './lib/abuse-log.js';
 import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
+import { RedisUnavailableError, securityState } from './lib/security-state.js';
 import accountRoute from './routes/account.js';
 import healthRoute from './routes/health.js';
 import liveRoute from './routes/live.js';
@@ -34,7 +35,6 @@ for (const envPath of envCandidates) {
 }
 
 const config = getConfig();
-const httpRequestRate = new Map<string, { count: number; resetAt: number }>();
 
 function getClientKey(ip: string) {
   return ip || 'unknown';
@@ -49,27 +49,6 @@ function securityHeaders() {
     'permissions-policy': 'microphone=(self)',
     'cache-control': 'no-store',
   };
-}
-
-function isRateLimited(ip: string) {
-  const now = Date.now();
-  const key = getClientKey(ip);
-  const existing = httpRequestRate.get(key);
-
-  if (!existing || existing.resetAt <= now) {
-    httpRequestRate.set(key, {
-      count: 1,
-      resetAt: now + config.httpRateLimitWindowMs,
-    });
-    return false;
-  }
-
-  if (existing.count >= config.httpRateLimitMaxRequests) {
-    return true;
-  }
-
-  existing.count += 1;
-  return false;
 }
 
 function logSecurityEvent(
@@ -107,14 +86,30 @@ await app.register(cors, {
 app.addHook('onRequest', async (request, reply) => {
   reply.headers(securityHeaders());
 
-  if (isRateLimited(request.ip)) {
-    logSecurityEvent(request.ip, 'too_many_http_requests', {
-      path: request.url,
-      method: request.method,
-    });
-    return reply.status(429).send({
+  try {
+    const rateState = await securityState.incrementCounter(
+      'http',
+      getClientKey(request.ip),
+      config.httpRateLimitWindowMs
+    );
+
+    if (rateState.count > config.httpRateLimitMaxRequests) {
+      logSecurityEvent(request.ip, 'too_many_http_requests', {
+        path: request.url,
+        method: request.method,
+      });
+      return reply.status(429).send({
+        ok: false,
+        error: 'Too many requests',
+      });
+    }
+  } catch (error) {
+    if (!(error instanceof RedisUnavailableError)) {
+      request.log.error({ err: error }, 'Security state store failed');
+    }
+    return reply.status(503).send({
       ok: false,
-      error: 'Too many requests',
+      error: 'Security state store unavailable',
     });
   }
 });
@@ -135,6 +130,8 @@ app.setErrorHandler((error, request, reply) => {
 
 const start = async () => {
   try {
+    await securityState.connect();
+
     await app.listen({
       host: config.host,
       port: config.port,
@@ -149,6 +146,7 @@ const start = async () => {
         geminiModel: config.geminiModel,
         firebaseAdminConfigured: isFirebaseAdminConfigured(),
         cloudRun: isRunningInCloudRun(),
+        securityStateBackend: securityState.backend,
         securityLogDestination: 'stdout',
       },
       'Ascuita API started'
@@ -158,5 +156,19 @@ const start = async () => {
     process.exit(1);
   }
 };
+
+const shutdown = async (signal: string) => {
+  app.log.info({ signal }, 'Shutting down Ascuita API');
+  try {
+    await app.close();
+    await securityState.close();
+  } catch (error) {
+    app.log.error({ err: error }, 'Failed to shut down Ascuita API cleanly');
+    process.exitCode = 1;
+  }
+};
+
+process.once('SIGTERM', () => void shutdown('SIGTERM'));
+process.once('SIGINT', () => void shutdown('SIGINT'));
 
 await start();
