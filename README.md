@@ -136,9 +136,10 @@ npm run build:web
 El backend ya tiene una imagen de producción en [`Dockerfile.api`](Dockerfile.api). Para ejecutarlo localmente junto con Redis usa `compose.local.yaml`:
 
 ```powershell
-$env:GEMINI_API_KEY = 'tu_clave_real'
-docker compose -f compose.local.yaml up --build api
+docker compose --env-file apps/api/.env -f compose.local.yaml up --build api
 ```
+
+También puedes sustituir `apps/api/.env` por `.env.local` si esa es la ubicación de tus variables locales. Compose usa el archivo indicado para interpolar `GEMINI_API_KEY`; no copia esos archivos dentro de la imagen.
 
 El archivo `firebase_service_account.json` debe existir en la raíz del proyecto. El backend queda disponible en `http://localhost:3000` y Redis en `localhost:6379`. Para detenerlos:
 

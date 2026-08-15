@@ -13,6 +13,7 @@ import {
 } from '@google/genai';
 import EventEmitter from 'eventemitter3';
 import { API_BASE_URL, DEFAULT_LIVE_API_MODEL } from './constants';
+import { waitForApiReady } from './api-readiness';
 import { difference } from 'lodash';
 import { base64ToArrayBuffer } from './utils';
 import type { Agent } from './presets/agents';
@@ -125,6 +126,8 @@ type InboundMessage =
       payload: LiveServerMessage;
     };
 
+export const LIVE_HANDSHAKE_TIMEOUT_MS = 15_000;
+
 function getWebSocketUrl() {
   const url = new URL('/live', API_BASE_URL);
   if (url.protocol === 'https:') {
@@ -141,6 +144,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   private sessionResumptionHandle?: string;
   private sessionResumptionKey?: string;
+  private handshakeTimeout?: number;
 
   private _status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
   public get status() {
@@ -197,9 +201,37 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     this.disconnect(true);
     this._status = 'connecting';
 
+    const apiReady = await waitForApiReady();
+    if (!apiReady || this._status !== 'connecting') {
+      if (this._status === 'connecting') {
+        this.onError(
+          new ErrorEvent('error', {
+            message: 'Ascuita API readiness check timed out',
+          })
+        );
+      }
+      return false;
+    }
+
     return new Promise(resolve => {
       const ws = new WebSocket(getWebSocketUrl());
       this.ws = ws;
+      this.handshakeTimeout = window.setTimeout(() => {
+        if (this.ws !== ws || this._status === 'disconnected') {
+          return;
+        }
+
+        this.log(
+          'server.handshakeTimeout',
+          'Gemini Live setupComplete was not received before the timeout'
+        );
+        this.onError(
+          new ErrorEvent('error', {
+            message: 'Gemini Live setup timed out',
+          })
+        );
+        ws.close();
+      }, LIVE_HANDSHAKE_TIMEOUT_MS);
 
       ws.addEventListener(
         'open',
@@ -244,6 +276,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   public disconnect(preserveSessionResumption = false) {
+    this.clearHandshakeTimeout();
     this.sendMessage({ type: 'disconnect' });
     this.ws?.close();
     this.ws = undefined;
@@ -393,6 +426,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
 
   protected onMessage(message: LiveServerMessage) {
     if (message.setupComplete) {
+      this.clearHandshakeTimeout();
       this.emit('setupcomplete');
       return;
     }
@@ -452,6 +486,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   protected onError(e: ErrorEvent) {
+    this.clearHandshakeTimeout();
     this._status = 'disconnected';
     console.error('error:', e);
 
@@ -466,6 +501,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   protected onClose(e: CloseEvent) {
+    this.clearHandshakeTimeout();
     this._status = 'disconnected';
     this.ws = undefined;
     let reason = e.reason || '';
@@ -485,6 +521,7 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
   }
 
   protected onProxyClose(reason?: string) {
+    this.clearHandshakeTimeout();
     this._status = 'disconnected';
     this.log(
       'server.proxyclose',
@@ -509,5 +546,14 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       message,
       date: new Date(),
     });
+  }
+
+  private clearHandshakeTimeout() {
+    if (this.handshakeTimeout === undefined) {
+      return;
+    }
+
+    window.clearTimeout(this.handshakeTimeout);
+    this.handshakeTimeout = undefined;
   }
 }

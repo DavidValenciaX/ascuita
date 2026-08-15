@@ -113,6 +113,7 @@ jobs:
             --vpc-egress private-ranges-only \
             --port 8080 \
             --cpu "${CLOUD_RUN_CPU}" \
+            --cpu-boost \
             --memory "${CLOUD_RUN_MEMORY}" \
             --concurrency "${CLOUD_RUN_CONCURRENCY}" \
             --min-instances "${CLOUD_RUN_MIN_INSTANCES}" \
