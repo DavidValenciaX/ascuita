@@ -20,7 +20,7 @@ export type ConnectionLease = {
 
 const RATE_COUNTER_SCRIPT = [
   'local count = redis.call("INCRBY", KEYS[1], ARGV[2])',
-  'if count == 1 then redis.call("PEXPIRE", KEYS[1], ARGV[1]) end',
+  'if redis.call("PTTL", KEYS[1]) < 0 then redis.call("PEXPIRE", KEYS[1], ARGV[1]) end',
   'return { count, redis.call("PTTL", KEYS[1]) }',
 ].join('\n');
 
@@ -47,6 +47,10 @@ const RELEASE_LEASE_SCRIPT = [
   'if redis.call("ZCARD", KEYS[1]) == 0 then redis.call("DEL", KEYS[1]) end',
   'return 1',
 ].join('\n');
+
+const AUDIO_COUNTER_SCOPE = 'ws-audio';
+const RELEASE_CLEANUP_LOCK_TTL_SECONDS = 300;
+const RELEASE_CLEANUP_MARKER_TTL_SECONDS = 86_400;
 
 export class RedisUnavailableError extends Error {
   constructor() {
@@ -216,6 +220,74 @@ export class SecurityStateStore {
       count,
       resetAt: Date.now() + ttl,
     };
+  }
+
+  async cleanupStaleAudioCounters(releaseToken?: string) {
+    if (!this.redisUrl || !releaseToken) {
+      return {
+        deleted: 0,
+        skipped: true,
+        reason: !this.redisUrl ? 'memory-backend' : 'release-token-missing',
+      };
+    }
+
+    const client = this.getClient();
+    const lockKey = this.key('release-cleanup-lock', releaseToken);
+    const markerKey = this.key('release-cleanup-done', releaseToken);
+    const lockResult = await client.sendCommand([
+      'SET',
+      lockKey,
+      releaseToken,
+      'NX',
+      'EX',
+      String(RELEASE_CLEANUP_LOCK_TTL_SECONDS),
+    ]);
+
+    if (String(lockResult) !== 'OK') {
+      return { deleted: 0, skipped: true, reason: 'cleanup-in-progress' };
+    }
+
+    try {
+      if (asNumber(await client.exists(markerKey)) > 0) {
+        return { deleted: 0, skipped: true, reason: 'release-already-cleaned' };
+      }
+
+      const pattern = `${this.redisKeyPrefix}:counter:${AUDIO_COUNTER_SCOPE}:*`;
+      let cursor = '0';
+      let deleted = 0;
+
+      do {
+        const scanResult = asRedisArray(
+          await client.sendCommand([
+            'SCAN',
+            cursor,
+            'MATCH',
+            pattern,
+            'COUNT',
+            '100',
+          ])
+        );
+        cursor = String(scanResult[0] ?? '0');
+        const keys = asRedisArray(scanResult[1]).map(String);
+
+        if (keys.length > 0) {
+          await client.sendCommand(['UNLINK', ...keys]);
+          deleted += keys.length;
+        }
+      } while (cursor !== '0');
+
+      await client.sendCommand([
+        'SET',
+        markerKey,
+        releaseToken,
+        'EX',
+        String(RELEASE_CLEANUP_MARKER_TTL_SECONDS),
+      ]);
+
+      return { deleted, skipped: false, reason: 'cleaned' };
+    } finally {
+      await client.sendCommand(['DEL', lockKey]);
+    }
   }
 
   async getBlock(clientKey: string): Promise<BlockState | null> {

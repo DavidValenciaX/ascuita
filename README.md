@@ -70,7 +70,7 @@ GOOGLE_APPLICATION_CREDENTIALS=C:\Users\David\Downloads\Programacion\AI_apps\asc
 ```
 
 `CORS_ORIGIN` admite múltiples orígenes separados por comas. Si no se define, se usan valores por defecto que incluyen `localhost:5173`, `localhost:4173`, `https://localhost` para Capacitor Android y el dominio de producción.
-Los parámetros de `LOG_LEVEL`, rate limiting y trial gratuito están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno. Los contadores, bloqueos, trials y leases usan Redis cuando `REDIS_URL` está definida. Fuera de Cloud Run, si no se define `REDIS_URL`, se usa un fallback en memoria solo para desarrollo. En Cloud Run Redis es obligatorio.
+Los parámetros de `LOG_LEVEL`, rate limiting y trial gratuito están fijados como constantes en [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts), así que ya no se configuran mediante variables de entorno. Los contadores, bloqueos, trials y leases usan Redis cuando `REDIS_URL` está definida. Fuera de Cloud Run, si no se define `REDIS_URL`, se usa un fallback en memoria solo para desarrollo. En Cloud Run Redis es obligatorio. Cada despliegue de backend limpia las claves antiguas del contador de audio (`ws-audio`) mediante un token único del workflow; no se ejecuta `FLUSHDB`, por lo que no se borran trials, bloqueos ni leases.
 
 Para levantar Redis localmente:
 

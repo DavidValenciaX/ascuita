@@ -131,6 +131,9 @@ app.setErrorHandler((error, request, reply) => {
 const start = async () => {
   try {
     await securityState.connect();
+    const audioCounterCleanup = await securityState.cleanupStaleAudioCounters(
+      process.env.REDIS_CLEANUP_TOKEN
+    );
 
     await app.listen({
       host: config.host,
@@ -147,6 +150,7 @@ const start = async () => {
         firebaseAdminConfigured: isFirebaseAdminConfigured(),
         cloudRun: isRunningInCloudRun(),
         securityStateBackend: securityState.backend,
+        audioCounterCleanup,
         securityLogDestination: 'stdout',
       },
       'Ascuita API started'
