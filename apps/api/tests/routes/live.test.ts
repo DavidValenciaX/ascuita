@@ -71,33 +71,31 @@ describe('getErrorMessage', () => {
 });
 
 describe('withLongLivedLiveConfig', () => {
-  it('enables context compression and transparent resumption by default', () => {
-    expect(withLongLivedLiveConfig({})).toMatchObject({
+  it('enables context compression and session resumption by default', () => {
+    const config = withLongLivedLiveConfig({});
+
+    expect(config).toMatchObject({
       contextWindowCompression: { slidingWindow: {} },
-      sessionResumption: { transparent: true },
+      sessionResumption: {},
     });
+    expect(config.sessionResumption).not.toHaveProperty('transparent');
   });
 
-  it('preserves an existing resumption handle and configuration', () => {
-    expect(
-      withLongLivedLiveConfig({
-        sessionResumption: {
-          handle: 'existing-handle',
-          transparent: false,
-        },
-        contextWindowCompression: {
-          slidingWindow: { targetTokens: '12000' },
-        },
-      })
-    ).toMatchObject({
+  it('preserves an existing resumption handle while removing unsupported options', () => {
+    const config = withLongLivedLiveConfig({
+      sessionResumption: {
+        handle: 'existing-handle',
+        transparent: true,
+      },
       contextWindowCompression: {
         slidingWindow: { targetTokens: '12000' },
       },
-      sessionResumption: {
-        handle: 'existing-handle',
-        transparent: false,
-      },
     });
+
+    expect(config.contextWindowCompression).toEqual({
+      slidingWindow: { targetTokens: '12000' },
+    });
+    expect(config.sessionResumption).toEqual({ handle: 'existing-handle' });
   });
 });
 

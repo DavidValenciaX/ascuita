@@ -91,15 +91,18 @@ export function getErrorMessage(error: unknown) {
 }
 
 export function withLongLivedLiveConfig(config: LiveConnectConfig): LiveConnectConfig {
+  const sessionResumption = { ...(config.sessionResumption ?? {}) };
+
+  // The SDK type exposes `transparent`, but the Gemini API rejects it for
+  // Live sessions. Strip it even when an older frontend still sends it.
+  delete sessionResumption.transparent;
+
   return {
     ...config,
     contextWindowCompression: config.contextWindowCompression ?? {
       slidingWindow: {},
     },
-    sessionResumption: {
-      ...(config.sessionResumption ?? {}),
-      transparent: config.sessionResumption?.transparent ?? true,
-    },
+    sessionResumption,
   };
 }
 

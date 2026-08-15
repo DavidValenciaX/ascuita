@@ -178,16 +178,20 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
     const configuredSessionResumption = config.sessionResumption;
     const sessionResumptionHandle =
       configuredSessionResumption?.handle || this.sessionResumptionHandle;
+    const sessionResumption = { ...(configuredSessionResumption ?? {}) };
+    // The Gemini API currently rejects the SDK's `transparent` option.
+    delete sessionResumption.transparent;
+    if (sessionResumptionHandle) {
+      sessionResumption.handle = sessionResumptionHandle;
+    } else {
+      delete sessionResumption.handle;
+    }
     const connectConfig: LiveConnectConfig = {
       ...config,
       contextWindowCompression: config.contextWindowCompression ?? {
         slidingWindow: {},
       },
-      sessionResumption: {
-        ...(configuredSessionResumption ?? {}),
-        handle: sessionResumptionHandle,
-        transparent: configuredSessionResumption?.transparent ?? true,
-      },
+      sessionResumption,
     };
 
     this.disconnect(true);
