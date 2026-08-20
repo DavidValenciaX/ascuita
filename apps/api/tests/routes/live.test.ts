@@ -20,6 +20,7 @@ vi.mock('../../src/lib/firebase-admin.js', () => ({
 import {
   safeJsonParse,
   getErrorMessage,
+  getErrorLogFields,
   withLongLivedLiveConfig,
   extractTextFromServerMessage,
   extractTranscriptionFromServerMessage,
@@ -67,6 +68,25 @@ describe('getErrorMessage', () => {
 
   it('stringifies numbers', () => {
     expect(getErrorMessage(42)).toBe('42');
+  });
+});
+
+describe('getErrorLogFields', () => {
+  it('includes useful fields from an Error without exposing unrelated data', () => {
+    expect(getErrorLogFields(new Error('connection failed'))).toEqual({
+      errorMessage: 'connection failed',
+      errorName: 'Error',
+    });
+  });
+
+  it('extracts code and status from SDK-style error objects', () => {
+    expect(
+      getErrorLogFields({ message: 'quota exceeded', code: 429, status: 'RESOURCE_EXHAUSTED' })
+    ).toEqual({
+      errorMessage: 'quota exceeded',
+      errorCode: 429,
+      errorStatus: 'RESOURCE_EXHAUSTED',
+    });
   });
 });
 

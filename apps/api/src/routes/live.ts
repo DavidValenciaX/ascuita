@@ -91,6 +91,38 @@ export function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+export function getErrorLogFields(error: unknown) {
+  const fields: Record<string, unknown> = {
+    errorMessage: getErrorMessage(error),
+  };
+
+  if (error instanceof Error) {
+    fields.errorName = error.name;
+    return fields;
+  }
+
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>;
+    if (typeof errorRecord.message === 'string') {
+      fields.errorMessage = errorRecord.message;
+    }
+    if (typeof errorRecord.name === 'string') {
+      fields.errorName = errorRecord.name;
+    }
+    if (typeof errorRecord.code === 'string' || typeof errorRecord.code === 'number') {
+      fields.errorCode = errorRecord.code;
+    }
+    if (
+      typeof errorRecord.status === 'string' ||
+      typeof errorRecord.status === 'number'
+    ) {
+      fields.errorStatus = errorRecord.status;
+    }
+  }
+
+  return fields;
+}
+
 export function withLongLivedLiveConfig(config: LiveConnectConfig): LiveConnectConfig {
   const sessionResumption = { ...(config.sessionResumption ?? {}) };
 
@@ -274,16 +306,44 @@ const liveRoute: FastifyPluginAsync = async fastify => {
     async (socket, request) => {
       const config = getConfig();
       const clientKey = getClientKey(request.ip);
+      const connectionId = String(request.id);
+      const connectionStartedAt = Date.now();
       const originHeader =
         typeof request.headers.origin === 'string'
           ? request.headers.origin
           : null;
+      let lastLiveStage = 'websocket_connected';
+      let geminiConnectStartedAt: number | null = null;
+      let receivedMessageCount = 0;
+      let receivedAudioChunkCount = 0;
+      let receivedAudioBytes = 0;
       const failSecurityState = (error: unknown) => {
         if (!(error instanceof RedisUnavailableError)) {
-          request.log.error({ err: error }, 'Security state store failed');
+          request.log.error(
+            {
+              event: 'live.security_state.error',
+              connectionId,
+              ...getErrorLogFields(error),
+              err: error,
+            },
+            'Security state store failed'
+          );
         }
+        lastLiveStage = 'security_state_error';
         socket.close(1013, 'Security state store unavailable');
       };
+
+      request.log.info(
+        {
+          event: 'live.websocket.connected',
+          connectionId,
+          origin: originHeader,
+          model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-live-preview',
+          geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+          firebaseAdminConfigured: isFirebaseAdminConfigured(),
+        },
+        'WebSocket client connected to /live'
+      );
 
       let activeBlock;
       try {
@@ -295,7 +355,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
       if (activeBlock) {
         request.log.warn(
-          { ip: request.ip, reason: activeBlock.reason },
+          {
+            event: 'live.websocket.rejected',
+            connectionId,
+            ip: request.ip,
+            reason: activeBlock.reason,
+          },
           'Rejected WebSocket connection from temporarily blocked IP'
         );
         logSecurityEvent('security.reject', clientKey, activeBlock.reason, {
@@ -308,7 +373,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
       if (!isAllowedOrigin(config.corsOrigin, originHeader)) {
         request.log.warn(
-          { origin: originHeader },
+          {
+            event: 'live.websocket.rejected',
+            connectionId,
+            origin: originHeader,
+            reason: 'origin_not_allowed',
+          },
           'Rejected WebSocket connection from disallowed origin'
         );
         logSecurityEvent('security.reject', clientKey, 'origin_not_allowed', {
@@ -334,7 +404,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         connectAttemptState.count > config.wsMaxConnectAttemptsPerIp
       ) {
         request.log.warn(
-          { ip: request.ip },
+          {
+            event: 'live.websocket.rejected',
+            connectionId,
+            ip: request.ip,
+            reason: 'connect_rate_limit',
+            count: connectAttemptState.count,
+          },
           'Rejected WebSocket connection due to connect rate limit'
         );
         try {
@@ -363,7 +439,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
       if (!connectionLease) {
         request.log.warn(
-          { ip: request.ip },
+          {
+            event: 'live.websocket.rejected',
+            connectionId,
+            ip: request.ip,
+            reason: 'concurrent_connection_limit',
+          },
           'Rejected WebSocket connection due to concurrent connection limit'
         );
         logSecurityEvent(
@@ -441,7 +522,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             ) {
               securityCounterLimitTriggered = true;
               request.log.warn(
-                { ip: request.ip, count: messageRateState.count },
+                {
+                  event: 'live.websocket.rate_limited',
+                  connectionId,
+                  ip: request.ip,
+                  reason: 'message_rate_limit',
+                  count: messageRateState.count,
+                },
                 'Closing WebSocket connection due to message rate limit'
               );
               await blockClient(clientKey, 'too_many_messages', {
@@ -457,7 +544,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             ) {
               securityCounterLimitTriggered = true;
               request.log.warn(
-                { ip: request.ip, audioBytes: audioRateState.count },
+                {
+                  event: 'live.websocket.rate_limited',
+                  connectionId,
+                  ip: request.ip,
+                  reason: 'audio_rate_limit',
+                  audioBytes: audioRateState.count,
+                },
                 'Closing WebSocket connection due to audio byte rate limit'
               );
               await blockClient(clientKey, 'audio_rate_limit_exceeded', {
@@ -664,8 +757,6 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
-      request.log.info('WebSocket client connected to /live');
-
       send({
         type: 'connection.ready',
         payload: {
@@ -673,6 +764,16 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           geminiConfigured: Boolean(apiKey),
         },
       });
+      lastLiveStage = 'connection_ready_sent';
+      request.log.info(
+        {
+          event: 'live.connection.ready_sent',
+          connectionId,
+          model: currentModel,
+          geminiConfigured: Boolean(apiKey),
+        },
+        'Sent WebSocket connection.ready'
+      );
 
       socket.on('message', async (raw: unknown) => {
         const payloadBytes = getPayloadSize(raw);
@@ -701,6 +802,41 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         const message = safeJsonParse(toBuffer(raw));
+        receivedMessageCount += 1;
+
+        if (
+          isRealtimeInputMessage(message) &&
+          message.payload &&
+          Array.isArray(message.payload.chunks) &&
+          message.payload.chunks.length > 0
+        ) {
+          const audioChunkCount = message.payload.chunks.length;
+          const audioBytes = getAudioPayloadBytes(message);
+          receivedAudioChunkCount += audioChunkCount;
+          receivedAudioBytes += audioBytes;
+          if (receivedAudioChunkCount === audioChunkCount) {
+            request.log.info(
+              {
+                event: 'live.client.audio_started',
+                connectionId,
+                payloadBytes,
+                audioChunkCount,
+                audioBytes,
+              },
+              'Received first realtime audio input from client'
+            );
+          }
+        } else {
+          request.log.info(
+            {
+              event: 'live.client.message',
+              connectionId,
+              messageType: message.type || 'unknown',
+              payloadBytes,
+            },
+            'Received WebSocket client message'
+          );
+        }
 
         if (message.type === 'ping') {
           send({ type: 'pong' });
@@ -708,6 +844,14 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         if (message.type === 'disconnect') {
+          lastLiveStage = 'client_disconnect_requested';
+          request.log.info(
+            {
+              event: 'live.client.disconnect_requested',
+              connectionId,
+            },
+            'Client requested WebSocket disconnect'
+          );
           closeSession();
           send({
             type: 'close',
@@ -719,7 +863,32 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         if (isConnectMessage(message)) {
+          const requestedModel = message.payload.model || defaultModel;
+          const hasRequestedConversation = Boolean(
+            message.payload.conversationId?.trim()
+          );
+          lastLiveStage = 'client_connect_received';
+          request.log.info(
+            {
+              event: 'live.connect.received',
+              connectionId,
+              model: requestedModel,
+              authMode: message.payload.authToken ? 'authenticated' : 'guest',
+              hasRequestedConversation,
+              configKeys: Object.keys(message.payload.config || {}).sort(),
+            },
+            'Received live session connect request'
+          );
+
           if (message.payload.authToken && !isFirebaseAdminConfigured()) {
+            lastLiveStage = 'firebase_auth_backend_not_configured';
+            request.log.warn(
+              {
+                event: 'live.auth.backend_not_configured',
+                connectionId,
+              },
+              'Rejected authenticated live session because Firebase Admin is not configured'
+            );
             send({
               type: 'error',
               payload: {
@@ -731,6 +900,15 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           }
 
           if (!genAI) {
+            lastLiveStage = 'gemini_api_key_missing';
+            request.log.error(
+              {
+                event: 'live.gemini.configuration_missing',
+                connectionId,
+                model: requestedModel,
+              },
+              'Cannot start live session because GEMINI_API_KEY is missing'
+            );
             send({
               type: 'error',
               payload: {
@@ -741,14 +919,31 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           }
 
           closeSession();
-          currentModel = message.payload.model || defaultModel;
+          currentModel = requestedModel;
 
           try {
+            lastLiveStage = 'firebase_auth_verification_started';
+            request.log.info(
+              {
+                event: 'live.auth.verification_started',
+                connectionId,
+                authMode: message.payload.authToken ? 'authenticated' : 'guest',
+              },
+              'Starting live session authentication check'
+            );
             const decodedToken = await verifyFirebaseIdToken(
               message.payload.authToken
             );
 
             if (!decodedToken) {
+              lastLiveStage = 'guest_trial_check_started';
+              request.log.info(
+                {
+                  event: 'live.auth.guest_trial_check_started',
+                  connectionId,
+                },
+                'Starting guest live trial check'
+              );
               const now = Date.now();
               let trialStart;
               try {
@@ -762,7 +957,18 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               }
               const elapsed = now - trialStart;
               const remaining = config.freeTrialDurationMs - elapsed;
+              request.log.info(
+                {
+                  event: 'live.auth.guest_trial_checked',
+                  connectionId,
+                  trialElapsedMs: elapsed,
+                  trialRemainingMs: Math.max(0, remaining),
+                  trialExpired: remaining <= 0,
+                },
+                'Checked guest live trial'
+              );
               if (remaining <= 0) {
+                lastLiveStage = 'guest_trial_expired';
                 send({
                   type: 'error',
                   payload: {
@@ -786,8 +992,18 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 socket.close(1008, 'Trial expired');
               }, remaining);
             } else {
+              lastLiveStage = 'firebase_auth_verified';
               conversationUid = decodedToken.uid;
               firestoreDb = getAdminDb();
+              request.log.info(
+                {
+                  event: 'live.auth.verified',
+                  connectionId,
+                  firestoreConfigured: Boolean(firestoreDb),
+                  hasRequestedConversation,
+                },
+                'Firebase Auth token verified for live session'
+              );
               if (firestoreDb) {
                 try {
                   conversationAgentId = message.payload.agentId || 'default-agent';
@@ -815,8 +1031,15 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               }
             }
           } catch (error) {
+            lastLiveStage = 'firebase_auth_error';
             request.log.warn(
-              { err: error, ip: request.ip },
+              {
+                event: 'live.auth.error',
+                connectionId,
+                ...getErrorLogFields(error),
+                err: error,
+                ip: request.ip,
+              },
               'Invalid Firebase Auth token supplied to /live'
             );
             send({
@@ -830,14 +1053,53 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
           try {
             const liveConfig = withLongLivedLiveConfig(message.payload.config);
+            geminiConnectStartedAt = Date.now();
+            lastLiveStage = 'gemini_connect_started';
+            request.log.info(
+              {
+                event: 'live.gemini.connect_started',
+                connectionId,
+                model: currentModel,
+                authMode: message.payload.authToken ? 'authenticated' : 'guest',
+                configKeys: Object.keys(liveConfig).sort(),
+              },
+              'Starting Gemini Live connection'
+            );
             session = await genAI.live.connect({
               model: currentModel,
               config: liveConfig,
               callbacks: {
                 onopen: () => {
+                  lastLiveStage = 'gemini_socket_open';
+                  request.log.info(
+                    {
+                      event: 'live.gemini.socket_open',
+                      connectionId,
+                      model: currentModel,
+                      elapsedMs: geminiConnectStartedAt
+                        ? Date.now() - geminiConnectStartedAt
+                        : undefined,
+                    },
+                    'Gemini Live socket opened'
+                  );
                   send({ type: 'open' });
                 },
                 onmessage: async serverMessage => {
+                  if (serverMessage.setupComplete) {
+                    lastLiveStage = 'gemini_setup_complete';
+                    request.log.info(
+                      {
+                        event: 'live.gemini.setup_complete',
+                        connectionId,
+                        model: currentModel,
+                        elapsedMs: geminiConnectStartedAt
+                          ? Date.now() - geminiConnectStartedAt
+                          : undefined,
+                      },
+                      'Gemini Live setupComplete received'
+                    );
+                  }
+
                   if (serverMessage.sessionResumptionUpdate) {
                     request.log.info(
                       {
@@ -912,8 +1174,18 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                   }
                 },
                 onerror: error => {
+                  lastLiveStage = 'gemini_error';
                   request.log.error(
-                    { err: error },
+                    {
+                      event: 'live.gemini.error',
+                      connectionId,
+                      model: currentModel,
+                      elapsedMs: geminiConnectStartedAt
+                        ? Date.now() - geminiConnectStartedAt
+                        : undefined,
+                      ...getErrorLogFields(error),
+                      err: error,
+                    },
                     'Gemini Live returned an error'
                   );
                   send({
@@ -924,11 +1196,18 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                   });
                 },
                 onclose: event => {
+                  lastLiveStage = 'gemini_closed';
                   request.log.warn(
                     {
+                      event: 'live.gemini.closed',
+                      connectionId,
+                      model: currentModel,
                       code: event.code,
                       reason: event.reason || '',
                       wasClean: event.wasClean,
+                      elapsedMs: geminiConnectStartedAt
+                        ? Date.now() - geminiConnectStartedAt
+                        : undefined,
                     },
                     'Gemini Live session closed'
                   );
@@ -943,9 +1222,32 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 },
               },
             });
+            lastLiveStage = 'gemini_connect_resolved';
+            request.log.info(
+              {
+                event: 'live.gemini.connect_resolved',
+                connectionId,
+                model: currentModel,
+                elapsedMs: geminiConnectStartedAt
+                  ? Date.now() - geminiConnectStartedAt
+                  : undefined,
+                sessionCreated: Boolean(session),
+              },
+              'Gemini Live connection resolved'
+            );
           } catch (error) {
+            lastLiveStage = 'gemini_connect_failed';
             request.log.error(
-              { err: error },
+              {
+                event: 'live.gemini.connect_failed',
+                connectionId,
+                model: currentModel,
+                elapsedMs: geminiConnectStartedAt
+                  ? Date.now() - geminiConnectStartedAt
+                  : undefined,
+                ...getErrorLogFields(error),
+                err: error,
+              },
               'Failed to connect backend session to Gemini Live'
             );
             session = undefined;
@@ -1023,7 +1325,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           }
         } catch (error) {
           request.log.error(
-            { err: error, messageType: message.type },
+            {
+              event: 'live.gemini.forward_error',
+              connectionId,
+              ...getErrorLogFields(error),
+              err: error,
+              messageType: message.type,
+            },
             'Failed to forward client message to Gemini Live'
           );
           send({
@@ -1035,18 +1343,48 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       });
 
-      socket.on('close', () => {
+      socket.on('close', (code: number, reason: Buffer) => {
+        const geminiConnectPending =
+          geminiConnectStartedAt !== null &&
+          !session &&
+          (lastLiveStage === 'gemini_connect_started' ||
+            lastLiveStage === 'gemini_socket_open');
         stopSecurityCounterFlush();
         void flushSecurityCounters().finally(() => {
           void releaseConnectionLease();
         });
         closeSession();
         void endConversation();
-        request.log.info('WebSocket client disconnected from /live');
+        request.log.info(
+          {
+            event: 'live.websocket.closed',
+            connectionId,
+            code,
+            reason: reason?.toString() || '',
+            durationMs: Date.now() - connectionStartedAt,
+            lastLiveStage,
+            receivedMessageCount,
+            receivedAudioChunkCount,
+            receivedAudioBytes,
+            geminiConnectPending,
+          },
+          'WebSocket client disconnected from /live'
+        );
       });
 
       socket.on('error', (error: Error) => {
-        request.log.error({ err: error }, 'WebSocket error on /live');
+        lastLiveStage = 'websocket_error';
+        request.log.error(
+          {
+            event: 'live.websocket.error',
+            connectionId,
+            ...getErrorLogFields(error),
+            err: error,
+            durationMs: Date.now() - connectionStartedAt,
+            lastLiveStage,
+          },
+          'WebSocket error on /live'
+        );
         stopSecurityCounterFlush();
         void flushSecurityCounters().finally(() => {
           void releaseConnectionLease();
