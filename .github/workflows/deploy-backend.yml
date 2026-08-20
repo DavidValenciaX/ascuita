@@ -24,12 +24,10 @@ env:
   CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
   CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
   CLOUD_RUN_GEMINI_SECRET: ${{ vars.CLOUD_RUN_GEMINI_SECRET }}
+  CLOUD_RUN_REDIS_URL_SECRET: ${{ vars.CLOUD_RUN_REDIS_URL_SECRET }}
   FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
   GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
   CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-  REDIS_URL: ${{ vars.REDIS_URL }}
-  CLOUD_RUN_VPC_NETWORK: ${{ vars.CLOUD_RUN_VPC_NETWORK }}
-  CLOUD_RUN_VPC_SUBNET: ${{ vars.CLOUD_RUN_VPC_SUBNET }}
   CLOUD_RUN_CPU: "1"
   CLOUD_RUN_MEMORY: 1Gi
   CLOUD_RUN_CONCURRENCY: "80"
@@ -84,17 +82,11 @@ jobs:
           FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
           GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.1-flash-live-preview}"
           CORS_ORIGIN: "${CORS_ORIGIN}"
-          REDIS_URL: "${REDIS_URL}"
           REDIS_CLEANUP_TOKEN: "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           EOF
 
-          if [ -z "${REDIS_URL}" ]; then
-            echo "REDIS_URL must be configured as a GitHub Actions variable before deploying Cloud Run."
-            exit 1
-          fi
-
-          if [ -z "${CLOUD_RUN_VPC_NETWORK}" ] || [ -z "${CLOUD_RUN_VPC_SUBNET}" ]; then
-            echo "CLOUD_RUN_VPC_NETWORK and CLOUD_RUN_VPC_SUBNET must be configured as GitHub Actions variables before deploying Cloud Run."
+          if [ -z "${CLOUD_RUN_REDIS_URL_SECRET}" ]; then
+            echo "CLOUD_RUN_REDIS_URL_SECRET must be configured as a GitHub Actions variable before deploying Cloud Run."
             exit 1
           fi
 
@@ -108,9 +100,6 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --service-account "${CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT}" \
-            --network "${CLOUD_RUN_VPC_NETWORK}" \
-            --subnet "${CLOUD_RUN_VPC_SUBNET}" \
-            --vpc-egress private-ranges-only \
             --port 8080 \
             --cpu "${CLOUD_RUN_CPU}" \
             --cpu-boost \
@@ -120,7 +109,7 @@ jobs:
             --max-instances "${CLOUD_RUN_MAX_INSTANCES}" \
             --timeout "${CLOUD_RUN_TIMEOUT_SECONDS}" \
             --env-vars-file backend-cloudrun.env.yaml \
-            --set-secrets "GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest"
+            --set-secrets "GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest,REDIS_URL=${CLOUD_RUN_REDIS_URL_SECRET}:latest"
 
       - name: Smoke test deployed API
         shell: bash

@@ -8,6 +8,12 @@ type CounterState = {
   resetAt: number;
 };
 
+export type CounterBatchEntry = {
+  scope: string;
+  clientKey: string;
+  windowMs: number;
+  amount: number;
+};
 type BlockState = {
   reason: string;
   expiresAt: number;
@@ -24,6 +30,19 @@ const RATE_COUNTER_SCRIPT = [
   'return { count, redis.call("PTTL", KEYS[1]) }',
 ].join('\n');
 
+const BATCH_RATE_COUNTER_SCRIPT = [
+  'local result = {}',
+  'for index = 1, #KEYS do',
+  '  local argIndex = (index - 1) * 2 + 1',
+  '  local count = redis.call("INCRBY", KEYS[index], ARGV[argIndex + 1])',
+  '  if redis.call("PTTL", KEYS[index]) < 0 then',
+  '    redis.call("PEXPIRE", KEYS[index], ARGV[argIndex])',
+  '  end',
+  '  result[#result + 1] = count',
+  '  result[#result + 1] = redis.call("PTTL", KEYS[index])',
+  'end',
+  'return result',
+].join('\n');
 const GUEST_TRIAL_SCRIPT = [
   'local value = redis.call("GET", KEYS[1])',
   'if not value then',
@@ -239,6 +258,51 @@ export class SecurityStateStore {
     };
   }
 
+  async incrementCounterBatch(entries: CounterBatchEntry[]): Promise<CounterState[]> {
+    const validEntries = entries.filter(
+      entry => entry.amount > 0 && entry.windowMs > 0
+    );
+
+    if (validEntries.length === 0) {
+      return [];
+    }
+
+    if (!this.redisUrl) {
+      return Promise.all(
+        validEntries.map(entry =>
+          this.incrementCounter(
+            entry.scope,
+            entry.clientKey,
+            entry.windowMs,
+            entry.amount
+          )
+        )
+      );
+    }
+
+    const args = validEntries.flatMap(entry => [
+      String(entry.windowMs),
+      String(entry.amount),
+    ]);
+    const result = asRedisArray(
+      await this.getClient().sendCommand([
+        'EVAL',
+        BATCH_RATE_COUNTER_SCRIPT,
+        String(validEntries.length),
+        ...validEntries.map(entry => this.key(entry.scope, entry.clientKey)),
+        ...args,
+      ])
+    );
+
+    return validEntries.map((_, index) => {
+      const count = asNumber(result[index * 2]);
+      const ttl = Math.max(asNumber(result[index * 2 + 1]), 0);
+      return {
+        count,
+        resetAt: Date.now() + ttl,
+      };
+    });
+  }
   async cleanupStaleAudioCounters(releaseToken?: string) {
     if (!this.redisUrl || !releaseToken) {
       return {

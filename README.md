@@ -78,7 +78,7 @@ Para levantar Redis localmente:
 npm run docker:redis:up
 ```
 
-Después añade `REDIS_URL=redis://127.0.0.1:6379` a `apps/api/.env` antes de arrancar el backend con `npm run dev:api`. Para detener el contenedor usa `npm run docker:redis:down`.
+Después añade `REDIS_URL=redis://127.0.0.1:6379` a `apps/api/.env` antes de arrancar el backend con `npm run dev:api`. Para probar directamente un Redis TLS, puedes usar una URL `rediss://...` de Upstash en esa misma variable. Para detener el contenedor local usa `npm run docker:redis:down`.
 
 Con el backend levantado puedes ejecutar el smoke test contra ambos endpoints:
 
@@ -204,14 +204,28 @@ Variables esperadas en GitHub para el workflow de backend:
 * `CLOUD_RUN_SERVICE`
 * `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
 * `CLOUD_RUN_GEMINI_SECRET`: nombre del secreto de Secret Manager que contiene `GEMINI_API_KEY`
-  * `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`, `REDIS_URL`
-  * `CLOUD_RUN_VPC_NETWORK`, `CLOUD_RUN_VPC_SUBNET`: red privada y subred usadas por Cloud Run para acceder a Memorystore
+* `CLOUD_RUN_REDIS_URL_SECRET`: nombre del secreto de Secret Manager que contiene la URL TLS completa de Upstash Redis (`rediss://default:<password>@<endpoint>:6379`)
+* `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
-En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`. Redis debe ser accesible mediante la red privada de GCP; el workflow despliega el valor de `REDIS_URL` desde una variable de GitHub.
+En Cloud Run, el backend usa el `PORT` inyectado por la plataforma y resuelve `HOST=0.0.0.0` automáticamente. Los logs de seguridad se emiten a Cloud Logging mediante `stdout`, por lo que ya no es necesario persistir `logs/security` en disco. Firebase Admin usa la service account adjunta al servicio en producción, mientras que en local puede autenticarse mediante `GOOGLE_APPLICATION_CREDENTIALS`. El workflow inyecta `REDIS_URL` desde el secreto de Secret Manager configurado en `CLOUD_RUN_REDIS_URL_SECRET`; no se requiere VPC específica para Redis.
 El workflow ejecuta un smoke test contra `/health` y `/ready` después de cada despliegue. Durante el apagado, el API deja de anunciar readiness, cierra las conexiones HTTP/WebSocket y libera Redis antes de terminar; si el cierre excede el tiempo de gracia, el proceso termina con error para que la plataforma pueda reemplazar la instancia.
-El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=1`, `CLOUD_RUN_MAX_INSTANCES=1` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting y trial gratuito se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
+El workflow fija en código `CLOUD_RUN_CPU=1`, `CLOUD_RUN_MEMORY=1Gi`, `CLOUD_RUN_CONCURRENCY=80`, `CLOUD_RUN_MIN_INSTANCES=0`, `CLOUD_RUN_MAX_INSTANCES=3` y `CLOUD_RUN_TIMEOUT_SECONDS=3600`. Además, `LOG_LEVEL`, rate limiting y trial gratuito se resuelven directamente desde [`apps/api/src/config.ts`](file:///c:/Users/David/Downloads/Programacion/AI_apps/ascuita/apps/api/src/config.ts).
+
+### Upstash Redis en producción
+
+La base de datos de producción usa Upstash Redis PAYG con presupuesto mensual de US$5. Crea una base sin réplicas, preferiblemente en la región disponible más cercana a Cloud Run, y guarda la URL completa `rediss://default:<password>@<endpoint>:6379` en Secret Manager con el nombre `ascuita-upstash-redis-url`.
+
+Concede al service account de ejecución de Cloud Run el rol `roles/secretmanager.secretAccessor` sobre ese secreto y configura la variable de GitHub Actions `CLOUD_RUN_REDIS_URL_SECRET=ascuita-upstash-redis-url`. El presupuesto de Upstash limita la base cuando se alcanza; esto protege el costo, pero puede provocar errores de disponibilidad para nuevas operaciones Redis.
+
+Para validar una conexión sin modificar claves existentes, define temporalmente `REDIS_URL` y ejecuta:
+
+```powershell
+npm run smoke:redis
+```
+
+El smoke test usa un prefijo UUID, verifica `PING`, `EVAL`, `PEXPIRE`, `ZADD`, `ZREM`, `SCAN` y `UNLINK`, y nunca ejecuta `FLUSHDB` ni `FLUSHALL`.
 
 ### Reglas de Firestore
 

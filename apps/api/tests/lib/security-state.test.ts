@@ -29,6 +29,50 @@ describe('SecurityStateStore memory backend', () => {
     });
   });
 
+  it('increments a batch of counters with independent amounts and windows', async () => {
+    const store = new SecurityStateStore({ redisUrl: '', redisRequired: false });
+
+    await expect(
+      store.incrementCounterBatch([
+        {
+          scope: 'ws-message',
+          clientKey: 'ip-a',
+          windowMs: 60_000,
+          amount: 8,
+        },
+        {
+          scope: 'ws-audio',
+          clientKey: 'ip-a',
+          windowMs: 60_000,
+          amount: 320,
+        },
+      ])
+    ).resolves.toEqual([
+      expect.objectContaining({ count: 8 }),
+      expect.objectContaining({ count: 320 }),
+    ]);
+
+    await expect(
+      store.incrementCounterBatch([
+        {
+          scope: 'ws-message',
+          clientKey: 'ip-a',
+          windowMs: 60_000,
+          amount: 2,
+        },
+        {
+          scope: 'ws-audio',
+          clientKey: 'ip-a',
+          windowMs: 60_000,
+          amount: 80,
+        },
+      ])
+    ).resolves.toEqual([
+      expect.objectContaining({ count: 10 }),
+      expect.objectContaining({ count: 400 }),
+    ]);
+  });
+
   it('reports the memory backend as ready when Redis is not required', async () => {
     const store = new SecurityStateStore({
       redisUrl: '',

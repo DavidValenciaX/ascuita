@@ -73,6 +73,7 @@ type CounterState = {
 };
 
 const GUEST_TRIAL_RETENTION_MS = 60 * 60_000;
+const SECURITY_COUNTER_FLUSH_MS = 1000;
 
 export function safeJsonParse(raw: Buffer): ClientMessage {
   try {
@@ -379,6 +380,118 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
       let leaseReleased = false;
       let leaseRefreshTimer: ReturnType<typeof setInterval> | undefined;
+      let securityCounterFlushTimer: ReturnType<typeof setInterval> | undefined;
+      let securityCounterFlushPromise: Promise<void> | null = null;
+      let pendingMessageCount = 0;
+      let pendingAudioBytes = 0;
+      let securityCounterLimitTriggered = false;
+
+      const stopSecurityCounterFlush = () => {
+        if (securityCounterFlushTimer) {
+          clearInterval(securityCounterFlushTimer);
+          securityCounterFlushTimer = undefined;
+        }
+      };
+
+      const flushSecurityCounters = () => {
+        if (securityCounterFlushPromise) {
+          return securityCounterFlushPromise;
+        }
+
+        if (
+          securityCounterLimitTriggered ||
+          (pendingMessageCount <= 0 && pendingAudioBytes <= 0)
+        ) {
+          return Promise.resolve();
+        }
+
+        const messageCount = pendingMessageCount;
+        const audioBytes = pendingAudioBytes;
+        pendingMessageCount = 0;
+        pendingAudioBytes = 0;
+
+        const operation = (async () => {
+          try {
+            const entries = [];
+            if (messageCount > 0) {
+              entries.push({
+                scope: 'ws-message',
+                clientKey,
+                windowMs: config.wsMessageWindowMs,
+                amount: messageCount,
+              });
+            }
+            if (audioBytes > 0) {
+              entries.push({
+                scope: 'ws-audio',
+                clientKey,
+                windowMs: config.wsAudioByteWindowMs,
+                amount: audioBytes,
+              });
+            }
+
+            const states = await securityState.incrementCounterBatch(entries);
+            let stateIndex = 0;
+            const messageRateState = messageCount > 0 ? states[stateIndex++] : null;
+            const audioRateState = audioBytes > 0 ? states[stateIndex] : null;
+
+            if (
+              messageRateState &&
+              messageRateState.count > config.wsMaxMessagesPerWindow
+            ) {
+              securityCounterLimitTriggered = true;
+              request.log.warn(
+                { ip: request.ip, count: messageRateState.count },
+                'Closing WebSocket connection due to message rate limit'
+              );
+              await blockClient(clientKey, 'too_many_messages', {
+                count: messageRateState.count,
+              });
+              socket.close(1008, 'Too many messages');
+              return;
+            }
+
+            if (
+              audioRateState &&
+              audioRateState.count > config.wsMaxAudioBytesPerWindow
+            ) {
+              securityCounterLimitTriggered = true;
+              request.log.warn(
+                { ip: request.ip, audioBytes: audioRateState.count },
+                'Closing WebSocket connection due to audio byte rate limit'
+              );
+              await blockClient(clientKey, 'audio_rate_limit_exceeded', {
+                audioBytes: audioRateState.count,
+                windowMs: config.wsAudioByteWindowMs,
+              });
+              socket.close(1008, 'Audio rate limit exceeded');
+            }
+          } catch (error) {
+            pendingMessageCount += messageCount;
+            pendingAudioBytes += audioBytes;
+            failSecurityState(error);
+          }
+        })();
+
+        securityCounterFlushPromise = operation.finally(() => {
+          securityCounterFlushPromise = null;
+        });
+        return securityCounterFlushPromise;
+      };
+
+      const queueMessageCounter = async () => {
+        pendingMessageCount += 1;
+        if (pendingMessageCount >= config.wsMaxMessagesPerWindow) {
+          await flushSecurityCounters();
+        }
+      };
+
+      const queueAudioCounter = async (audioBytes: number) => {
+        pendingAudioBytes += audioBytes;
+        if (pendingAudioBytes >= config.wsMaxAudioBytesPerWindow) {
+          await flushSecurityCounters();
+        }
+      };
 
       const releaseConnectionLease = async () => {
         if (leaseReleased) {
@@ -407,6 +520,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             socket.close(1013, 'Security state store unavailable');
           });
       }, Math.max(1000, Math.floor(config.wsConnectionLeaseDurationMs / 3)));
+
+      securityCounterFlushTimer = setInterval(() => {
+        void flushSecurityCounters();
+      }, SECURITY_COUNTER_FLUSH_MS);
 
       const apiKey = process.env.GEMINI_API_KEY;
       const defaultModel =
@@ -574,32 +691,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           return;
         }
 
-        let messageRateState;
-        try {
-          messageRateState = await securityState.incrementCounter(
-            'ws-message',
-            clientKey,
-            config.wsMessageWindowMs
-          );
-        } catch (error) {
-          failSecurityState(error);
+        if (securityCounterLimitTriggered) {
           return;
         }
 
-        if (messageRateState.count > config.wsMaxMessagesPerWindow) {
-          request.log.warn(
-            { ip: request.ip },
-            'Closing WebSocket connection due to message rate limit'
-          );
-          try {
-            await blockClient(clientKey, 'too_many_messages', {
-              count: messageRateState.count,
-            });
-          } catch (error) {
-            failSecurityState(error);
-            return;
-          }
-          socket.close(1008, 'Too many messages');
+        await queueMessageCounter();
+        if (securityCounterLimitTriggered) {
           return;
         }
 
@@ -900,34 +997,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           if (isRealtimeInputMessage(message)) {
             const audioBytes = getAudioPayloadBytes(message);
             if (audioBytes > 0) {
-              let audioRateState;
-              try {
-                audioRateState = await securityState.incrementCounter(
-                  'ws-audio',
-                  clientKey,
-                  config.wsAudioByteWindowMs,
-                  audioBytes
-                );
-              } catch (error) {
-                failSecurityState(error);
-                return;
-              }
-
-              if (audioRateState.count > config.wsMaxAudioBytesPerWindow) {
-                request.log.warn(
-                  { ip: request.ip, audioBytes: audioRateState.count },
-                  'Closing WebSocket connection due to audio byte rate limit'
-                );
-                try {
-                  await blockClient(clientKey, 'audio_rate_limit_exceeded', {
-                    audioBytes: audioRateState.count,
-                    windowMs: config.wsAudioByteWindowMs,
-                  });
-                } catch (error) {
-                  failSecurityState(error);
-                  return;
-                }
-                socket.close(1008, 'Audio rate limit exceeded');
+              await queueAudioCounter(audioBytes);
+              if (securityCounterLimitTriggered) {
                 return;
               }
             }
@@ -965,7 +1036,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('close', () => {
-        void releaseConnectionLease();
+        stopSecurityCounterFlush();
+        void flushSecurityCounters().finally(() => {
+          void releaseConnectionLease();
+        });
         closeSession();
         void endConversation();
         request.log.info('WebSocket client disconnected from /live');
@@ -973,7 +1047,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
       socket.on('error', (error: Error) => {
         request.log.error({ err: error }, 'WebSocket error on /live');
-        void releaseConnectionLease();
+        stopSecurityCounterFlush();
+        void flushSecurityCounters().finally(() => {
+          void releaseConnectionLease();
+        });
         closeSession();
       });
     }
