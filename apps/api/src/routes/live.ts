@@ -73,7 +73,7 @@ type CounterState = {
 };
 
 const GUEST_TRIAL_RETENTION_MS = 60 * 60_000;
-const SECURITY_COUNTER_FLUSH_MS = 1000;
+const SECURITY_COUNTER_FLUSH_MS = 5_000;
 
 export function safeJsonParse(raw: Buffer): ClientMessage {
   try {
