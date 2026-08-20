@@ -99,6 +99,7 @@ jobs:
             --image "${IMAGE_URI}" \
             --platform managed \
             --allow-unauthenticated \
+            --clear-network \
             --service-account "${CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT}" \
             --port 8080 \
             --cpu "${CLOUD_RUN_CPU}" \
