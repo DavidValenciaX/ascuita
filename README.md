@@ -78,6 +78,8 @@ Para levantar Redis localmente:
 npm run docker:redis:up
 ```
 
+Los comandos `npm run dev` y `npm run docker:redis:up` comprueban si el daemon de Docker está disponible. Si Docker Desktop está instalado, intentan iniciarlo automáticamente y esperan hasta 60 segundos a que responda. Si ejecutas `npm run dev` y no puede iniciarlo, muestra una instrucción para abrirlo manualmente y la API continúa usando su backend en memoria para desarrollo. `npm run docker:redis:up`, en cambio, termina con error porque ese comando promete levantar Redis. Puedes desactivar el intento automático con `ASCUITA_AUTO_START_DOCKER=0`.
+
 Después añade `REDIS_URL=redis://127.0.0.1:6379` a `apps/api/.env` antes de arrancar el backend con `npm run dev:api`. Para probar directamente un Redis TLS, puedes usar una URL `rediss://...` de Upstash en esa misma variable. Para detener el contenedor local usa `npm run docker:redis:down`.
 
 Con el backend levantado puedes ejecutar el smoke test contra ambos endpoints:
