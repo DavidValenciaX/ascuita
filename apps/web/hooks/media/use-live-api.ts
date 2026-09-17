@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { GenAILiveClient } from '../../lib/genai-live-client';
 import { LiveConnectConfig } from '@google/genai';
 import { AudioStreamer } from '../../lib/audio-streamer';
@@ -41,7 +41,7 @@ export type UseLiveApiResults = {
   clearDisplayError: () => void;
   audioReady: boolean;
 
-  volume: number;
+  volumeRef: RefObject<number>;
   audioStreamer: AudioStreamer | null;
 };
 
@@ -61,7 +61,7 @@ export function useLiveApi({
   const pendingAudioChunksRef = useRef<ArrayBuffer[]>([]);
   const websocketFailureCountRef = useRef(0);
 
-  const [volume, setVolume] = useState(0);
+  const volumeRef = useRef(0);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [fatalError, setFatalError] = useState<string | null>(null);
@@ -80,7 +80,7 @@ export function useLiveApi({
         audioStreamerRef.current = new AudioStreamer(audioCtx);
         audioStreamerRef.current
           .addWorklet<any>('vumeter-out', VolMeterWorket, (ev: any) => {
-            setVolume(ev.data.volume);
+            volumeRef.current = ev.data.volume;
           })
           .then(() => {
             // Successfully added worklet
@@ -256,7 +256,7 @@ export function useLiveApi({
     clearDisplayError,
     audioReady,
     disconnect,
-    volume,
+    volumeRef,
     audioStreamer,
   };
 }

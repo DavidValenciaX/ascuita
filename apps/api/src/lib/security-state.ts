@@ -93,6 +93,7 @@ export class SecurityStateStore {
   private readonly explicitRedisRequired: boolean | undefined;
   private client: RedisClient | null = null;
   private connectPromise: Promise<void> | null = null;
+  private memoryFallback = false;
 
   private readonly memoryCounters = new Map<string, CounterState>();
   private readonly memoryBlocks = new Map<string, BlockState>();
@@ -124,13 +125,19 @@ export class SecurityStateStore {
     );
   }
 
+  private get useMemoryBackend() {
+    return !this.redisUrl || (this.memoryFallback && !this.redisRequired);
+  }
+
   get backend(): 'redis' | 'memory' {
-    return this.redisUrl ? 'redis' : 'memory';
+    return this.useMemoryBackend ? 'memory' : 'redis';
   }
 
   async checkReadiness() {
-    if (!this.redisUrl) {
-      return !this.redisRequired;
+    if (this.useMemoryBackend) {
+      // The in-memory backend is ready unless Redis was required but left
+      // unconfigured/unreachable (a misconfigured or degraded required setup).
+      return !this.redisRequired || this.memoryFallback;
     }
 
     if (!this.client?.isReady) {
@@ -138,7 +145,7 @@ export class SecurityStateStore {
     }
 
     try {
-      await this.client.ping();
+      await this.withTimeout(this.client.ping(), 1000);
       return true;
     } catch {
       return false;
@@ -146,7 +153,7 @@ export class SecurityStateStore {
   }
 
   async connect() {
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       if (this.redisRequired) {
         throw new Error(
           'REDIS_URL is required in Cloud Run or when REDIS_REQUIRED=true'
@@ -165,6 +172,9 @@ export class SecurityStateStore {
 
     const client = createClient({ url: this.redisUrl });
     client.on('error', error => {
+      if (this.memoryFallback) {
+        return;
+      }
       process.stderr.write(
         `${JSON.stringify({
           severity: 'ERROR',
@@ -175,23 +185,55 @@ export class SecurityStateStore {
     });
     this.client = client;
 
-    this.connectPromise = client
-      .connect()
-      .then(() => undefined)
-      .catch(async error => {
-        this.client = null;
+    this.connectPromise = (async () => {
+      try {
+        if (!this.redisRequired) {
+          // Bound the connection attempt in local/dev so a missing Redis does
+          // not leave startup or readiness hanging.
+          await this.withTimeout(client.connect(), 2000);
+          // Verify the connection really works; otherwise the readiness ping and
+          // queued commands hang forever when Redis is configured but not running.
+          await this.withTimeout(client.ping(), 1500);
+        } else {
+          await client.connect();
+        }
+      } catch (error) {
         try {
           await client.disconnect();
         } catch {
           // Ignore cleanup errors after a failed connection attempt.
         }
+        this.client = null;
+        if (!this.redisRequired) {
+          // Local/dev fallback: serve from in-memory state so the API keeps
+          // working without a running Redis instance.
+          this.memoryFallback = true;
+          return;
+        }
         throw error;
-      })
-      .finally(() => {
-        this.connectPromise = null;
-      });
+      }
+    })().finally(() => {
+      this.connectPromise = null;
+    });
 
     return this.connectPromise;
+  }
+
+  private withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Operation timed out after ${milliseconds}ms`)),
+          milliseconds
+        );
+      }),
+    ]).finally(() => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    });
   }
 
   async close() {
@@ -228,7 +270,7 @@ export class SecurityStateStore {
     windowMs: number,
     amount = 1
   ): Promise<CounterState> {
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const key = this.memoryCounterKey(scope, clientKey);
       const now = Date.now();
       const current = this.memoryCounters.get(key);
@@ -267,7 +309,7 @@ export class SecurityStateStore {
       return [];
     }
 
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       return Promise.all(
         validEntries.map(entry =>
           this.incrementCounter(
@@ -304,7 +346,7 @@ export class SecurityStateStore {
     });
   }
   async cleanupStaleAudioCounters(releaseToken?: string) {
-    if (!this.redisUrl || !releaseToken) {
+    if (this.useMemoryBackend || !releaseToken) {
       return {
         deleted: 0,
         skipped: true,
@@ -372,7 +414,7 @@ export class SecurityStateStore {
   }
 
   async getBlock(clientKey: string): Promise<BlockState | null> {
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const block = this.memoryBlocks.get(clientKey);
       if (!block) {
         return null;
@@ -414,7 +456,7 @@ export class SecurityStateStore {
       expiresAt: Date.now() + durationMs,
     };
 
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       this.memoryBlocks.set(clientKey, block);
       return block;
     }
@@ -431,7 +473,7 @@ export class SecurityStateStore {
     clientKey: string,
     retentionMs: number
   ): Promise<number> {
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const existing = this.memoryGuestTrials.get(clientKey);
       const now = Date.now();
       if (existing && now - existing <= retentionMs) {
@@ -462,7 +504,7 @@ export class SecurityStateStore {
     const now = Date.now();
     const expiresAt = now + leaseDurationMs;
 
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const key = this.memoryCounterKey('lease', clientKey);
       const leases = this.memoryLeases.get(key) || new Map<string, number>();
       for (const [leaseId, expiry] of leases) {
@@ -497,7 +539,7 @@ export class SecurityStateStore {
     const now = Date.now();
     const expiresAt = now + leaseDurationMs;
 
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const key = this.memoryCounterKey('lease', lease.clientKey);
       const leases = this.memoryLeases.get(key);
       if (!leases?.has(lease.id)) {
@@ -515,7 +557,7 @@ export class SecurityStateStore {
   }
 
   async releaseConnectionLease(lease: ConnectionLease) {
-    if (!this.redisUrl) {
+    if (this.useMemoryBackend) {
       const key = this.memoryCounterKey('lease', lease.clientKey);
       const leases = this.memoryLeases.get(key);
       if (!leases) {

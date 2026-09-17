@@ -55,14 +55,13 @@ export default function BasicFace({
   color,
   sceneTheme = 'light',
 }: BasicFaceProps) {
-  const timeoutRef = useRef<NodeJS.Timeout>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const innerFireRef = useRef<InnerFireSystem | null>(null);
   const innerFireConfig = useInnerFire(state => state.config);
   const avatarRenderConfig = useAvatarRender(state => state.config);
 
-  // Audio output volume
-  const { volume } = useLiveAPIContext();
+  // Audio output volume (read via ref in the animation loop to avoid per-tick re-renders)
+  const { volumeRef } = useLiveAPIContext();
 
   // Talking state
   const [isTalking, setIsTalking] = useState(false);
@@ -102,18 +101,6 @@ export default function BasicFace({
   useEffect(() => { innerFireConfigRef.current = innerFireConfig; }, [innerFireConfig]);
   useEffect(() => { avatarRenderConfigRef.current = avatarRenderConfig; }, [avatarRenderConfig]);
   useEffect(() => { sceneThemeRef.current = sceneTheme; }, [sceneTheme]);
-
-  // Detect whether the agent is talking based on audio output volume
-  useEffect(() => {
-    if (volume > AUDIO_OUTPUT_DETECTION_THRESHOLD) {
-      setIsTalking(true);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(
-        () => setIsTalking(false),
-        TALKING_STATE_COOLDOWN_MS
-      );
-    }
-  }, [volume]);
 
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 800,
@@ -392,10 +379,24 @@ export default function BasicFace({
     let animationId: number;
     let lastMouthSignature = '';
     let lastColor = '';
+    let lastLoudAt = 0;
+    let talkingState = false;
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       const elapsedSeconds = performance.now() / 1000;
+
+      // Talking detection from output volume (read via ref to avoid per-tick re-renders)
+      const talkingNowMs = elapsedSeconds * 1000;
+      if (volumeRef.current > AUDIO_OUTPUT_DETECTION_THRESHOLD) {
+        lastLoudAt = talkingNowMs;
+      }
+      const shouldBeTalking =
+        lastLoudAt !== 0 && talkingNowMs - lastLoudAt < TALKING_STATE_COOLDOWN_MS;
+      if (shouldBeTalking !== talkingState) {
+        talkingState = shouldBeTalking;
+        setIsTalking(shouldBeTalking);
+      }
 
       // Body color update
       if (colorRef.current !== lastColor) {
