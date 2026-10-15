@@ -303,7 +303,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
   fastify.get(
     '/live',
     { websocket: true },
-    async (socket, request) => {
+    (socket, request) => {
       const config = getConfig();
       const clientKey = getClientKey(request.ip);
       const connectionId = String(request.id);
@@ -345,119 +345,126 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         'WebSocket client connected to /live'
       );
 
-      let activeBlock;
-      try {
-        activeBlock = await getActiveBlock(clientKey);
-      } catch (error) {
-        failSecurityState(error);
-        return;
-      }
+      let connectionLease: ConnectionLease | null = null;
 
-      if (activeBlock) {
-        request.log.warn(
-          {
-            event: 'live.websocket.rejected',
-            connectionId,
-            ip: request.ip,
-            reason: activeBlock.reason,
-          },
-          'Rejected WebSocket connection from temporarily blocked IP'
-        );
-        logSecurityEvent('security.reject', clientKey, activeBlock.reason, {
-          stage: 'connect',
-          blockedUntil: activeBlock.expiresAt,
-        });
-        socket.close(1008, 'Temporarily blocked');
-        return;
-      }
-
-      if (!isAllowedOrigin(config.corsOrigin, originHeader)) {
-        request.log.warn(
-          {
-            event: 'live.websocket.rejected',
-            connectionId,
-            origin: originHeader,
-            reason: 'origin_not_allowed',
-          },
-          'Rejected WebSocket connection from disallowed origin'
-        );
-        logSecurityEvent('security.reject', clientKey, 'origin_not_allowed', {
-          origin: originHeader,
-        });
-        socket.close(1008, 'Origin not allowed');
-        return;
-      }
-
-      let connectAttemptState;
-      try {
-        connectAttemptState = await securityState.incrementCounter(
-          'ws-connect',
-          clientKey,
-          config.wsConnectWindowMs
-        );
-      } catch (error) {
-        failSecurityState(error);
-        return;
-      }
-
-      if (
-        connectAttemptState.count > config.wsMaxConnectAttemptsPerIp
-      ) {
-        request.log.warn(
-          {
-            event: 'live.websocket.rejected',
-            connectionId,
-            ip: request.ip,
-            reason: 'connect_rate_limit',
-            count: connectAttemptState.count,
-          },
-          'Rejected WebSocket connection due to connect rate limit'
-        );
+      // Start security checks without delaying registration of socket listeners.
+      // Browsers can send `connect` as soon as the WebSocket upgrade completes.
+      const initializeSecurity = async () => {
+        let activeBlock;
         try {
-          await blockClient(clientKey, 'too_many_connection_attempts', {
-            count: connectAttemptState.count,
-          });
+          activeBlock = await getActiveBlock(clientKey);
         } catch (error) {
           failSecurityState(error);
           return;
         }
-        socket.close(1008, 'Too many connection attempts');
-        return;
-      }
 
-      let connectionLease: ConnectionLease | null;
-      try {
-        connectionLease = await securityState.acquireConnectionLease(
-          clientKey,
-          config.wsMaxConcurrentConnectionsPerIp,
-          config.wsConnectionLeaseDurationMs
-        );
-      } catch (error) {
-        failSecurityState(error);
-        return;
-      }
+        if (activeBlock) {
+          request.log.warn(
+            {
+              event: 'live.websocket.rejected',
+              connectionId,
+              ip: request.ip,
+              reason: activeBlock.reason,
+            },
+            'Rejected WebSocket connection from temporarily blocked IP'
+          );
+          logSecurityEvent('security.reject', clientKey, activeBlock.reason, {
+            stage: 'connect',
+            blockedUntil: activeBlock.expiresAt,
+          });
+          socket.close(1008, 'Temporarily blocked');
+          return;
+        }
 
-      if (!connectionLease) {
-        request.log.warn(
-          {
-            event: 'live.websocket.rejected',
-            connectionId,
-            ip: request.ip,
-            reason: 'concurrent_connection_limit',
-          },
-          'Rejected WebSocket connection due to concurrent connection limit'
-        );
-        logSecurityEvent(
-          'security.reject',
-          clientKey,
-          'too_many_concurrent_connections',
-          {
-            maxConnections: config.wsMaxConcurrentConnectionsPerIp,
+        if (!isAllowedOrigin(config.corsOrigin, originHeader)) {
+          request.log.warn(
+            {
+              event: 'live.websocket.rejected',
+              connectionId,
+              origin: originHeader,
+              reason: 'origin_not_allowed',
+            },
+            'Rejected WebSocket connection from disallowed origin'
+          );
+          logSecurityEvent('security.reject', clientKey, 'origin_not_allowed', {
+            origin: originHeader,
+          });
+          socket.close(1008, 'Origin not allowed');
+          return;
+        }
+
+        let connectAttemptState;
+        try {
+          connectAttemptState = await securityState.incrementCounter(
+            'ws-connect',
+            clientKey,
+            config.wsConnectWindowMs
+          );
+        } catch (error) {
+          failSecurityState(error);
+          return;
+        }
+
+        if (
+          connectAttemptState.count > config.wsMaxConnectAttemptsPerIp
+        ) {
+          request.log.warn(
+            {
+              event: 'live.websocket.rejected',
+              connectionId,
+              ip: request.ip,
+              reason: 'connect_rate_limit',
+              count: connectAttemptState.count,
+            },
+            'Rejected WebSocket connection due to connect rate limit'
+          );
+          try {
+            await blockClient(clientKey, 'too_many_connection_attempts', {
+              count: connectAttemptState.count,
+            });
+          } catch (error) {
+            failSecurityState(error);
+            return;
           }
-        );
-        socket.close(1008, 'Too many concurrent connections');
-        return;
-      }
+          socket.close(1008, 'Too many connection attempts');
+          return;
+        }
+
+        try {
+          connectionLease = await securityState.acquireConnectionLease(
+            clientKey,
+            config.wsMaxConcurrentConnectionsPerIp,
+            config.wsConnectionLeaseDurationMs
+          );
+        } catch (error) {
+          failSecurityState(error);
+          return;
+        }
+
+        if (!connectionLease) {
+          request.log.warn(
+            {
+              event: 'live.websocket.rejected',
+              connectionId,
+              ip: request.ip,
+              reason: 'concurrent_connection_limit',
+            },
+            'Rejected WebSocket connection due to concurrent connection limit'
+          );
+          logSecurityEvent(
+            'security.reject',
+            clientKey,
+            'too_many_concurrent_connections',
+            {
+              maxConnections: config.wsMaxConcurrentConnectionsPerIp,
+            }
+          );
+          socket.close(1008, 'Too many concurrent connections');
+          return;
+        }
+
+        return connectionLease;
+      };
 
       let leaseReleased = false;
       let leaseRefreshTimer: ReturnType<typeof setInterval> | undefined;
@@ -587,7 +594,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       };
 
       const releaseConnectionLease = async () => {
-        if (leaseReleased) {
+        if (leaseReleased || !connectionLease) {
           return;
         }
         leaseReleased = true;
@@ -601,22 +608,6 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           request.log.warn({ err: error }, 'Error releasing WebSocket lease');
         }
       };
-
-      leaseRefreshTimer = setInterval(() => {
-        void securityState
-          .refreshConnectionLease(
-            connectionLease,
-            config.wsConnectionLeaseDurationMs
-          )
-          .catch(error => {
-            request.log.warn({ err: error }, 'Error refreshing WebSocket lease');
-            socket.close(1013, 'Security state store unavailable');
-          });
-      }, Math.max(1000, Math.floor(config.wsConnectionLeaseDurationMs / 3)));
-
-      securityCounterFlushTimer = setInterval(() => {
-        void flushSecurityCounters();
-      }, SECURITY_COUNTER_FLUSH_MS);
 
       const apiKey = process.env.GEMINI_API_KEY;
       const defaultModel =
@@ -757,25 +748,71 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
-      send({
-        type: 'connection.ready',
-        payload: {
-          model: currentModel,
-          geminiConfigured: Boolean(apiKey),
-        },
+      let startupComplete = false;
+      let startupBytes = 0;
+      const initialization = initializeSecurity().then(async lease => {
+        if (!lease) {
+          return false;
+        }
+        if (socket.readyState !== socket.OPEN) {
+          await releaseConnectionLease();
+          return false;
+        }
+
+        leaseRefreshTimer = setInterval(() => {
+          void securityState
+            .refreshConnectionLease(lease, config.wsConnectionLeaseDurationMs)
+            .catch(error => {
+              request.log.warn({ err: error }, 'Error refreshing WebSocket lease');
+              socket.close(1013, 'Security state store unavailable');
+            });
+        }, Math.max(1000, Math.floor(config.wsConnectionLeaseDurationMs / 3)));
+
+        securityCounterFlushTimer = setInterval(() => {
+          void flushSecurityCounters();
+        }, SECURITY_COUNTER_FLUSH_MS);
+
+        send({
+          type: 'connection.ready',
+          payload: {
+            model: currentModel,
+            geminiConfigured: Boolean(apiKey),
+          },
+        });
+        lastLiveStage = 'connection_ready_sent';
+        request.log.info(
+          {
+            event: 'live.connection.ready_sent',
+            connectionId,
+            model: currentModel,
+            geminiConfigured: Boolean(apiKey),
+          },
+          'Sent WebSocket connection.ready'
+        );
+        return true;
+      }).catch(error => {
+        failSecurityState(error);
+        return false;
+      }).finally(() => {
+        startupComplete = true;
       });
-      lastLiveStage = 'connection_ready_sent';
-      request.log.info(
-        {
-          event: 'live.connection.ready_sent',
-          connectionId,
-          model: currentModel,
-          geminiConfigured: Boolean(apiKey),
-        },
-        'Sent WebSocket connection.ready'
-      );
 
       socket.on('message', async (raw: unknown) => {
+        if (socket.readyState !== socket.OPEN) {
+          return;
+        }
+        // Bound messages retained while Redis is pending, including many small frames.
+        if (!startupComplete) {
+          startupBytes += Math.max(1, getPayloadSize(raw));
+          if (startupBytes > config.wsMaxPayloadBytes) {
+            socket.close(1009, 'Startup payload too large');
+            return;
+          }
+        }
+        // Keep early messages, but never process them before security succeeds.
+        if (!(await initialization) || socket.readyState !== socket.OPEN) {
+          return;
+        }
         const payloadBytes = getPayloadSize(raw);
         if (payloadBytes > config.wsMaxPayloadBytes) {
           request.log.warn(
