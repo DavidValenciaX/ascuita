@@ -22,6 +22,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { GenAILiveClient } from '../../lib/genai-live-client';
 import { LiveConnectConfig } from '@google/genai';
 import { AudioStreamer } from '../../lib/audio-streamer';
+import { AudioRecorder } from '../../lib/audio-recorder';
+import { registeredWorklets } from '../../lib/audioworklet-registry';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
 import { DEFAULT_LIVE_API_MODEL } from '../../lib/constants';
@@ -40,6 +42,11 @@ export type UseLiveApiResults = {
   displayError: { code: 'GENERIC' | 'RESOURCE_EXHAUSTED' | 'WS_BLOCKED'; message: string } | null;
   clearDisplayError: () => void;
   audioReady: boolean;
+  audioStarting: boolean;
+  audioError: string | null;
+  startAudio: () => Promise<void>;
+  reportAudioError: (error: unknown) => void;
+  audioRecorder: AudioRecorder;
 
   volumeRef: RefObject<number>;
   audioStreamer: AudioStreamer | null;
@@ -58,6 +65,11 @@ export function useLiveApi({
   );
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
+  const outputContextRef = useRef<AudioContext | null>(null);
+  const [audioRecorder] = useState(() => new AudioRecorder());
+  const audioStartingRef = useRef(false);
+  const audioReadyRef = useRef(false);
+  const mountedRef = useRef(true);
   const pendingAudioChunksRef = useRef<ArrayBuffer[]>([]);
   const websocketFailureCountRef = useRef(0);
 
@@ -69,38 +81,84 @@ export function useLiveApi({
   const [config, setConfig] = useState<LiveConnectConfig>({});
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
   const [audioReady, setAudioReady] = useState(false);
+  const [audioStarting, setAudioStarting] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const setTrialExpired = useAuthGate(state => state.setTrialExpired);
   const currentAgent = useAgent(state => state.current);
   const pendingResume = useConversationResume(state => state.pending);
 
-  // register audio for streaming server -> speakers
-  useEffect(() => {
-    if (!audioStreamerRef.current) {
-      audioContext({ id: 'audio-out' }).then((audioCtx: AudioContext) => {
-        audioStreamerRef.current = new AudioStreamer(audioCtx);
-        audioStreamerRef.current
-          .addWorklet<any>('vumeter-out', VolMeterWorket, (ev: any) => {
-            volumeRef.current = ev.data.volume;
-          })
-          .then(() => {
-            // Successfully added worklet
-          })
-          .catch(err => {
-            console.error('Error adding worklet:', err);
-          });
-        setAudioStreamer(audioStreamerRef.current);
+  const reportAudioError = useCallback((error: unknown) => {
+    const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : '';
+    if (name === 'AbortError') return;
+    setAudioError(
+      name === 'NotAllowedError' || name === 'SecurityError' ? 'audioPermissionDenied'
+        : name === 'NotFoundError' || name === 'NotReadableError' ? 'audioMicrophoneUnavailable'
+          : name === 'NotSupportedError' ? 'audioUnsupported' : 'audioStartError'
+    );
+    audioReadyRef.current = false;
+    setAudioReady(false);
+    audioRecorder.stop();
+    client.disconnect(true);
+    setConnected(false);
+    setConnecting(false);
+  }, [audioRecorder, client]);
 
-        // Flush any audio chunks that arrived before the streamer was ready
-        if (pendingAudioChunksRef.current.length > 0) {
-          for (const chunk of pendingAudioChunksRef.current) {
-            audioStreamerRef.current.addPCM16(new Uint8Array(chunk));
-          }
-          pendingAudioChunksRef.current = [];
-        }
-        setAudioReady(true);
+  const startAudio = useCallback(async () => {
+    if (audioStartingRef.current || audioReadyRef.current) return;
+    audioStartingRef.current = true;
+    setAudioStarting(true);
+    setAudioError(null);
+    try {
+      // Invoke both before awaiting: the user's click must unlock both contexts.
+      const outputReady = audioContext({ id: 'audio-out' }).then(context => {
+        if (mountedRef.current) outputContextRef.current = context;
+        else void context.close().catch(() => {});
+        return context;
       });
+      const inputReady = audioRecorder.prepare();
+      const [context] = await Promise.all([outputReady, inputReady]);
+      if (!mountedRef.current) {
+        void context.close().catch(() => {});
+        return;
+      }
+      let streamer = audioStreamerRef.current;
+      if (!streamer) {
+        streamer = new AudioStreamer(context);
+        await streamer.addWorklet('vumeter-out', VolMeterWorket, (event: MessageEvent<{ volume: number }>) => {
+          volumeRef.current = event.data.volume;
+        });
+      }
+      if (!mountedRef.current) {
+        registeredWorklets.delete(context);
+        void context.close().catch(() => {});
+        return;
+      }
+      audioStreamerRef.current = streamer;
+      setAudioStreamer(streamer);
+      pendingAudioChunksRef.current = [];
+      audioReadyRef.current = true;
+      setAudioReady(true);
+    } catch (error) {
+      if (mountedRef.current) reportAudioError(error);
+    } finally {
+      audioStartingRef.current = false;
+      if (mountedRef.current) setAudioStarting(false);
     }
-  }, [audioStreamerRef]);
+  }, [audioRecorder, reportAudioError]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      audioRecorder.dispose();
+      client.disconnect();
+      const context = outputContextRef.current;
+      if (context) {
+        registeredWorklets.delete(context);
+        if (context.state !== 'closed') void context.close().catch(() => {});
+      }
+    };
+  }, [audioRecorder, client]);
 
   useEffect(() => {
     const onSetupComplete = () => {
@@ -208,6 +266,7 @@ export function useLiveApi({
   }, [client, setTrialExpired]);
 
   const connect = useCallback(async () => {
+    if (!audioReadyRef.current) return;
     if (!config) {
       throw new Error('config has not been set');
     }
@@ -255,6 +314,11 @@ export function useLiveApi({
     displayError,
     clearDisplayError,
     audioReady,
+    audioStarting,
+    audioError,
+    startAudio,
+    reportAudioError,
+    audioRecorder,
     disconnect,
     volumeRef,
     audioStreamer,

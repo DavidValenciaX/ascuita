@@ -24,47 +24,24 @@ type GetAudioContextOptions = AudioContextOptions & {
 
 const map: Map<string, AudioContext> = new Map();
 
-export const audioContext: (
-  options?: GetAudioContextOptions
-) => Promise<AudioContext> = (() => {
-  const didInteract = new Promise(res => {
-    window.addEventListener('pointerdown', res, { once: true });
-    window.addEventListener('keydown', res, { once: true });
-  });
-
-  return async (options?: GetAudioContextOptions) => {
-    try {
-      const a = new Audio();
-      a.src =
-        'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      await a.play();
-      if (options?.id && map.has(options.id)) {
-        const ctx = map.get(options.id);
-        if (ctx) {
-          return ctx;
-        }
-      }
-      const ctx = new AudioContext(options);
-      if (options?.id) {
-        map.set(options.id, ctx);
-      }
-      return ctx;
-    } catch (e) {
-      await didInteract;
-      if (options?.id && map.has(options.id)) {
-        const ctx = map.get(options.id);
-        if (ctx) {
-          return ctx;
-        }
-      }
-      const ctx = new AudioContext(options);
-      if (options?.id) {
-        map.set(options.id, ctx);
-      }
-      return ctx;
-    }
-  };
-})();
+// Call directly from the start button: creating/resuming must happen before
+// awaiting permissions, network requests, or worklet loading (especially on iOS).
+export async function audioContext(options: GetAudioContextOptions = {}) {
+  if (typeof AudioContext === 'undefined') {
+    throw new DOMException('Web Audio is unavailable', 'NotSupportedError');
+  }
+  const { id, ...contextOptions } = options;
+  let context = id ? map.get(id) : undefined;
+  if (!context || context.state === 'closed') {
+    context = new AudioContext(contextOptions);
+    if (id) map.set(id, context);
+  }
+  if (context.state !== 'running') await context.resume();
+  if (context.state !== 'running') {
+    throw new DOMException('Audio needs a user gesture', 'NotAllowedError');
+  }
+  return context;
+}
 
 export function base64ToArrayBuffer(base64: string) {
   var binaryString = atob(base64);

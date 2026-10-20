@@ -427,6 +427,9 @@ export default function AgentAvatar() {
     };
   }, [client, setIntroPlaying]);
 
+  // Keep the welcome screen responsive without mounting WebGL before audio starts.
+  if (!audioReady) return null;
+
   return (
     <div className="agent-avatar">
       <BasicFace

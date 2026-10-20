@@ -43,85 +43,127 @@ export class AudioRecorder extends EventEmitter {
   recordingWorklet: AudioWorkletNode | undefined;
   vuWorklet: AudioWorkletNode | undefined;
 
-  private starting: Promise<void> | null = null;
+  private preparing: Promise<void> | null = null;
+  private generation = 0;
 
   constructor(public sampleRate = 16000) {
     super();
   }
 
-  async start() {
+  prepare(): Promise<void> {
+    if (this.preparing) return this.preparing;
+    if (this.stream?.active && this.source) return Promise.resolve();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('Could not request user media');
+      return Promise.reject(new DOMException('Microphone is unavailable', 'NotSupportedError'));
     }
-
-    this.starting = new Promise(async (resolve, reject) => {
-      try {
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.audioContext = await audioContext({ sampleRate: this.sampleRate });
-        if (this.audioContext.state === 'suspended') {
-          await this.audioContext.resume();
-        }
-        this.source = this.audioContext.createMediaStreamSource(this.stream);
-
-        const workletName = 'audio-recorder-worklet';
-        const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
-
-        await this.audioContext.audioWorklet.addModule(src);
-        this.recordingWorklet = new AudioWorkletNode(
-          this.audioContext,
-          workletName
-        );
-
-        this.recordingWorklet.port.onmessage = async (ev: MessageEvent) => {
-          // Worklet processes recording floats and messages converted buffer
-          const arrayBuffer = ev.data.data.int16arrayBuffer;
-
-          if (arrayBuffer) {
-            const arrayBufferString = arrayBufferToBase64(arrayBuffer);
-            this.emit('data', arrayBufferString);
-          }
-        };
-        this.source.connect(this.recordingWorklet);
-
-        // vu meter worklet
-        const vuWorkletName = 'vu-meter';
-        await this.audioContext.audioWorklet.addModule(
-          createWorketFromSrc(vuWorkletName, VolMeterWorket)
-        );
-        this.vuWorklet = new AudioWorkletNode(this.audioContext, vuWorkletName);
-        this.vuWorklet.port.onmessage = (ev: MessageEvent) => {
-          this.emit('volume', ev.data.volume);
-        };
-
-        this.source.connect(this.vuWorklet);
-        this.recording = true;
-        resolve();
-        this.starting = null;
-      } catch (e) {
-        reject(e);
-      }
+    const generation = this.generation;
+    const operation = this.initialize(generation).finally(() => {
+      if (this.preparing === operation) this.preparing = null;
     });
+    this.preparing = operation;
+    return operation;
+  }
+
+  private async initialize(generation: number) {
+    let stream: MediaStream | undefined;
+    let context: AudioContext | undefined;
+    let source: MediaStreamAudioSourceNode | undefined;
+    const existingContext = this.audioContext;
+    // Both calls run in the button's click stack, before the first await.
+    const contextReady = existingContext && existingContext.state !== 'closed'
+      ? existingContext.resume().then(() => existingContext)
+      : audioContext({ sampleRate: this.sampleRate });
+    const streamReady = navigator.mediaDevices.getUserMedia({ audio: true }).then(value => {
+      stream = value;
+      if (generation !== this.generation) {
+        value.getTracks().forEach(track => track.stop());
+        throw new DOMException('Audio startup cancelled', 'AbortError');
+      }
+      return value;
+    });
+    try {
+      [context, stream] = await Promise.all([contextReady, streamReady]);
+      if (generation !== this.generation) throw new DOMException('Audio startup cancelled', 'AbortError');
+      if (context.state !== 'running') throw new DOMException('Audio is suspended', 'NotAllowedError');
+      if (!context.audioWorklet || typeof AudioWorkletNode === 'undefined') {
+        throw new DOMException('AudioWorklet is unavailable', 'NotSupportedError');
+      }
+      this.audioContext = context;
+      source = context.createMediaStreamSource(stream);
+      if (!this.recordingWorklet || !this.vuWorklet) {
+        const addModule = async (name: string, code: string) => {
+          const url = createWorketFromSrc(name, code);
+          try { await context!.audioWorklet.addModule(url); }
+          finally { URL.revokeObjectURL(url); }
+        };
+        await addModule('audio-recorder-worklet', AudioRecordingWorklet);
+        await addModule('vu-meter', VolMeterWorket);
+        if (generation !== this.generation) throw new DOMException('Audio startup cancelled', 'AbortError');
+        this.recordingWorklet = new AudioWorkletNode(context, 'audio-recorder-worklet');
+        this.vuWorklet = new AudioWorkletNode(context, 'vu-meter');
+        this.recordingWorklet.port.onmessage = (ev: MessageEvent) => {
+          const buffer = ev.data.data.int16arrayBuffer;
+          if (this.recording && buffer) this.emit('data', arrayBufferToBase64(buffer));
+        };
+        this.vuWorklet.port.onmessage = (ev: MessageEvent) => {
+          if (this.recording) this.emit('volume', ev.data.volume);
+        };
+      }
+      if (generation !== this.generation) throw new DOMException('Audio startup cancelled', 'AbortError');
+      // Preparation obtains permission; start() connects the microphone graph.
+      this.stream = stream;
+      this.source = source;
+    } catch (error) {
+      source?.disconnect();
+      if (generation === this.generation && context === this.audioContext) {
+        this.audioContext = undefined;
+        this.recordingWorklet = undefined;
+        this.vuWorklet = undefined;
+      }
+      void streamReady.then(value => value.getTracks().forEach(track => track.stop())).catch(() => {});
+      // A context can resolve after a permission failure or cancellation.
+      void contextReady.then(value => {
+        if (value !== this.audioContext && value.state !== 'closed') return value.close();
+      }).catch(() => {});
+      throw error;
+    }
+  }
+
+  async start() {
+    const generation = this.generation;
+    await this.prepare();
+    if (generation !== this.generation || this.recording) return;
+    this.source!.connect(this.recordingWorklet!);
+    this.source!.connect(this.vuWorklet!);
+    this.recording = true;
   }
 
   stop() {
-    // It is plausible that stop would be called before start completes,
-    // such as if the Websocket immediately hangs up
-    const handleStop = () => {
-      this.source?.disconnect();
-      this.stream?.getTracks().forEach(track => track.stop());
+    if (this.preparing) {
       const context = this.audioContext;
-      this.stream = undefined;
       this.audioContext = undefined;
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
-      if (context && context.state !== 'closed') {
-        void context.close().catch(() => {});
-      }
-    };
-    if (this.starting) {
-      this.starting.then(handleStop);
-      return;
+      if (context && context.state !== 'closed') void context.close().catch(() => {});
     }
-    handleStop();
+    this.generation += 1;
+    this.preparing = null;
+    this.recording = false;
+    this.source?.disconnect();
+    this.stream?.getTracks().forEach(track => track.stop());
+    this.stream = undefined;
+    this.source = undefined;
+    // Keep the context unlocked across greetings, muting, and reconnections.
+  }
+
+  dispose() {
+    this.stop();
+    const context = this.audioContext;
+    this.audioContext = undefined;
+    this.recordingWorklet?.disconnect();
+    this.vuWorklet?.disconnect();
+    this.recordingWorklet = undefined;
+    this.vuWorklet = undefined;
+    if (context && context.state !== 'closed') void context.close().catch(() => {});
   }
 }

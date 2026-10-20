@@ -23,7 +23,6 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 
 import { memo, ReactNode, useEffect, useRef, useState } from 'react';
-import { AudioRecorder } from '../../../lib/audio-recorder';
 
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { useAuthGate, useUI } from '@/lib/state';
@@ -34,7 +33,6 @@ export type ControlTrayProps = {
 };
 
 function ControlTray({ children }: ControlTrayProps) {
-  const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const reconnectAttemptRef = useRef(0);
 
@@ -48,6 +46,9 @@ function ControlTray({ children }: ControlTrayProps) {
     fatalError,
     displayError,
     audioReady,
+    audioStarting,
+    audioRecorder,
+    reportAudioError,
     audioStreamer,
     connect,
   } =
@@ -64,6 +65,7 @@ function ControlTray({ children }: ControlTrayProps) {
     if (
       showSettingsPanel ||
       !authReady ||
+      !audioReady ||
       connected ||
       connecting ||
       fatalError ||
@@ -90,6 +92,7 @@ function ControlTray({ children }: ControlTrayProps) {
   }, [
     showSettingsPanel,
     authReady,
+    audioReady,
     connected,
     connecting,
     fatalError,
@@ -108,14 +111,16 @@ function ControlTray({ children }: ControlTrayProps) {
       ]);
     };
     if (connected && !muted && !introPlaying && audioRecorder) {
-      audioRecorder.on('data', onData).start();
+      audioRecorder.on('data', onData);
+      void audioRecorder.start().catch(reportAudioError);
     } else {
       audioRecorder.stop();
     }
     return () => {
       audioRecorder.off('data', onData);
+      audioRecorder.stop();
     };
-  }, [connected, client, muted, introPlaying, audioRecorder]);
+  }, [connected, client, muted, introPlaying, audioRecorder, reportAudioError]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
@@ -182,7 +187,7 @@ function ControlTray({ children }: ControlTrayProps) {
                     : connecting
                       ? t('connecting')
                       : !audioReady
-                        ? t('preparingAudio')
+                        ? t(audioStarting ? 'preparingAudio' : 'audioWaiting')
                         : t('ready')}
         </span>
       </div>

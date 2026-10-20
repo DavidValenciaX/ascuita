@@ -76,11 +76,16 @@ export class AudioStreamer {
     workletsRecord[workletName] = { handlers: [handler] };
 
     const src = createWorketFromSrc(workletName, workletSrc);
-    await this.context.audioWorklet.addModule(src);
-    const worklet = new AudioWorkletNode(this.context, workletName);
-
-    //add the node into the map
-    workletsRecord[workletName].node = worklet;
+    try {
+      await this.context.audioWorklet.addModule(src);
+      const worklet = new AudioWorkletNode(this.context, workletName);
+      workletsRecord[workletName].node = worklet;
+    } catch (error) {
+      delete workletsRecord[workletName];
+      throw error;
+    } finally {
+      URL.revokeObjectURL(src);
+    }
 
     return this;
   }
