@@ -1512,9 +1512,11 @@ input[type='range'] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
-  width: 100%;
-  padding: 8px;
+  gap: 42px;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -1525,21 +1527,37 @@ input[type='range'] {
   -webkit-tap-highlight-color: transparent;
 }
 
+.audio-welcome__hit-area {
+  display: grid;
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+}
+
 .audio-welcome__microphone {
   display: grid;
   place-items: center;
-  width: 136px;
-  height: 136px;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   border: 1px solid #e5edf6;
   border-radius: 50%;
-  background: linear-gradient(145deg, #fff 0%, #eef3f9 45%, #bdcde0 100%);
+  background:
+    radial-gradient(ellipse at 30% 18%, #fff 0%, #ffffffb3 18%, #fff0 48%),
+    linear-gradient(155deg, #faffff 0%, #e3ecf8 48%, #9eafc9 100%);
   color: #253449;
   box-shadow:
-    0 7px 0 #8395ad,
-    0 10px 0 #111820,
-    0 20px 28px #0007,
-    inset 0 2px 3px #fff,
-    inset 0 -5px 10px #8098b544;
+    0 2px 0 #c4d0df,
+    0 5px 0 #a8b8cb,
+    0 9px 0 #8398b3,
+    0 14px 0 #5d728c,
+    0 17px 0 #23303e,
+    0 20px 0 #111920,
+    0 29px 16px #0009,
+    0 38px 38px #0006,
+    inset 0 3px 5px #fff,
+    inset 4px 2px 10px #fff9,
+    inset -4px -11px 18px #536e985c;
   transition: transform 140ms ease;
 }
 
@@ -1550,40 +1568,54 @@ input[type='range'] {
 .audio-welcome__privacy { justify-self: center; padding: 12px; color: var(--entry-muted); font-size: 12px; line-height: 1.5; text-decoration: underline; text-underline-offset: 4px; touch-action: manipulation; }
 .audio-welcome__privacy:hover { color: var(--entry-paper); }
 .audio-welcome__start:focus-visible { outline: none; }
-.audio-welcome__start:focus-visible .audio-welcome__microphone,
+.audio-welcome__start:focus-visible .audio-welcome__label {
+  text-decoration: underline;
+  text-decoration-color: var(--entry-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
 .audio-welcome__privacy:focus-visible { outline: 2px solid var(--entry-accent); outline-offset: 6px; }
 .audio-welcome__start:active:not(:disabled) .audio-welcome__microphone {
-  transform: translateY(6px) scale(0.98);
+  transform: translateY(12px) scale(0.98);
   border-color: #9fc4ff;
   background: linear-gradient(145deg, #84b4ff, var(--entry-accent) 60%, #2f68cf);
   color: #fff;
   box-shadow:
-    0 1px 0 #254f96,
-    0 3px 0 #111820,
-    0 7px 12px #0006,
-    inset 0 2px 6px #184b9a33,
-    inset 0 -2px 3px #fff3;
+    0 2px 0 #254f96,
+    0 5px 0 #1b3153,
+    0 8px 0 #111920,
+    0 16px 18px #0008,
+    inset 0 3px 8px #184b9a55,
+    inset 0 -3px 5px #fff4;
 }
 .audio-welcome__start:disabled { cursor: wait; }
 .audio-welcome__start:disabled .audio-welcome__microphone {
-  transform: translateY(4px);
+  transform: translateY(8px);
   background: #d6dadd;
-  box-shadow: 0 3px 0 #8395ad, 0 8px 16px #0005;
+  box-shadow: 0 6px 0 #8395ad, 0 12px 0 #111920, 0 22px 24px #0007;
 }
 .audio-welcome__spinner { width: 28px; height: 28px; border: 2px solid #1c1f2144; border-top-color: var(--entry-ink); border-radius: 50%; animation: loading-spin 0.8s linear infinite; }
 
 @media (hover: hover) and (pointer: fine) {
-  .audio-welcome__start:hover:not(:disabled):not(:active) .audio-welcome__microphone {
-    transform: translateY(-2px);
+  .audio-welcome__start:not(:disabled):not(:active) .audio-welcome__hit-area:hover .audio-welcome__microphone {
+    transform: translateY(-3px);
     border-color: #9fc4ff;
-    background: linear-gradient(145deg, #84b4ff, var(--entry-accent) 60%, #2f68cf);
+    background:
+      radial-gradient(ellipse at 30% 18%, #dcecffb3, #dcecff00 48%),
+      linear-gradient(155deg, #8fbfff, var(--entry-accent) 55%, #2453ad);
     color: #fff;
     box-shadow:
-      0 9px 0 #254f96,
-      0 12px 0 #111820,
-      0 24px 32px #0007,
-      inset 0 2px 3px #fff8,
-      inset 0 -5px 10px #17478e44;
+      0 2px 0 #87b7ff,
+      0 6px 0 #5389db,
+      0 11px 0 #3266b8,
+      0 17px 0 #23467f,
+      0 20px 0 #1b3153,
+      0 23px 0 #111920,
+      0 32px 18px #0009,
+      0 41px 40px #0006,
+      inset 0 3px 5px #fff9,
+      inset 4px 2px 10px #ffffff4d,
+      inset -4px -11px 18px #12377470;
   }
 }
 
@@ -1591,15 +1623,15 @@ input[type='range'] {
   .audio-welcome { gap: 12px; padding-block: 20px; }
   .audio-welcome__content { padding-block: 12px; }
   .audio-welcome__title { margin-bottom: 28px; font-size: 20px; }
-  .audio-welcome__microphone { width: 96px; height: 96px; }
-  .audio-welcome__start { gap: 18px; }
+  .audio-welcome__hit-area { width: 96px; height: 96px; }
+  .audio-welcome__start { gap: 30px; }
   .audio-welcome__feedback { min-height: 40px; padding-top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .audio-welcome__microphone { transition: none; }
   .audio-welcome__start:active:not(:disabled) .audio-welcome__microphone,
-  .audio-welcome__start:hover:not(:disabled):not(:active) .audio-welcome__microphone,
+  .audio-welcome__start:not(:disabled):not(:active) .audio-welcome__hit-area:hover .audio-welcome__microphone,
   .audio-welcome__start:disabled .audio-welcome__microphone { transform: none; }
   .audio-welcome__spinner, .loading-screen__orb { animation: none; }
 }

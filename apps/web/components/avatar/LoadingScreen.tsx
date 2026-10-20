@@ -50,15 +50,17 @@ export default function LoadingScreen() {
             aria-busy={audioStarting}
             aria-describedby="audio-welcome-title"
           >
-            <span className="audio-welcome__microphone" aria-hidden="true">
-              {audioStarting ? (
-                <span className="audio-welcome__spinner" />
-              ) : (
-                <svg viewBox="0 0 32 32" fill="none">
-                  <rect x="11" y="3" width="10" height="17" rx="5" stroke="currentColor" strokeWidth="2" />
-                  <path d="M6.5 14.5v1a9.5 9.5 0 0 0 19 0v-1M16 25v4m-5 0h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              )}
+            <span className="audio-welcome__hit-area" aria-hidden="true">
+              <span className="audio-welcome__microphone">
+                {audioStarting ? (
+                  <span className="audio-welcome__spinner" />
+                ) : (
+                  <svg viewBox="0 0 32 32" fill="none">
+                    <rect x="11" y="3" width="10" height="17" rx="5" stroke="currentColor" strokeWidth="2" />
+                    <path d="M6.5 14.5v1a9.5 9.5 0 0 0 19 0v-1M16 25v4m-5 0h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                )}
+              </span>
             </span>
             <span className="audio-welcome__label">{t(audioStarting ? 'audioStarting' : audioError ? 'audioRetry' : 'audioStart')}</span>
           </button>
