@@ -39,8 +39,8 @@ export default function LoadingScreen() {
           }
         }}
       >
-        <h1 id="audio-welcome-title" className="audio-welcome__brand" translate="no">Ascuita</h1>
         <div className="audio-welcome__content">
+          <h1 id="audio-welcome-title" className="audio-welcome__title">{t('audioPermissionTitle')}</h1>
           <button
             type="button"
             ref={startButtonRef}
@@ -48,7 +48,7 @@ export default function LoadingScreen() {
             onClick={() => { void startAudio(); }}
             disabled={audioStarting}
             aria-busy={audioStarting}
-            aria-describedby="audio-welcome-permission"
+            aria-describedby="audio-welcome-title"
           >
             <span className="audio-welcome__microphone" aria-hidden="true">
               {audioStarting ? (
@@ -62,9 +62,6 @@ export default function LoadingScreen() {
             </span>
             <span className="audio-welcome__label">{t(audioStarting ? 'audioStarting' : audioError ? 'audioRetry' : 'audioStart')}</span>
           </button>
-          <p id="audio-welcome-permission" className="audio-welcome__permission">
-            {t('audioPermissionHint')}
-          </p>
           <div className="audio-welcome__feedback">
             {audioStarting && <p role="status">{t('audioPermissionWaiting')}</p>}
             {audioError && <p role="alert">{t(audioError)}</p>}
