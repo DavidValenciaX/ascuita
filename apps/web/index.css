@@ -1485,7 +1485,13 @@ input[type='range'] {
   padding: max(36px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: linear-gradient(145deg, rgba(28, 31, 33, 0.18), rgba(20, 24, 30, 0.28));
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgba(28, 31, 33, 0.06) 0%,
+    rgba(28, 31, 33, 0.14) 35%,
+    rgba(20, 24, 30, 0.38) 70%,
+    rgba(20, 24, 30, 0.62) 100%
+  );
   -webkit-backdrop-filter: blur(1.5px);
   backdrop-filter: blur(1.5px);
   color: var(--entry-paper);

@@ -28,9 +28,24 @@ vi.mock('@/lib/genai-live-client', () => ({ GenAILiveClient: class extends Event
   connect = mocks.connect;
   disconnect = mocks.disconnect;
 } }));
+vi.mock('@/components/avatar/basic-face/BasicFace', () => ({
+  default: () => <canvas />,
+}));
+vi.mock('@/hooks/useUserAgents', () => ({ saveUserAgent: vi.fn() }));
+vi.mock('@/hooks/useUserMemories', () => {
+  const state = {
+    memories: [],
+    memoryEnabled: false,
+    memorySettingsLoading: false,
+    saveMemory: vi.fn(),
+    deleteMemory: vi.fn(),
+  };
+  return { useUserMemories: () => state };
+});
 
 import { LiveAPIProvider, useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import LoadingScreen from '@/components/avatar/LoadingScreen';
+import AgentAvatar from '@/components/avatar/agent-avatar/AgentAvatar';
 import { useAuthGate } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 import type { UseLiveApiResults } from '@/hooks/media/use-live-api';
@@ -41,7 +56,7 @@ let container: HTMLDivElement;
 
 function CaptureAPI() {
   api = useLiveAPIContext();
-  return <LoadingScreen />;
+  return <><LoadingScreen /><AgentAvatar /></>;
 }
 
 beforeEach(async () => {
@@ -71,6 +86,15 @@ describe('explicit audio start', () => {
     expect(mocks.audioContext).not.toHaveBeenCalled();
     expect(mocks.prepare).not.toHaveBeenCalled();
     await act(async () => api.connect());
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+
+  it('mounts the avatar behind the welcome screen before microphone permission', () => {
+    expect(api.audioReady).toBe(false);
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('.agent-avatar canvas')).not.toBeNull();
+    expect(mocks.audioContext).not.toHaveBeenCalled();
+    expect(mocks.prepare).not.toHaveBeenCalled();
     expect(mocks.connect).not.toHaveBeenCalled();
   });
 
