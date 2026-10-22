@@ -1470,11 +1470,11 @@ input[type='range'] {
   opacity: 0.4;
 }
 
-/* The voice entry uses the app's existing neutral palette and one primary control. */
+/* Frosted glass keeps the avatar visible behind the voice entry. */
 .audio-welcome {
   --entry-ink: #1c1f21;
   --entry-paper: #f2f4f5;
-  --entry-muted: #b4b8bb;
+  --entry-muted: #d8dde3;
   --entry-accent: #4285f4;
   position: fixed;
   inset: 0;
@@ -1485,11 +1485,14 @@ input[type='range'] {
   padding: max(36px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--entry-ink);
+  background: linear-gradient(145deg, rgba(28, 31, 33, 0.66), rgba(20, 24, 30, 0.74));
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+  backdrop-filter: blur(6px) saturate(110%);
   color: var(--entry-paper);
   color-scheme: dark;
   font-family: system-ui, sans-serif;
   text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
 .audio-welcome__title {
@@ -1522,6 +1525,7 @@ input[type='range'] {
   background: transparent;
   color: var(--entry-paper);
   font: inherit;
+  text-shadow: inherit;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
