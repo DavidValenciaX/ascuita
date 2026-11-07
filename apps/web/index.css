@@ -1563,6 +1563,7 @@ input[type='range'] {
   border-radius: 50%;
   background: #e2eaf2;
   box-shadow: 0 6px 18px #12233533;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .audio-welcome__button-scene {
@@ -1603,8 +1604,9 @@ input[type='range'] {
 
 @media (hover: hover) and (pointer: fine) {
   .audio-welcome__start:not(:disabled):hover .audio-welcome__microphone:not(.is-rendered)::before {
-    background: #d1e2f4;
-    border-color: #9fc4ff;
+    background: #a7c7f0;
+    border-color: #b6d8ff;
+    box-shadow: 0 8px 24px #183d6d40;
   }
 }
 
@@ -1619,6 +1621,7 @@ input[type='range'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .audio-welcome__microphone::before { transition: none; }
   .audio-welcome__spinner, .loading-screen__orb { animation: none; }
 }
 

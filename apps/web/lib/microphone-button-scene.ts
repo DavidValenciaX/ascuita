@@ -115,8 +115,8 @@ export function createMicrophoneButtonScene(
 
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const restColor = new THREE.Color(0xcddbe7);
-  const hoverColor = new THREE.Color(0xb7d2ec);
-  let hovered = false;
+  const hoverColor = new THREE.Color(0x79aff3);
+  let hovered = !button.disabled && window.matchMedia('(hover: hover) and (pointer: fine)').matches && button.matches(':hover');
   let pressed = false;
   let busy = button.disabled;
   let frame = 0;
@@ -127,17 +127,22 @@ export function createMicrophoneButtonScene(
   function render(time: number) {
     frame = 0;
     if (disposed) return;
-    const blend = motion.matches ? 1 : 1 - Math.exp(-Math.min(time - previousTime || 16, 64) / 45);
+    const blend = motion.matches ? 1 : 1 - Math.exp(-Math.min(time - previousTime || 16, 64) / 60);
     previousTime = time;
-    const targetDepth = pressed || busy ? -0.065 : hovered ? 0.018 : 0;
+    const targetDepth = pressed || busy ? -0.065 : hovered && !motion.matches ? 0.075 : 0;
     const targetHighlight = hovered || busy ? 1 : 0;
     cap.position.y = THREE.MathUtils.lerp(cap.position.y, targetDepth, blend);
     highlight = THREE.MathUtils.lerp(highlight, targetHighlight, blend);
-    capMaterial.color.copy(restColor).lerp(hoverColor, highlight * 0.45);
-    lightMaterial.emissiveIntensity = 0.15 + highlight * 0.85;
+    const unsettled = Math.abs(cap.position.y - targetDepth) + Math.abs(highlight - targetHighlight);
+    if (unsettled <= 0.001) {
+      cap.position.y = targetDepth;
+      highlight = targetHighlight;
+    }
+    capMaterial.color.copy(restColor).lerp(hoverColor, highlight * 0.85);
+    capMaterial.roughness = 0.32 - highlight * 0.06;
+    lightMaterial.emissiveIntensity = 0.15 + highlight * 2.25;
     icon.visible = !busy;
     renderer.render(scene, camera);
-    const unsettled = Math.abs(cap.position.y - targetDepth) + Math.abs(highlight - targetHighlight);
     if (unsettled > 0.001) frame = requestAnimationFrame(render);
     else previousTime = 0;
   }
@@ -169,7 +174,7 @@ export function createMicrophoneButtonScene(
   button.addEventListener('pointerdown', down);
   button.addEventListener('pointerup', up);
   button.addEventListener('pointercancel', leave);
-  button.addEventListener('blur', leave);
+  button.addEventListener('blur', up);
   button.addEventListener('keydown', keyDown);
   button.addEventListener('keyup', keyUp);
   canvas.addEventListener('webglcontextlost', lost);
@@ -187,7 +192,7 @@ export function createMicrophoneButtonScene(
       button.removeEventListener('pointerdown', down);
       button.removeEventListener('pointerup', up);
       button.removeEventListener('pointercancel', leave);
-      button.removeEventListener('blur', leave);
+      button.removeEventListener('blur', up);
       button.removeEventListener('keydown', keyDown);
       button.removeEventListener('keyup', keyUp);
       canvas.removeEventListener('webglcontextlost', lost);
