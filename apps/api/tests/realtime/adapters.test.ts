@@ -476,6 +476,29 @@ describe('Qwen server-side search tool', () => {
     expect(mocks.generate).toHaveBeenCalledOnce();
   });
 
+  it('reports the underlying search error to the server-side warning callback', async () => {
+    const failure = Object.assign(new Error('Your prepayment credits are depleted. key=AIzaSyA1234567890abcdefghijklmnop'), { name: 'ApiError', status: 402 });
+    mocks.generate.mockRejectedValue(failure);
+    const onWarning = vi.fn();
+    const config = getConfig();
+    const adapter = createRealtimeSession(config, realtimeSessionInfo(config, 'qwen'), { onEvent, onWarning });
+    sessions.push(adapter);
+    const connected = adapter.connect(settings);
+    const socket = mocks.sockets.at(-1)!;
+    socket.receive({ type: 'session.created' });
+    socket.receive({ type: 'session.updated' });
+    await connected;
+    socket.receive({ type: 'response.function_call_arguments.done', response_id: 'search-response', call_id: 'search', name: 'web_search', arguments: '{"query":"today"}' });
+    await vi.waitFor(() => expect(onWarning).toHaveBeenCalledOnce());
+    expect(onWarning).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'live.provider.web_search_failed',
+      model: 'gemini-3.5-flash-lite',
+      queryLength: 5,
+      error: { name: 'ApiError', status: 402, message: 'Your prepayment credits are depleted. key=[redacted]' },
+    }));
+    expect(events.some(event => JSON.stringify(event).includes('prepayment'))).toBe(false);
+  });
+
   it('aborts a search and ignores its late result after interruption', async () => {
     let finish!: (value: object) => void;
     mocks.generate.mockReturnValue(new Promise(resolve => { finish = resolve; }));

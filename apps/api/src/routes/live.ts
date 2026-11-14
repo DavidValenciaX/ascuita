@@ -1150,6 +1150,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             lastLiveStage = 'provider_connect_started';
             const instance = createRealtimeSession(config, connectInfo, {
               onEvent: event => { if (attempt === generation) handleProviderEvent(event); },
+              onWarning: ({ event, ...details }) => request.log.warn(
+                { event, connectionId, provider, ...details },
+                'Realtime web search failed',
+              ),
               ...(protocol === 'legacy' ? { onLegacyMessage: (message: unknown) => {
                 if (attempt === generation) send({ type: 'server_message', payload: message });
               }, onLegacyOpen: () => {

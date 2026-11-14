@@ -1,6 +1,6 @@
 import type { AppConfig } from '../config.js';
 import type { RealtimeServerMessage, RealtimeSessionInfo } from '../../../../shared/realtime-protocol.js';
-import type { RealtimeSession, SessionCallbacks } from './types.js';
+import { describeError, type RealtimeSession, type SessionCallbacks } from './types.js';
 import { GeminiRealtimeAdapter } from './gemini.js';
 import { QwenRealtimeAdapter } from './qwen.js';
 import { searchWeb, WEB_SEARCH_TOOL } from './search.js';
@@ -37,8 +37,16 @@ export function createRealtimeSession(
           success = true;
           callbacks.onEvent({ type: 'sources', payload: result });
           await adapter.sendToolResults([{ callId: call.callId, name: call.name, result }]);
-        } catch {
-          if (!closed && !controller.signal.aborted) await adapter.sendToolResults([{
+        } catch (error) {
+          if (closed || controller.signal.aborted) return;
+          callbacks.onWarning?.({
+            event: 'live.provider.web_search_failed',
+            model: config.webSearchModel,
+            elapsedMs: Date.now() - started,
+            queryLength: String(call.args.query).length,
+            error: describeError(error),
+          });
+          await adapter.sendToolResults([{
             callId: call.callId, name: call.name, result: { success: false, error: 'Web search unavailable. Do not claim that a search succeeded.' },
           }]);
         } finally {
