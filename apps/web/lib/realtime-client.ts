@@ -23,6 +23,7 @@ type Events = {
   ready: (info: SessionReady) => void;
   configuration: (info: RealtimeSessionInfo) => void;
   close: (event: CloseEvent) => void;
+  sessionreset: () => void;
   open: () => void;
   error: (event: ErrorEvent) => void;
   interrupted: () => void;
@@ -45,6 +46,7 @@ export class RealtimeClient extends EventEmitter<Events> {
   private timer?: number;
   private generation = 0;
   private resolveConnection?: (connected: boolean) => void;
+  private pendingInstructions?: string;
   private identity = '';
   private resume?: ResumeState;
   private history: ConversationTurn[] = [];
@@ -126,6 +128,7 @@ export class RealtimeClient extends EventEmitter<Events> {
       socket.addEventListener('close', event => {
         if (this.ws !== socket) return;
         this.ws = undefined;
+        this.pendingInstructions = undefined;
         this._status = 'disconnected';
         this.finishConnection(false);
         this.emit('close', event);
@@ -141,9 +144,11 @@ export class RealtimeClient extends EventEmitter<Events> {
   }
 
   disconnect(preserveSession = false) {
+    this.emit('sessionreset');
     this.generation += 1;
     const socket = this.ws;
     this.ws = undefined;
+    this.pendingInstructions = undefined;
     this._status = 'disconnected';
     this.finishConnection(false);
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'disconnect' }));
@@ -179,6 +184,11 @@ export class RealtimeClient extends EventEmitter<Events> {
         this.resumed = message.payload.resumed;
         this._status = 'connected';
         this.finishConnection(true);
+        if (this.pendingInstructions !== undefined) {
+          const instructions = this.pendingInstructions;
+          this.pendingInstructions = undefined;
+          void this.updateInstructions(instructions);
+        }
         this.emit('ready', message.payload);
         break;
       case 'audio':
@@ -232,6 +242,11 @@ export class RealtimeClient extends EventEmitter<Events> {
   async sendRealtimeInput(chunks: Array<{ mimeType: string; data: string }>) {
     if (this._status !== 'connected') return;
     for (const chunk of chunks) if (chunk.mimeType.startsWith('audio/pcm')) this.sendMessage({ type: 'audio', payload: { data: chunk.data } });
+  }
+
+  async updateInstructions(instructions: string) {
+    if (this._status === 'connecting') this.pendingInstructions = instructions;
+    if (this._status === 'connected') this.sendMessage({ type: 'instructions.update', payload: { instructions } });
   }
 
   async sendToolResults(results: RealtimeToolResult[]) {

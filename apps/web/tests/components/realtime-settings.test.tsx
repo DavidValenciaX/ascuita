@@ -3,9 +3,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RealtimeSessionInfo } from '../../../../shared/realtime-protocol';
 
-const mocks = vi.hoisted(() => ({ info: null as RealtimeSessionInfo | null, saveAgent: vi.fn() }));
+const mocks = vi.hoisted(() => ({ info: null as RealtimeSessionInfo | null, saveAgent: vi.fn(),
+  connected: false, connecting: false, updateInstructions: vi.fn(), disconnect: vi.fn(),
+}));
 vi.mock('@/contexts/LiveAPIContext', () => ({ useLiveAPIContext: () => ({
-  sessionInfo: mocks.info, connected: false, disconnect: vi.fn(), client: { send: vi.fn() },
+  sessionInfo: mocks.info, connected: mocks.connected, connecting: mocks.connecting, disconnect: mocks.disconnect, client: { updateInstructions: mocks.updateInstructions },
 }) }));
 vi.mock('@/hooks/useUserAgents', () => ({ useUserAgents: () => ({ saveAgent: mocks.saveAgent }) }));
 vi.mock('@/hooks/useUserProfile', () => ({ saveUserProfile: vi.fn() }));
@@ -25,6 +27,8 @@ let container: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.clearAllMocks();
+  mocks.connected = false;
+  mocks.connecting = false;
   useLanguage.setState({ language: 'es' });
   const agent = { ...Ascuita, id: 'personal', voice: 'Aoede' as const };
   useAgent.setState({ current: agent, availablePersonal: [agent] });
@@ -42,6 +46,16 @@ afterEach(async () => {
 });
 
 describe('provider-specific settings', () => {
+  it.each(['connected', 'connecting'] as const)('applies saved personality changes while %s without disconnecting', async status => {
+    mocks[status] = true;
+    await act(async () => root.render(<SettingsPanel />));
+    await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('nav button')).find(button => button.textContent?.includes('Agentes'))!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('[title="Editar"]')!.click());
+    await act(async () => { useAgent.getState().update('personal', { personality: 'A gentle pirate' }); });
+    await act(async () => container.querySelector<HTMLButtonElement>('.settingsPanel__saveAgentBtn')!.click());
+    expect(mocks.updateInstructions).toHaveBeenCalledWith(expect.stringContaining('A gentle pirate'));
+    expect(mocks.disconnect).not.toHaveBeenCalled();
+  });
   it('shows the fixed Qwen voice, saves the original Gemini preference, and restores its selector', async () => {
     await act(async () => root.render(<SettingsPanel />));
     await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>('nav button')).find(button => button.textContent?.includes('Agentes'))!.click());

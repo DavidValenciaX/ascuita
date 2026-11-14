@@ -49,6 +49,8 @@ export function parseClientMessage(value: unknown): RealtimeClientMessage {
     if (!bytes.length || bytes.length % 2 || bytes.toString('base64') !== payload.data) throw new Error('Invalid PCM audio');
   } else if (value.type === 'text') {
     if (typeof payload.text !== 'string' || !['persist', 'turnComplete'].every(key => payload[key] === undefined || typeof payload[key] === 'boolean')) throw new Error('Invalid text input');
+  } else if (value.type === 'instructions.update') {
+    if (typeof payload.instructions !== 'string') throw new Error('Invalid instructions update');
   } else if (value.type === 'tool.results') {
     if (!Array.isArray(payload.results) || !payload.results.every(result => isRecord(result)
       && typeof result.callId === 'string' && typeof result.name === 'string' && 'result' in result)) throw new Error('Invalid tool results');

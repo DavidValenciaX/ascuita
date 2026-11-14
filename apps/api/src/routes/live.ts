@@ -999,6 +999,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
             if (attempt !== generation || socket.readyState !== socket.OPEN) return;
             if (!decodedToken) {
+              if (hasRequestedConversation) {
+                send({ type: 'error', payload: {
+                  code: 'AUTH_REQUIRED', message: 'Sign in to resume a saved conversation', fatal: true,
+                } });
+                closeSession();
+                return;
+              }
               lastLiveStage = 'guest_trial_check_started';
               request.log.info(
                 {
@@ -1059,6 +1066,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               lastLiveStage = 'firebase_auth_verified';
               conversationUid = decodedToken.uid;
               firestoreDb = getAdminDb();
+              if (hasRequestedConversation && !firestoreDb) {
+                send({ type: 'error', payload: {
+                  code: 'CONVERSATION_UNAVAILABLE', message: 'Could not verify the requested conversation', fatal: false,
+                } });
+                closeSession();
+                return;
+              }
               request.log.info(
                 {
                   event: 'live.auth.verified',
@@ -1079,20 +1093,32 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                     );
                     const existingConversation = await existingConversationRef.get();
                     if (attempt !== generation || socket.readyState !== socket.OPEN) return;
-                    if (existingConversation.exists) {
-                      await existingConversationRef.set(
-                        { endedAt: null },
-                        { merge: true }
-                      );
-                      if (attempt !== generation || socket.readyState !== socket.OPEN) return;
-                      conversationId = requestedConversationId;
+                    if (!existingConversation.exists || existingConversation.data()?.agentId !== conversationAgentId) {
+                      send({ type: 'error', payload: {
+                        code: 'CONVERSATION_NOT_FOUND', message: 'Conversation is unavailable for this user and agent', fatal: true,
+                      } });
+                      closeSession();
+                      return;
                     }
+                    await existingConversationRef.set(
+                      { endedAt: null },
+                      { merge: true }
+                    );
+                    if (attempt !== generation || socket.readyState !== socket.OPEN) return;
+                    conversationId = requestedConversationId;
                   }
                 } catch (error) {
                   request.log.warn(
                     { err: error },
                     'Error creating conversation document in Firestore'
                   );
+                  if (hasRequestedConversation) {
+                    send({ type: 'error', payload: {
+                      code: 'CONVERSATION_UNAVAILABLE', message: 'Could not verify the requested conversation', fatal: false,
+                    } });
+                    closeSession();
+                    return;
+                  }
                 }
               }
             }
@@ -1161,6 +1187,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         try {
+          if (protocol === 'v2' && message.type === 'instructions.update' && isRecord(message.payload)) {
+            await session.updateInstructions(message.payload.instructions as string);
+            return;
+          }
           if (isSendMessage(message)) {
             const parts = Array.isArray(message.payload.parts) ? message.payload.parts : [message.payload.parts];
             const text = parts.map(part => part.text || '').filter(Boolean).join('');

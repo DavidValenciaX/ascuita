@@ -20,6 +20,7 @@ describe('realtime routing and persistence', () => {
   let socket: Awaited<ReturnType<typeof app.injectWS>> | undefined;
   let callbacks: SessionCallbacks;
   const sendAudio = vi.fn();
+  const updateInstructions = vi.fn();
   const closeSession = vi.fn();
   const added = vi.fn();
 
@@ -32,7 +33,7 @@ describe('realtime routing and persistence', () => {
     vi.stubEnv('CORS_ORIGIN', 'https://ascuita.web.app');
     mocks.verify.mockResolvedValue({ uid: 'user' });
     added.mockResolvedValue({ id: 'conversation' });
-    mocks.db.mockReturnValue({ doc: () => ({ get: async () => ({ exists: true }), set: async () => {} }), collection: (path: string) => ({ add: (data: unknown) => added(path, data) }) });
+    mocks.db.mockReturnValue({ doc: () => ({ get: async () => ({ exists: true, data: () => ({ agentId: 'agent' }) }), set: async () => {} }), collection: (path: string) => ({ add: (data: unknown) => added(path, data) }) });
     vi.spyOn(securityState, 'getBlock').mockResolvedValue(null);
     vi.spyOn(securityState, 'incrementCounter').mockResolvedValue({ count: 1, resetAt: Date.now() + 60_000 });
     vi.spyOn(securityState, 'acquireConnectionLease').mockResolvedValue({ clientKey: 'test', id: 'lease' });
@@ -44,7 +45,7 @@ describe('realtime routing and persistence', () => {
         handlers.onLegacyOpen?.();
         handlers.onLegacyMessage?.({ setupComplete: {} });
         handlers.onEvent({ type: 'session.ready', payload: { ...info, resumed: false } });
-      }, sendAudio, sendText: vi.fn(), sendToolResults: vi.fn(), close: closeSession };
+      }, sendAudio, updateInstructions, sendText: vi.fn(), sendToolResults: vi.fn(), close: closeSession };
     });
     app = Fastify();
     await app.register(websocket);
@@ -80,6 +81,73 @@ describe('realtime routing and persistence', () => {
     expect(messages.find(message => message.type === 'session.ready')?.payload?.provider).toBe('qwen');
     socket!.send(JSON.stringify({ type: 'audio', payload: { data: 'AAAAAA==' } }));
     await vi.waitFor(() => expect(sendAudio).toHaveBeenCalledWith('AAAAAA=='));
+  });
+
+  it('forwards live instruction changes without persisting them as user messages', async () => {
+    await connect();
+    socket!.send(JSON.stringify({ type: 'instructions.update', payload: { instructions: 'New personality' } }));
+    await vi.waitFor(() => expect(updateInstructions).toHaveBeenCalledWith('New personality'));
+    expect(added).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { exists: false, agentId: 'agent' },
+    { exists: true, agentId: 'different-agent' },
+  ])('rejects unavailable or mismatched conversation before passing history upstream: %j', async snapshot => {
+    mocks.db.mockReturnValue({ doc: () => ({ get: async () => ({ exists: snapshot.exists, data: () => ({ agentId: snapshot.agentId }) }) }) });
+    socket = await app.injectWS('/live/v2');
+    const messages: unknown[] = [];
+    socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
+    socket.send(JSON.stringify({ type: 'connect', payload: {
+      config: { instructions: 'Spanish' }, authToken: 'test-token', agentId: 'agent', conversationId: 'old-chat',
+      history: [{ role: 'user', text: 'Private old context' }],
+    } }));
+    await vi.waitFor(() => expect(messages).toContainEqual(expect.objectContaining({ type: 'error', payload: expect.objectContaining({ code: 'CONVERSATION_NOT_FOUND' }) })));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects resumption when Firestore cannot verify the requested conversation', async () => {
+    mocks.db.mockReturnValue({ doc: () => ({ get: async () => { throw new Error('Firestore unavailable'); } }) });
+    socket = await app.injectWS('/live/v2');
+    const messages: unknown[] = [];
+    socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
+    socket.send(JSON.stringify({ type: 'connect', payload: {
+      config: { instructions: 'Spanish' }, authToken: 'test-token', agentId: 'agent', conversationId: 'old-chat',
+    } }));
+    await vi.waitFor(() => expect(messages).toContainEqual(expect.objectContaining({ type: 'error', payload: expect.objectContaining({ code: 'CONVERSATION_UNAVAILABLE' }) })));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it.each(['guest', 'missing-database'] as const)('does not forward a saved conversation without a verifiable owner: %s', async mode => {
+    if (mode === 'guest') mocks.verify.mockResolvedValue(null);
+    else mocks.db.mockReturnValue(null);
+    socket = await app.injectWS('/live/v2');
+    const messages: unknown[] = [];
+    socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
+    socket.send(JSON.stringify({ type: 'connect', payload: {
+      config: { instructions: 'Spanish' }, authToken: mode === 'guest' ? null : 'test-token',
+      agentId: 'agent', conversationId: 'old-chat', history: [{ role: 'user', text: 'Old context' }],
+    } }));
+    await vi.waitFor(() => expect(messages).toContainEqual(expect.objectContaining({ type: 'error', payload: expect.objectContaining({
+      code: mode === 'guest' ? 'AUTH_REQUIRED' : 'CONVERSATION_UNAVAILABLE',
+    }) })));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it('allows a conversation that belongs to the authenticated user and requested agent', async () => {
+    const settings = vi.fn();
+    mocks.create.mockImplementation((_config: unknown, info: RealtimeSessionInfo, handlers: SessionCallbacks) => ({
+      info, connect: async (value: SessionSettings) => { settings(value); handlers.onEvent({ type: 'session.ready', payload: { ...info, resumed: true } }); },
+      close: closeSession,
+    }));
+    socket = await app.injectWS('/live/v2');
+    socket.send(JSON.stringify({ type: 'connect', payload: {
+      config: { instructions: 'Spanish' }, authToken: 'test-token', agentId: 'agent', conversationId: 'old-chat',
+      history: [{ role: 'user', text: 'Previous context' }],
+    } }));
+    await vi.waitFor(() => expect(settings).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: 'old-chat', history: [{ role: 'user', text: 'Previous context' }],
+    })));
   });
 
   it.each([false, true])('preserves the provider connection error classification (fatal=%s)', async fatal => {

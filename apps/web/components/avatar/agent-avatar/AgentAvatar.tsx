@@ -8,13 +8,15 @@ import type { ToolDefinition, RealtimeToolCall } from '../../../../../shared/rea
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { buildInitialGreetingPrompt, createSystemInstructions } from '@/lib/prompts';
-import { useAgent, useAuthGate, useConversationResume, useUI, useUser } from '@/lib/state';
+import { useAgent, useAuthGate, useUI, useUser } from '@/lib/state';
 import { useLanguage } from '@/lib/i18n';
 import { AGENT_COLORS } from '@/lib/presets/agents';
 import { saveUserAgent } from '@/hooks/useUserAgents';
 import { useUserMemories } from '@/hooks/useUserMemories';
 import { createMemoryToolDeclarations } from '@/lib/memory-tools';
 import { executeMemoryToolCall } from '@/lib/memory-tool-handler';
+
+type PendingAgentChange = { value: string; callId: string };
 
 export default function AgentAvatar() {
   const {
@@ -27,14 +29,10 @@ export default function AgentAvatar() {
   } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const greetedRef = useRef(false);
-  const pendingNameRef = useRef<string | null>(null);
-  const pendingPersonalityRef = useRef<string | null>(null);
-  const pendingColorRef = useRef<string | null>(null);
+  const pendingChangesRef = useRef<Partial<Record<'name' | 'personality' | 'color', PendingAgentChange>>>({});
   const user = useUser();
   const { isAuthenticated, userName: authUserName, setIntroPlaying } = useAuthGate();
   const { current, update: updateAgent } = useAgent();
-  const pendingResume = useConversationResume(state => state.pending);
-  const clearPendingResume = useConversationResume(state => state.clearPending);
   const { sceneTheme } = useUI();
   const { language } = useLanguage();
   const {
@@ -47,9 +45,11 @@ export default function AgentAvatar() {
   const memoryAvailable =
     isAuthenticated && !memorySettingsLoading && memoryEnabled;
   const effectiveUserName = user.name?.trim() || user.authDisplayName?.trim() || authUserName?.trim() || '';
+  const instructionContextRef = useRef({ language, memories });
 
   // Set the configuration for the Live API
   useEffect(() => {
+    instructionContextRef.current = { language, memories };
     const functionDeclarations: ToolDefinition[] = [
       ...(memoryAvailable
         ? createMemoryToolDeclarations()
@@ -170,9 +170,35 @@ export default function AgentAvatar() {
 
   // Handle function calls from the model (e.g. saving a name given by voice)
   useEffect(() => {
+    let active = true;
+    let generation = 0;
+    const cancelled = new Set<string>();
+    const handled = new Set<string>();
+    const resetChanges = () => {
+      generation += 1;
+      pendingChangesRef.current = {};
+      cancelled.clear();
+      handled.clear();
+    };
+    const cancelCalls = ({ callIds }: { callIds: string[] }) => {
+      for (const id of callIds) {
+        cancelled.add(id);
+        for (const key of ['name', 'personality', 'color'] as const) {
+          if (pendingChangesRef.current[key]?.callId === id) delete pendingChangesRef.current[key];
+        }
+      }
+    };
+    resetChanges();
     const handleToolCall = async (toolCall: { calls: RealtimeToolCall[] }) => {
+      const attempt = generation;
+      const isCurrent = () => active && attempt === generation
+        && useUser.getState().uid === user.uid && useAgent.getState().current.id === current.id;
       const responses = [];
+      let agentChanged = false;
       for (const fc of toolCall.calls) {
+        if (!isCurrent()) return;
+        if (cancelled.has(fc.callId) || handled.has(fc.callId)) continue;
+        handled.add(fc.callId);
         const memoryToolResult = await executeMemoryToolCall(
           fc.name,
           (fc.args || {}) as Record<string, unknown>,
@@ -184,6 +210,8 @@ export default function AgentAvatar() {
             deleteMemory,
           }
         );
+        if (!isCurrent()) return;
+        if (cancelled.has(fc.callId)) continue;
         if (memoryToolResult) {
           responses.push({
             id: fc.callId,
@@ -192,19 +220,20 @@ export default function AgentAvatar() {
           });
         } else if (fc.name === 'set_agent_name') {
           const newName = (fc.args as { name: string }).name;
-          pendingNameRef.current = newName;
+          pendingChangesRef.current.name = { value: newName, callId: fc.callId };
           responses.push({
             id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedName: newName } },
           });
         } else if (fc.name === 'confirm_agent_name') {
-          const newName = pendingNameRef.current;
+          const newName = pendingChangesRef.current.name?.value;
           if (newName) {
             updateAgent(current.id, { name: newName });
             const freshAgent = useAgent.getState().current;
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
-            pendingNameRef.current = null;
+            delete pendingChangesRef.current.name;
+            agentChanged = true;
             responses.push({
               id: fc.callId,
               name: fc.name,
@@ -219,19 +248,20 @@ export default function AgentAvatar() {
           }
         } else if (fc.name === 'set_agent_personality') {
           const newPersonality = (fc.args as { personality: string }).personality;
-          pendingPersonalityRef.current = newPersonality;
+          pendingChangesRef.current.personality = { value: newPersonality, callId: fc.callId };
           responses.push({
             id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedPersonality: newPersonality } },
           });
         } else if (fc.name === 'confirm_agent_personality') {
-          const newPersonality = pendingPersonalityRef.current;
+          const newPersonality = pendingChangesRef.current.personality?.value;
           if (newPersonality) {
             updateAgent(current.id, { personality: newPersonality });
             const freshAgent = useAgent.getState().current;
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
-            pendingPersonalityRef.current = null;
+            delete pendingChangesRef.current.personality;
+            agentChanged = true;
             responses.push({
               id: fc.callId,
               name: fc.name,
@@ -246,19 +276,20 @@ export default function AgentAvatar() {
           }
         } else if (fc.name === 'set_agent_color') {
           const newColor = (fc.args as { color: string }).color;
-          pendingColorRef.current = newColor;
+          pendingChangesRef.current.color = { value: newColor, callId: fc.callId };
           responses.push({
             id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedColor: newColor } },
           });
         } else if (fc.name === 'confirm_agent_color') {
-          const newColor = pendingColorRef.current;
+          const newColor = pendingChangesRef.current.color?.value;
           if (newColor) {
             updateAgent(current.id, { bodyColor: newColor });
             const freshAgent = useAgent.getState().current;
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
-            pendingColorRef.current = null;
+            delete pendingChangesRef.current.color;
+            agentChanged = true;
             responses.push({
               id: fc.callId,
               name: fc.name,
@@ -273,17 +304,36 @@ export default function AgentAvatar() {
           }
         }
       }
-      if (responses.length > 0) {
-        await client.sendToolResults(responses.map(response => ({ callId: response.id, name: response.name, result: response.response.result })));
+      if (!isCurrent()) return;
+      if (agentChanged) {
+        const context = instructionContextRef.current;
+        await client.updateInstructions(createSystemInstructions(useAgent.getState().current, useUser.getState(), context.language, {
+          memories: context.memories, memoryEnabled: memoryAvailable,
+        }));
+      }
+      if (isCurrent() && responses.length > 0) {
+        await client.sendToolResults(responses.filter(response => !cancelled.has(response.id))
+          .map(response => ({ callId: response.id, name: response.name, result: response.response.result })));
       }
     };
     client.on('toolcall', handleToolCall);
+    client.on('toolcallcancellation', cancelCalls);
+    client.on('sessionreset', resetChanges);
+    client.on('close', resetChanges);
+    client.on('open', resetChanges);
     return () => {
+      active = false;
+      resetChanges();
       client.off('toolcall', handleToolCall);
+      client.off('toolcallcancellation', cancelCalls);
+      client.off('sessionreset', resetChanges);
+      client.off('close', resetChanges);
+      client.off('open', resetChanges);
     };
   }, [
     client,
     current.id,
+    user.uid,
     updateAgent,
     isAuthenticated,
     memoryAvailable,
@@ -307,7 +357,6 @@ export default function AgentAvatar() {
     if (client.resumed) {
       greetedRef.current = true;
       setIntroPlaying(false);
-      if (pendingResume) clearPendingResume();
       return;
     }
 
@@ -315,7 +364,6 @@ export default function AgentAvatar() {
       const agentName = current.name || 'Ascuita';
       greetedRef.current = true;
       setIntroPlaying(true);
-      if (pendingResume) clearPendingResume();
 
       void client.send(
         {
@@ -336,14 +384,12 @@ export default function AgentAvatar() {
     };
   }, [
     client,
-    clearPendingResume,
     connected,
     audioReady,
     current,
     effectiveUserName,
     isAuthenticated,
     language,
-    pendingResume,
     setIntroPlaying,
   ]);
 

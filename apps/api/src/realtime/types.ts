@@ -23,6 +23,7 @@ export interface RealtimeSession {
   connect(settings: SessionSettings): Promise<void>;
   sendAudio(data: string): Promise<void>;
   sendText(text: string, turnComplete?: boolean): Promise<void>;
+  updateInstructions(instructions: string): Promise<void>;
   sendToolResults(results: RealtimeToolResult[]): Promise<void>;
   close(): void;
 }

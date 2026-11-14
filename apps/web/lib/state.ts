@@ -284,6 +284,7 @@ export type ResumeConversationMessage = {
 };
 
 export type ResumeConversationState = {
+  userId: string;
   conversationId: string;
   agentId: string;
   agentName: string;

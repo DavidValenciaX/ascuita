@@ -150,6 +150,6 @@ export function realtimeSessionInfo(config: AppConfig, provider = config.realtim
     model: provider === 'gemini' ? config.geminiModel : config.qwenModel,
     voice: provider === 'gemini' ? { mode: 'agent' } : { mode: 'fixed', name: config.qwenVoice },
     audio: { inputSampleRate: 16000, outputSampleRate: 24000, format: 'pcm_s16le', channels: 1 },
-    capabilities: { tools: true, webSearch: true, nativeResumption: provider === 'gemini' },
+    capabilities: { tools: true, webSearch: true, nativeResumption: provider === 'gemini', instructionsUpdate: true },
   };
 }

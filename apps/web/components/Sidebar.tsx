@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import c from 'classnames';
 import { useConversations, type ConversationMessage } from '@/hooks/useConversations';
-import { useConversationResume, useAgent, useUI, useAuthGate } from '@/lib/state';
+import { useConversationResume, useAgent, useUI, useAuthGate, useUser } from '@/lib/state';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { useTranslation } from '@/lib/i18n';
 
@@ -19,6 +19,7 @@ function Sidebar() {
   const { disconnect } = useLiveAPIContext();
   const { showSidebar, setShowSidebar } = useUI();
   const { isAuthenticated, authReady } = useAuthGate();
+  const userId = useUser(state => state.uid);
   const setResumeConversation = useConversationResume(state => state.setPending);
   const { setCurrent, availablePresets, availablePersonal } = useAgent();
   const { t } = useTranslation();
@@ -28,23 +29,36 @@ function Sidebar() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const openRequestRef = useRef(0);
+  const loadedMessagesScope = useRef<{ userId: string; conversationId: string } | null>(null);
+
+  useEffect(() => {
+    openRequestRef.current += 1;
+    loadedMessagesScope.current = null;
+    setSelectedId(null);
+    setMessages([]);
+    setLoadingMessages(false);
+  }, [userId]);
 
   function resetSelection() {
     openRequestRef.current += 1;
     setSelectedId(null);
     setMessages([]);
     setLoadingMessages(false);
+    loadedMessagesScope.current = null;
   }
 
   async function openConversation(id: string) {
+    const ownerId = userId;
     const requestId = openRequestRef.current + 1;
     openRequestRef.current = requestId;
     setSelectedId(id);
     setLoadingMessages(true);
     setMessages([]);
+    loadedMessagesScope.current = null;
     try {
       const msgs = await loadMessages(id);
-      if (openRequestRef.current !== requestId) return;
+      if (openRequestRef.current !== requestId || useUser.getState().uid !== ownerId) return;
+      loadedMessagesScope.current = ownerId ? { userId: ownerId, conversationId: id } : null;
       setMessages(msgs);
     } catch (error) {
       if (openRequestRef.current !== requestId) return;
@@ -71,6 +85,8 @@ function Sidebar() {
   }
 
   async function handleResume(conversationId: string) {
+    const scope = loadedMessagesScope.current;
+    if (!userId || useUser.getState().uid !== userId || scope?.userId !== userId || scope.conversationId !== conversationId) return;
     const conversation = conversations.find(conv => conv.id === conversationId);
     if (!conversation) return;
 
@@ -81,9 +97,11 @@ function Sidebar() {
       window.alert(t('conversationAgentMissing'));
       return;
     }
+    disconnect();
     setCurrent(resolvedAgent);
 
     setResumeConversation({
+      userId,
       conversationId: conversation.id,
       agentId: conversation.agentId,
       agentName:
@@ -95,7 +113,6 @@ function Sidebar() {
         text: message.text,
       })),
     });
-    disconnect();
     resetSelection();
     setShowSidebar(false);
   }

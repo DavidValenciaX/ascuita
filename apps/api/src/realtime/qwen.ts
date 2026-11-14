@@ -19,6 +19,7 @@ export class QwenRealtimeAdapter implements RealtimeSession {
   private rejectConnect?: (error: Error) => void;
   private settings?: SessionSettings;
   private instructions = '';
+  private historyContext = '';
   private activeResponse?: string;
   private lastResponse?: string;
   private responseRequested = false;
@@ -42,7 +43,8 @@ export class QwenRealtimeAdapter implements RealtimeSession {
   connect(settings: SessionSettings): Promise<void> {
     this.settings = settings;
     const history = boundedHistory(settings.history);
-    this.instructions = settings.config.instructions + historyInstructions(history);
+    this.historyContext = historyInstructions(history);
+    this.instructions = settings.config.instructions + this.historyContext;
     return new Promise((resolve, reject) => {
       this.resolveConnect = resolve;
       this.rejectConnect = reject;
@@ -265,6 +267,12 @@ export class QwenRealtimeAdapter implements RealtimeSession {
 
   async sendAudio(data: string) {
     if (this.ready) this.send({ type: 'input_audio_buffer.append', audio: data });
+  }
+
+  async updateInstructions(instructions: string) {
+    if (!this.ready || this.closed) return;
+    this.instructions = instructions + this.historyContext;
+    this.send({ type: 'session.update', session: { instructions: this.instructions } });
   }
 
   async sendText(text: string) {

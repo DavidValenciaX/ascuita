@@ -228,6 +228,11 @@ export class GeminiRealtimeAdapter implements RealtimeSession {
     if (responses.length) await session.sendToolResponse({ functionResponses: responses });
   }
 
+  async updateInstructions(instructions: string) {
+    // Gemini Live receives live configuration changes as conversation context.
+    await this.sendText(`Configuration update: ${instructions}\n\nDo not greet or introduce yourself again. Continue the conversation with this updated configuration.`);
+  }
+
   close() {
     if (this.closed) return;
     this.closed = true;

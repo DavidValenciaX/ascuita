@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
   send: vi.fn(),
+  sendToolResults: vi.fn(),
+  updateInstructions: vi.fn(),
   stopPlayback: vi.fn(),
 }));
 
@@ -29,9 +31,11 @@ vi.mock('@/lib/audio-streamer', () => ({ AudioStreamer: class {
 } }));
 vi.mock('@/lib/realtime-client', () => ({ RealtimeClient: class extends EventEmitter {
   connect = mocks.connect;
-  disconnect = mocks.disconnect;
+  disconnect = (...args: unknown[]) => { mocks.disconnect(...args); this.emit('sessionreset'); };
   loadConfiguration = vi.fn().mockRejectedValue(new Error('Test configuration unavailable'));
   send = mocks.send;
+  sendToolResults = mocks.sendToolResults;
+  updateInstructions = mocks.updateInstructions;
   resumed = false;
 } }));
 vi.mock('@/components/avatar/basic-face/BasicFace', () => ({
@@ -52,7 +56,10 @@ vi.mock('@/hooks/useUserMemories', () => {
 import { LiveAPIProvider, useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import LoadingScreen from '@/components/avatar/LoadingScreen';
 import AgentAvatar from '@/components/avatar/agent-avatar/AgentAvatar';
-import { useAuthGate, useConversationResume, useUser } from '@/lib/state';
+import { useAgent, useAuthGate, useConversationResume, useUser } from '@/lib/state';
+import { Ascuita } from '@/lib/presets/agents';
+import { saveUserAgent } from '@/hooks/useUserAgents';
+import * as memoryHandler from '@/lib/memory-tool-handler';
 import { useLanguage } from '@/lib/i18n';
 import type { UseLiveApiResults } from '@/hooks/media/use-live-api';
 
@@ -73,6 +80,7 @@ beforeEach(async () => {
   mocks.addWorklet.mockResolvedValue(undefined);
   useAuthGate.setState({ authReady: true, trialExpired: false, isAuthenticated: false, introPlaying: false });
   useConversationResume.setState({ pending: null });
+  useAgent.setState({ current: Ascuita, availablePresets: [Ascuita], availablePersonal: [] });
   useUser.setState({ uid: '' });
   useLanguage.setState({ language: 'es' });
   container = document.createElement('div');
@@ -86,6 +94,129 @@ afterEach(async () => {
   container.remove();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+describe('conversation ownership', () => {
+  const history = [{ role: 'user' as const, text: 'Private text from account A' }];
+  function queueResume() {
+    useConversationResume.getState().setPending({ userId: 'account-a', conversationId: 'old-chat',
+      agentId: Ascuita.id, agentName: Ascuita.name, messages: history });
+  }
+
+  it('does not send the previous account history with the next account token', async () => {
+    await act(async () => { useUser.setState({ uid: 'account-a' }); queueResume(); });
+    await act(async () => { useUser.setState({ uid: '' }); });
+    await act(async () => {
+      useUser.setState({ uid: 'account-b' });
+      root.render(<LiveAPIProvider authToken="token-b"><CaptureAPI /></LiveAPIProvider>);
+    });
+    await act(async () => api.startAudio());
+    await act(async () => api.connect());
+    const sent = mocks.connect.mock.calls.at(-1)!;
+    expect(sent[1]).toBe('token-b');
+    expect(sent[3]).toBeUndefined();
+    expect(sent[4]).toBeUndefined();
+    expect(useConversationResume.getState().pending).toBeNull();
+  });
+
+  it('discards pending history when another agent is selected', async () => {
+    await act(async () => { useUser.setState({ uid: 'account-a' }); queueResume(); });
+    await act(async () => { useAgent.setState({ current: { ...Ascuita, id: 'another-agent' } }); });
+    await act(async () => api.startAudio());
+    await act(async () => api.connect());
+    expect(mocks.connect.mock.calls.at(-1)?.slice(3)).toEqual([undefined, undefined]);
+    expect(useConversationResume.getState().pending).toBeNull();
+  });
+
+  it('resumes the matching conversation and consumes the request only after success', async () => {
+    await act(async () => { useUser.setState({ uid: 'account-a' }); queueResume(); });
+    await act(async () => api.startAudio());
+    mocks.connect.mockResolvedValueOnce(false);
+    await act(async () => api.connect());
+    expect(useConversationResume.getState().pending).not.toBeNull();
+    mocks.connect.mockResolvedValueOnce(true);
+    await act(async () => api.connect());
+    expect(mocks.connect.mock.calls.at(-1)?.slice(3)).toEqual(['old-chat', history]);
+    expect(useConversationResume.getState().pending).toBeNull();
+  });
+
+  it('new chat discards an unconsumed resume request', async () => {
+    await act(async () => { useUser.setState({ uid: 'account-a' }); queueResume(); });
+    await act(async () => api.disconnect());
+    expect(useConversationResume.getState().pending).toBeNull();
+  });
+});
+
+describe('agent change confirmations', () => {
+  const edits = [
+    { name: 'name', field: 'name', args: { name: 'Atlas' }, value: 'Atlas' },
+    { name: 'personality', field: 'personality', args: { personality: 'A gentle pirate' }, value: 'A gentle pirate' },
+    { name: 'color', field: 'bodyColor', args: { color: '#ea4335' }, value: '#ea4335' },
+  ] as const;
+  const first = { ...Ascuita, id: 'first', name: 'First', isPreset: false };
+  const second = { ...Ascuita, id: 'second', name: 'Second', isPreset: false };
+  async function selectFirst() {
+    await act(async () => { useAgent.setState({ current: first, availablePersonal: [first, second] }); });
+  }
+  async function call(name: string, args: Record<string, unknown>, callId = name) {
+    await act(async () => { api.client.emit('toolcall', { calls: [{ callId, name, args }] }); });
+  }
+
+  it.each(edits)('confirms $name only within the same agent session and updates its live instructions', async edit => {
+    await selectFirst();
+    await call(`set_agent_${edit.name}`, edit.args);
+    await call(`confirm_agent_${edit.name}`, {});
+    expect(useAgent.getState().current[edit.field]).toBe(edit.value);
+    expect(saveUserAgent).toHaveBeenCalledWith(expect.objectContaining({ [edit.field]: edit.value }));
+    expect(mocks.updateInstructions).toHaveBeenCalledWith(expect.stringContaining(edit.name === 'color' ? 'rojo' : edit.value));
+  });
+
+  it.each(edits)('cannot confirm the previous agent $name proposal on the next agent', async edit => {
+    await selectFirst();
+    await call(`set_agent_${edit.name}`, edit.args);
+    await act(async () => { await api.disconnect(); useAgent.setState({ current: second }); });
+    await call(`confirm_agent_${edit.name}`, {});
+    expect(useAgent.getState().current).toEqual(second);
+    expect(saveUserAgent).not.toHaveBeenCalled();
+    expect(mocks.sendToolResults).toHaveBeenLastCalledWith([expect.objectContaining({ result: expect.objectContaining({ success: false }) })]);
+  });
+
+  it.each(['sessionreset', 'close', 'open'] as const)('clears pending changes on %s', async event => {
+    await selectFirst();
+    await call('set_agent_name', { name: 'Atlas' });
+    await act(async () => { api.client.emit(event); });
+    await call('confirm_agent_name', {});
+    expect(useAgent.getState().current.name).toBe('First');
+    expect(saveUserAgent).not.toHaveBeenCalled();
+  });
+
+  it('invalidates the proposal when its tool call is cancelled', async () => {
+    await selectFirst();
+    await call('set_agent_name', { name: 'Atlas' }, 'proposal');
+    await act(async () => { api.client.emit('toolcallcancellation', { callIds: ['proposal'] }); });
+    await call('confirm_agent_name', {});
+    expect(useAgent.getState().current.name).toBe('First');
+  });
+
+  it('discards a tool handler that finishes after disconnection', async () => {
+    await selectFirst();
+    let finish!: (value: null) => void;
+    vi.spyOn(memoryHandler, 'executeMemoryToolCall').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await call('set_agent_name', { name: 'Atlas' });
+    await act(async () => { await api.disconnect(); finish(null); });
+    await call('confirm_agent_name', {});
+    expect(useAgent.getState().current.name).toBe('First');
+    expect(saveUserAgent).not.toHaveBeenCalled();
+  });
+
+  it('does not carry proposals to a different account', async () => {
+    await selectFirst();
+    await call('set_agent_name', { name: 'Atlas' });
+    await act(async () => { useUser.setState({ uid: 'next-account' }); });
+    await call('confirm_agent_name', {});
+    expect(useAgent.getState().current.name).toBe('First');
+  });
 });
 
 describe('explicit audio start', () => {

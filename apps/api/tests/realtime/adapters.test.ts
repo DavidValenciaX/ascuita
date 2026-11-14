@@ -86,6 +86,12 @@ async function qwen() {
 }
 
 describe('Gemini adapter', () => {
+  it('delivers live instruction updates as conversation context', async () => {
+    const adapter = gemini();
+    await adapter.connect(settings);
+    await adapter.updateInstructions('Your new name is Atlas.');
+    expect(native.sendRealtimeInput).toHaveBeenCalledWith({ text: expect.stringContaining('Your new name is Atlas.') });
+  });
   it('keeps an input transcript in one turn when model output arrives before its final fragment', async () => {
     await gemini().connect(settings);
     handlers().onmessage({ serverContent: { inputTranscription: { text: 'Me llamo ' } } });
@@ -189,6 +195,31 @@ describe('Gemini adapter', () => {
 });
 
 describe('Qwen adapter', () => {
+  it('persists edited instructions without changing voice, tools or the restored history', async () => {
+    const adapter = createRealtimeSession(getConfig(), realtimeSessionInfo(getConfig(), 'qwen'), { onEvent });
+    sessions.push(adapter);
+    const connected = adapter.connect({ ...settings, history: [{ role: 'user', text: 'Previous conversation' }] });
+    const socket = mocks.sockets.at(-1)!;
+    socket.receive({ type: 'session.created' });
+    socket.receive({ type: 'session.updated' });
+    await connected;
+    socket.receive({ type: 'response.created', response: { id: 'active' } });
+    await adapter.sendText('Queued greeting');
+    await adapter.updateInstructions('Your personality is now a gentle pirate.');
+    expect(socket.sent.at(-1)).toEqual(expect.objectContaining({ type: 'session.update', session: {
+      instructions: expect.stringContaining('Your personality is now a gentle pirate.'),
+    } }));
+    const update = socket.sent.at(-1)!.session as { instructions: string };
+    expect(update.instructions).toContain('Previous conversation');
+    expect(update.instructions).not.toContain(settings.config.instructions);
+    socket.receive({ type: 'session.updated' });
+    expect(events.filter(event => event.type === 'session.ready')).toHaveLength(1);
+    socket.receive({ type: 'response.done', response: { id: 'active' } });
+    expect(socket.sent.at(-1)).toMatchObject({ type: 'response.create', response: {
+      instructions: expect.stringContaining('Your personality is now a gentle pirate.'),
+    } });
+    expect((socket.sent.at(-1)!.response as { instructions: string }).instructions).not.toContain(settings.config.instructions);
+  });
   it('queues text until the entire tool response has finished and continues each call set only once', async () => {
     const { adapter, socket } = await qwen();
     socket.receive({ type: 'response.created', response: { id: 'R1' } });

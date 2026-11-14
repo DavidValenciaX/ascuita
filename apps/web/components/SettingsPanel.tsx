@@ -509,10 +509,12 @@ function MemoriesTab() {
 function AgentsTab() {
   const { current, setCurrent, availablePresets, availablePersonal, addAgent, removeAgent } = useAgent();
   const updateAgent = useAgent(state => state.update);
-  const { disconnect, client, connected, sessionInfo } = useLiveAPIContext();
+  const { disconnect, client, connected, connecting, sessionInfo } = useLiveAPIContext();
   const { t } = useTranslation();
   const { language } = useLanguage();
   const user = useUser();
+  const { memories, memoryEnabled, memorySettingsLoading } = useUserMemories();
+  const isAuthenticated = useAuthGate(state => state.isAuthenticated);
   const {
     saveAgent: persistAgent,
     removeAgent: deleteAgentFromDb,
@@ -558,7 +560,7 @@ function AgentsTab() {
 
     if (!isSameAgent) {
       changeAgent(editingAgent);
-    } else if (original && connected) {
+    } else if (original && (connected || connecting)) {
       const voiceChanged = original.voice !== editingAgent.voice;
       const namePersonalityOrColorChanged =
         original.name !== editingAgent.name ||
@@ -568,11 +570,9 @@ function AgentsTab() {
       if (voiceChanged) {
         disconnect();
       } else if (namePersonalityOrColorChanged) {
-        const updatePrompt =
-          language === 'es'
-            ? `Actualización de tu configuración: ${createSystemInstructions(editingAgent, user, language)}\n\nNo saludes ni te presentes de nuevo. Simplemente continúa la conversación naturalmente con esta nueva información.`
-            : `Configuration update: ${createSystemInstructions(editingAgent, user, language)}\n\nDo not greet or introduce yourself again. Simply continue the conversation naturally with this new information.`;
-        client.send({ text: updatePrompt }, true, false);
+        void client.updateInstructions(createSystemInstructions(editingAgent, user, language, {
+          memories, memoryEnabled: isAuthenticated && !memorySettingsLoading && memoryEnabled,
+        }));
       }
     }
 

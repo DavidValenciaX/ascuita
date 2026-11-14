@@ -35,7 +35,7 @@ export type RealtimeSessionInfo = {
   model: string;
   voice: { mode: 'agent' | 'fixed'; name?: string };
   audio: { inputSampleRate: 16000; outputSampleRate: 24000; format: 'pcm_s16le'; channels: 1 };
-  capabilities: { tools: boolean; webSearch: boolean; nativeResumption: boolean };
+  capabilities: { tools: boolean; webSearch: boolean; nativeResumption: boolean; instructionsUpdate?: boolean };
 };
 
 export type RealtimeToolCall = { callId: string; name: string; args: Record<string, unknown> };
@@ -59,6 +59,7 @@ export type RealtimeClientMessage =
     } }
   | { type: 'audio'; payload: { data: string } }
   | { type: 'text'; payload: { text: string; turnComplete?: boolean; persist?: boolean } }
+  | { type: 'instructions.update'; payload: { instructions: string } }
   | { type: 'tool.results'; payload: { results: RealtimeToolResult[] } }
   | { type: 'disconnect' }
   | { type: 'ping' };

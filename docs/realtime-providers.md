@@ -50,6 +50,8 @@ Para volver a Gemini, usa `REALTIME_PROVIDER=gemini` y reinicia o despliega otra
 
 El backend comparte autenticación de Firebase, trial de invitados, límites y leases de Redis, y persistencia de mensajes entre ambos endpoints. Un cliente v2 no puede elegir otro proveedor o modelo enviándolo en su solicitud.
 
+La reanudación pendiente queda vinculada a la cuenta y al agente que seleccionaron la conversación. Cambiar de cuenta o de agente, o iniciar un chat nuevo, descarta esa solicitud. El backend comprueba que la conversación exista dentro de la cuenta autenticada y corresponda al agente antes de enviar su historial al proveedor.
+
 Los contratos se encuentran en `shared/realtime-protocol.d.ts`. Una conexión v2 comienza con:
 
 ```json
@@ -78,6 +80,10 @@ Las reconexiones Gemini pueden utilizar un handle nativo vinculado al proveedor,
 ## Memoria y búsqueda web
 
 Las funciones de memoria y edición del agente conservan sus comprobaciones de autenticación, preferencias y confirmación. Las llamadas se identifican y deduplican por `callId`. Los resultados de llamadas canceladas o sesiones cerradas se descartan.
+
+Las propuestas de nombre, personalidad y color se limitan al agente, cuenta y sesión actuales. Se invalidan al desconectar o cancelar la propuesta. Una confirmación de una sesión anterior no modifica otro agente. Los cambios confirmados por voz y los guardados desde Ajustes envían `instructions.update` con las instrucciones completas: Qwen actualiza `session.instructions` sin cambiar voz ni herramientas, y Gemini recibe la actualización como contexto de conversación. Este evento requiere publicar primero el backend actualizado y después el frontend.
+
+La API anuncia este soporte mediante `capabilities.instructionsUpdate=true`. La comprobación previa a publicar el frontend exige esa capacidad para evitar conectar el cliente nuevo a una revisión anterior del backend.
 
 Qwen no permite activar `tools` y `enable_search` simultáneamente. Ascuita mantiene `enable_search=false` y registra `web_search` como una herramienta del servidor junto con las funciones del cliente. Véase la [referencia de eventos](https://help.aliyun.com/en/model-studio/client-events).
 

@@ -66,6 +66,7 @@ export function createRealtimeSession(
     } : settings),
     sendAudio: data => adapter.sendAudio(data),
     sendText: (text, turnComplete) => adapter.sendText(text, turnComplete),
+    updateInstructions: instructions => adapter.updateInstructions(instructions),
     sendToolResults: results => adapter.sendToolResults(results),
     close: () => {
       closed = true;

@@ -11,12 +11,15 @@ while (Date.now() < deadline) {
     if (configuration.ok && readiness.ok) {
       const info = await configuration.json();
       const ready = await readiness.json();
-      if (['gemini', 'qwen'].includes(info.provider) && info.audio?.inputSampleRate === 16000 && ready.ready === true) {
+      if (['gemini', 'qwen'].includes(info.provider) && info.audio?.inputSampleRate === 16000
+        && info.capabilities?.instructionsUpdate === true && ready.ready === true) {
         console.log('Compatible realtime backend is ready.');
         process.exit(0);
       }
+      lastError = 'Backend is not compatible: require readiness and realtime capabilities.instructionsUpdate=true before publishing. Deploy the updated backend first, then retry the frontend.';
+    } else {
+      lastError = `Backend not ready: config ${configuration.status}, readiness ${readiness.status}`;
     }
-    lastError = `Backend not ready: config ${configuration.status}, readiness ${readiness.status}`;
   } catch { lastError = 'Realtime backend is unreachable'; }
   await new Promise(resolve => setTimeout(resolve, 5000));
 }

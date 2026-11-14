@@ -34,6 +34,7 @@ describe('provider configuration', () => {
     expect(info).toMatchObject({ provider: 'qwen', model: 'qwen3.8-omni-flash-realtime', voice: { mode: 'fixed', name: 'Tina' } });
     expect(JSON.stringify(info)).not.toContain('google-test');
     expect(info.capabilities.nativeResumption).toBe(false);
+    expect(info.capabilities.instructionsUpdate).toBe(true);
   });
   it('identifies missing credentials in readiness without contacting a provider', () => {
     expect(realtimeReadinessChecks(getConfig())).toEqual([{ name: 'geminiApiKey', ready: true }]);
@@ -45,6 +46,14 @@ describe('provider configuration', () => {
 });
 
 describe('neutral client validation', () => {
+  it('accepts instruction updates and rejects malformed instructions', () => {
+    expect(parseClientMessage({ type: 'instructions.update', payload: { instructions: 'New personality' } })).toEqual({
+      type: 'instructions.update', payload: { instructions: 'New personality' },
+    });
+    for (const instructions of [null, undefined, 42, {}]) {
+      expect(() => parseClientMessage({ type: 'instructions.update', payload: { instructions } })).toThrow();
+    }
+  });
   it('does not allow the client to select a provider or model', () => {
     for (const override of [{ provider: 'gemini' }, { model: 'expensive-model' }]) {
       expect(() => parseClientMessage({ type: 'connect', payload: { config: { instructions: '' }, ...override } })).toThrow();

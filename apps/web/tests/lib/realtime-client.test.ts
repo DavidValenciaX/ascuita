@@ -55,6 +55,44 @@ async function open(value: RealtimeClient, conversationId?: string) {
 }
 
 describe('RealtimeClient', () => {
+  it('applies the latest edit saved during startup once the provider session is ready', async () => {
+    const value = client();
+    const { socket, promise } = await open(value);
+    await value.updateInstructions('First edit');
+    await value.updateInstructions('Latest edit');
+    expect(socket.sent.filter(event => event.type === 'instructions.update')).toHaveLength(0);
+    socket.receive({ type: 'session.ready', payload: { ...info, resumed: false } });
+    await promise;
+    expect(socket.sent.filter(event => event.type === 'instructions.update')).toEqual([
+      { type: 'instructions.update', payload: { instructions: 'Latest edit' } },
+    ]);
+  });
+
+  it('discards an edit queued for a startup that was cancelled', async () => {
+    const value = client();
+    const first = await open(value);
+    await value.updateInstructions('Cancelled edit');
+    value.disconnect();
+    await expect(first.promise).resolves.toBe(false);
+    const second = await open(value);
+    second.socket.receive({ type: 'session.ready', payload: { ...info, resumed: false } });
+    await second.promise;
+    expect(second.socket.sent.filter(event => event.type === 'instructions.update')).toHaveLength(0);
+  });
+  it('sends persistent instruction updates without adding user history and invalidates local proposals on disconnect', async () => {
+    const value = client();
+    const reset = vi.fn();
+    value.on('sessionreset', reset);
+    const first = await open(value);
+    first.socket.receive({ type: 'session.ready', payload: { ...info, resumed: false } });
+    await first.promise;
+    await value.updateInstructions('New personality');
+    expect(first.socket.sent.at(-1)).toEqual({ type: 'instructions.update', payload: { instructions: 'New personality' } });
+    value.disconnect(true);
+    expect(reset).toHaveBeenCalledOnce();
+    const next = await open(value);
+    expect(next.socket.sent[0]?.payload?.history).toEqual([]);
+  });
   it('uses v2, sends no provider/model override, and waits for session.ready', async () => {
     const value = client();
     const { socket, promise } = await open(value);

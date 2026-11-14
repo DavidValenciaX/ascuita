@@ -81,7 +81,7 @@ export function useLiveApi({
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
   const [sessionInfo, setSessionInfo] = useState<RealtimeSessionInfo | null>(null);
   const [sources, setSources] = useState<GroundingResult | null>(null);
-  const activeConversation = useRef<{ agentId: string; conversationId?: string }>({ agentId: '' });
+  const activeConversation = useRef<{ userId: string; agentId: string; conversationId?: string }>({ userId: '', agentId: '' });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -100,13 +100,19 @@ export function useLiveApi({
 
   useEffect(() => {
     client.disconnect();
-    activeConversation.current = { agentId: '' };
+    activeConversation.current = { userId: '', agentId: '' };
+    const pending = useConversationResume.getState().pending;
+    if (pending && (pending.userId !== userId || pending.agentId !== currentAgent.id)) {
+      useConversationResume.getState().clearPending();
+    }
     setConnected(false);
     setConnecting(false);
+    setFatalError(null);
+    setDisplayError(null);
     setSources(null);
     pendingAudioChunksRef.current = [];
     audioStreamerRef.current?.stop();
-  }, [client, userId]);
+  }, [client, userId, currentAgent.id]);
 
   const reportAudioError = useCallback((error: unknown) => {
     const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : '';
@@ -297,6 +303,8 @@ export function useLiveApi({
 
   const connect = useCallback(async () => {
     if (!audioReadyRef.current) return;
+    // Check the live stores too: a callback from the previous render may still run.
+    if (useUser.getState().uid !== userId || useAgent.getState().current.id !== currentAgent.id) return;
     if (!config) {
       throw new Error('config has not been set');
     }
@@ -305,9 +313,14 @@ export function useLiveApi({
     setDisplayError(null);
     setConnecting(true);
     setSources(null);
-    if (activeConversation.current.agentId !== currentAgent.id) activeConversation.current = { agentId: currentAgent.id };
-    if (pendingResume) activeConversation.current.conversationId = pendingResume.conversationId;
-    await client.connect(
+    if (activeConversation.current.userId !== userId || activeConversation.current.agentId !== currentAgent.id) {
+      activeConversation.current = { userId: userId || '', agentId: currentAgent.id };
+    }
+    const pending = useConversationResume.getState().pending;
+    const resume = pending && userId && pending.userId === userId && pending.agentId === currentAgent.id ? pending : null;
+    if (pending && !resume) useConversationResume.getState().clearPending();
+    if (resume) activeConversation.current.conversationId = resume.conversationId;
+    const ready = await client.connect(
       config,
       authToken,
       {
@@ -315,21 +328,30 @@ export function useLiveApi({
         name: currentAgent.name || 'Ascuita',
       },
       activeConversation.current.conversationId,
-      pendingResume?.messages
+      resume?.messages
     );
+    if (ready && resume && useConversationResume.getState().pending === resume) {
+      useConversationResume.getState().clearPending();
+    }
   }, [
     authToken,
     client,
     currentAgent.id,
     currentAgent.name,
     pendingResume,
+    userId,
     setConnected,
     config,
   ]);
 
   const disconnect = useCallback(async (preserveSession = false) => {
     client.disconnect(preserveSession);
-    if (!preserveSession) activeConversation.current = { agentId: '' };
+    if (!preserveSession) {
+      activeConversation.current = { userId: '', agentId: '' };
+      useConversationResume.getState().clearPending();
+      setFatalError(null);
+      setDisplayError(null);
+    }
     pendingAudioChunksRef.current = [];
     audioStreamerRef.current?.stop();
     setSources(null);
