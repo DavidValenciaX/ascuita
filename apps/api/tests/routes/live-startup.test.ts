@@ -21,13 +21,22 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe.each(['/live', '/live/v2'])('WebSocket startup %s', endpoint => {
+describe.each([
+  { endpoint: '/live', provider: 'gemini', expectedProvider: 'gemini' },
+  { endpoint: '/live', provider: 'qwen', expectedProvider: 'gemini' },
+  { endpoint: '/live/v2', provider: 'gemini', expectedProvider: 'gemini' },
+  { endpoint: '/live/v2', provider: 'qwen', expectedProvider: 'qwen' },
+])('WebSocket startup $endpoint with $provider selected', ({ endpoint, provider, expectedProvider }) => {
   let app: ReturnType<typeof Fastify>;
   let socket: Awaited<ReturnType<typeof app.injectWS>> | undefined;
   const lease: ConnectionLease = { clientKey: '127.0.0.1', id: 'startup-test' };
 
   beforeEach(async () => {
+    // Keep deployment variables and real credentials out of these startup checks.
+    vi.stubEnv('REALTIME_PROVIDER', provider);
     vi.stubEnv('GEMINI_API_KEY', '');
+    vi.stubEnv('QWEN_API_KEY', '');
+    vi.stubEnv('QWEN_WORKSPACE_ID', 'workspace-startup-test');
     vi.stubEnv('CORS_ORIGIN', 'https://ascuita.web.app');
     vi.spyOn(securityState, 'getBlock').mockResolvedValue(null);
     vi.spyOn(securityState, 'incrementCounter').mockResolvedValue({ count: 1, resetAt: Date.now() + 60_000 });
@@ -54,7 +63,7 @@ describe.each(['/live', '/live/v2'])('WebSocket startup %s', endpoint => {
     const block = deferred<null>();
     vi.mocked(securityState.getBlock).mockReturnValue(block.promise);
     socket = await app.injectWS(endpoint);
-    const messages: Array<{ type: string; payload?: { message?: string } }> = [];
+    const messages: Array<{ type: string; payload?: { message?: string; provider?: string } }> = [];
     socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
 
     socket.send(JSON.stringify({ type: 'connect', payload: { config: { instructions: '' } } }));
@@ -64,11 +73,20 @@ describe.each(['/live', '/live/v2'])('WebSocket startup %s', endpoint => {
 
     block.resolve(null);
     // A configuration error proves the early connect reached the session handler,
-    // without calling the real Gemini service or consuming a guest trial.
+    // without calling a real provider or consuming a guest trial.
+    const message = expectedProvider === 'qwen'
+      ? 'GEMINI_API_KEY is missing on the backend; QWEN_API_KEY is missing on the backend'
+      : 'GEMINI_API_KEY is missing on the backend';
     await vi.waitFor(() => expect(messages).toContainEqual(expect.objectContaining({
-      type: 'error', payload: expect.objectContaining({ message: 'GEMINI_API_KEY is missing on the backend' }),
+      type: 'error', payload: expect.objectContaining({ message }),
     })));
     expect(messages[0]?.type).toBe('connection.ready');
+    if (endpoint === '/live/v2') {
+      expect(messages[0]?.payload?.provider).toBe(expectedProvider);
+      expect(messages).toContainEqual({
+        type: 'error', payload: { code: 'PROVIDER_NOT_CONFIGURED', message, fatal: true },
+      });
+    }
   });
 
   it('does not process an early connect when the security checks reject the client', async () => {

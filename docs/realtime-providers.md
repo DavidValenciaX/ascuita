@@ -110,4 +110,14 @@ Estos comandos sí realizan solicitudes de pago. Usan una frase de prueba en esp
 4. Verificar Qwen con sus credenciales y cambiar `REALTIME_PROVIDER=qwen` en las variables de GitHub; ejecutar el workflow de backend. El frontend y los APK actualizados reciben el cambio sin un nuevo build.
 5. Para revertir, desplegar el backend con `REALTIME_PROVIDER=gemini`. Los clientes antiguos siguen utilizando Gemini durante toda la transición.
 
+### Recuperar un despliegue bloqueado
+
+Los workflows de backend y frontend se ejecutan de forma independiente. Cuando un cambio afecta a ambos, la espera de tres minutos del frontend no garantiza que Cloud Run haya terminado de desplegar. Publicar primero el backend y, cuando termine correctamente, ejecutar de nuevo el workflow de frontend desde **Run workflow** en `main`.
+
+- Si `live-startup.test.ts` falla al esperar solo `GEMINI_API_KEY is missing on the backend`, comprobar que la prueba aísle `REALTIME_PROVIDER`, `QWEN_API_KEY` y `QWEN_WORKSPACE_ID`. Con Qwen seleccionado y ambas claves vacías, `/live/v2` informa de ambas claves faltantes; `/live` sigue comprobando solo Gemini. Las pruebas cubren las dos rutas con ambos proveedores y no necesitan claves reales.
+- Si el frontend muestra `Backend not ready: config 404, readiness 200`, la URL de `VITE_API_BASE_URL` responde pero no expone `/live/v2/config`. Comprobar que apunta al servicio correcto y que el despliegue del backend con los adaptadores haya finalizado. Un `/ready` con 200 de una revisión anterior no confirma compatibilidad con el protocolo nuevo. Conservar la comprobación de compatibilidad antes de publicar.
+- Un fallo en **Run tests** ocurre antes de autenticar con Google Cloud o desplegar la imagen. No comprueba las claves de Secret Manager. El workflow inyecta las claves en Cloud Run con `--set-secrets`; los nombres de los secretos se configuran en las variables `CLOUD_RUN_GEMINI_SECRET` y `CLOUD_RUN_QWEN_SECRET`. Crear una clave como secreto de GitHub no la añade automáticamente al entorno de las pruebas. Los archivos `.env` locales tampoco se cargan en CI.
+
+Después de subir la corrección, usar una ejecución del backend sobre el commit nuevo. **Re-run jobs** sobre una ejecución antigua conserva el commit anterior y volverá a ejecutar la prueba sin corregir. Tras el despliegue, `/live/v2/config` debe devolver 200 con el proveedor esperado y `/ready` debe devolver 200 con `ready: true`; entonces publicar el frontend.
+
 `VITE_GEMINI_MODEL` ya no se utiliza en builds nuevos. La actualización del modelo Gemini y la retirada de `/live` son tareas separadas.
