@@ -27,6 +27,7 @@ import { memo, ReactNode, useEffect, useRef, useState } from 'react';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { useAuthGate, useUI } from '@/lib/state';
 import { useTranslation } from '@/lib/i18n';
+import SourcesPanel from './SourcesPanel';
 
 export type ControlTrayProps = {
   readonly children?: ReactNode;
@@ -34,6 +35,7 @@ export type ControlTrayProps = {
 
 function ControlTray({ children }: ControlTrayProps) {
   const [muted, setMuted] = useState(false);
+  const [appActive, setAppActive] = useState(true);
   const reconnectAttemptRef = useRef(0);
 
   const { showSettingsPanel } = useUI();
@@ -51,6 +53,8 @@ function ControlTray({ children }: ControlTrayProps) {
     reportAudioError,
     audioStreamer,
     connect,
+    disconnect,
+    sources,
   } =
     useLiveAPIContext();
   const { t } = useTranslation();
@@ -64,6 +68,7 @@ function ControlTray({ children }: ControlTrayProps) {
   useEffect(() => {
     if (
       showSettingsPanel ||
+      !appActive ||
       !authReady ||
       !audioReady ||
       connected ||
@@ -91,6 +96,7 @@ function ControlTray({ children }: ControlTrayProps) {
     };
   }, [
     showSettingsPanel,
+    appActive,
     authReady,
     audioReady,
     connected,
@@ -128,9 +134,10 @@ function ControlTray({ children }: ControlTrayProps) {
     }
 
     const listener = App.addListener('appStateChange', ({ isActive }) => {
+      setAppActive(isActive);
       if (!isActive) {
         audioRecorder.stop();
-        client.disconnect();
+        disconnect(true);
         return;
       }
 
@@ -141,7 +148,7 @@ function ControlTray({ children }: ControlTrayProps) {
     return () => {
       void listener.then(handle => handle.remove());
     };
-  }, [audioRecorder, audioStreamer, client]);
+  }, [audioRecorder, audioStreamer, disconnect]);
 
   return (
     <section className="control-tray">
@@ -191,6 +198,7 @@ function ControlTray({ children }: ControlTrayProps) {
                         : t('ready')}
         </span>
       </div>
+      <SourcesPanel result={sources} />
     </section>
   );
 }

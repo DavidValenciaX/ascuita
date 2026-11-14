@@ -12,7 +12,7 @@ export default function Header() {
   const { current } = useAgent();
   const { isAuthenticated } = useAuthGate();
   const { photoURL, authDisplayName, email } = useUser();
-  const { client } = useLiveAPIContext();
+  const { sessionInfo } = useLiveAPIContext();
   const { t } = useTranslation();
   const accountLabel = authDisplayName || email || t('profileUnavailable');
 
@@ -33,7 +33,7 @@ export default function Header() {
         </div>
 
         {DEBUG_MODE && (
-          <p className="debugModel">Model: {client.model}</p>
+          <p className="debugModel">Model: {sessionInfo?.provider} / {sessionInfo?.model}</p>
         )}
       </div>
 

@@ -14,6 +14,9 @@ type Translations = {
 
 export const translations: Translations = {
     en: {
+        sources: 'Sources',
+        searchSuggestions: 'Google search suggestions',
+        fixedConversationVoice: 'This conversation uses the voice configured by the app.',
         // Header
         language: 'English',
         defaultAgentName: 'Ascuita',
@@ -175,6 +178,9 @@ export const translations: Translations = {
         clickwrapRequired: 'Required',
     },
     es: {
+        sources: 'Fuentes',
+        searchSuggestions: 'Sugerencias de búsqueda de Google',
+        fixedConversationVoice: 'Esta conversación utiliza la voz configurada por la aplicación.',
         // Header
         language: 'Español',
         defaultAgentName: 'Ascuita',

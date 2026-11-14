@@ -21,7 +21,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe('live WebSocket startup', () => {
+describe.each(['/live', '/live/v2'])('WebSocket startup %s', endpoint => {
   let app: ReturnType<typeof Fastify>;
   let socket: Awaited<ReturnType<typeof app.injectWS>> | undefined;
   const lease: ConnectionLease = { clientKey: '127.0.0.1', id: 'startup-test' };
@@ -53,11 +53,11 @@ describe('live WebSocket startup', () => {
   it('processes connect sent immediately while Redis security checks are pending', async () => {
     const block = deferred<null>();
     vi.mocked(securityState.getBlock).mockReturnValue(block.promise);
-    socket = await app.injectWS('/live');
+    socket = await app.injectWS(endpoint);
     const messages: Array<{ type: string; payload?: { message?: string } }> = [];
     socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
 
-    socket.send(JSON.stringify({ type: 'connect', payload: { config: {} } }));
+    socket.send(JSON.stringify({ type: 'connect', payload: { config: { instructions: '' } } }));
     await setImmediate();
     expect(messages).toEqual([]);
     expect(securityState.acquireConnectionLease).not.toHaveBeenCalled();
@@ -65,16 +65,16 @@ describe('live WebSocket startup', () => {
     block.resolve(null);
     // A configuration error proves the early connect reached the session handler,
     // without calling the real Gemini service or consuming a guest trial.
-    await vi.waitFor(() => expect(messages).toContainEqual({
-      type: 'error', payload: { message: 'GEMINI_API_KEY is missing on the backend' },
-    }));
+    await vi.waitFor(() => expect(messages).toContainEqual(expect.objectContaining({
+      type: 'error', payload: expect.objectContaining({ message: 'GEMINI_API_KEY is missing on the backend' }),
+    })));
     expect(messages[0]?.type).toBe('connection.ready');
   });
 
   it('does not process an early connect when the security checks reject the client', async () => {
     const block = deferred<{ reason: string; expiresAt: number } | null>();
     vi.mocked(securityState.getBlock).mockReturnValue(block.promise);
-    socket = await app.injectWS('/live');
+    socket = await app.injectWS(endpoint);
     const messages: unknown[] = [];
     socket.on('message', raw => messages.push(JSON.parse(raw.toString())));
     const serverSocket = [...app.websocketServer.clients][0]!;
@@ -91,7 +91,7 @@ describe('live WebSocket startup', () => {
   it('releases a lease that arrives after the browser disconnects during startup', async () => {
     const acquired = deferred<ConnectionLease | null>();
     vi.mocked(securityState.acquireConnectionLease).mockReturnValue(acquired.promise);
-    socket = await app.injectWS('/live');
+    socket = await app.injectWS(endpoint);
     await vi.waitFor(() => expect(securityState.acquireConnectionLease).toHaveBeenCalled());
     const serverSocket = [...app.websocketServer.clients][0]!;
     socket.terminate();
@@ -104,7 +104,7 @@ describe('live WebSocket startup', () => {
   it('bounds the total payload retained while Redis is pending', async () => {
     const block = deferred<null>();
     vi.mocked(securityState.getBlock).mockReturnValue(block.promise);
-    socket = await app.injectWS('/live');
+    socket = await app.injectWS(endpoint);
     const serverSocket = [...app.websocketServer.clients][0]!;
     const close = vi.spyOn(serverSocket, 'close');
     const chunk = Buffer.alloc(Math.floor(getConfig().wsMaxPayloadBytes / 2) + 1);

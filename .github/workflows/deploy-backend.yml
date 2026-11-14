@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'apps/api/**'
+      - 'shared/**'
       - 'Dockerfile.api'
       - '.dockerignore'
       - '.github/workflows/deploy-backend.yml'
@@ -24,9 +25,15 @@ env:
   CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
   CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT: ${{ vars.CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT }}
   CLOUD_RUN_GEMINI_SECRET: ${{ vars.CLOUD_RUN_GEMINI_SECRET }}
+  CLOUD_RUN_QWEN_SECRET: ${{ vars.CLOUD_RUN_QWEN_SECRET }}
   CLOUD_RUN_REDIS_URL_SECRET: ${{ vars.CLOUD_RUN_REDIS_URL_SECRET }}
   FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
   GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+  REALTIME_PROVIDER: ${{ vars.REALTIME_PROVIDER }}
+  QWEN_WORKSPACE_ID: ${{ vars.QWEN_WORKSPACE_ID }}
+  QWEN_MODEL: ${{ vars.QWEN_MODEL }}
+  QWEN_VOICE: ${{ vars.QWEN_VOICE }}
+  WEB_SEARCH_MODEL: ${{ vars.WEB_SEARCH_MODEL }}
   CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
   CLOUD_RUN_CPU: "1"
   CLOUD_RUN_MEMORY: 1Gi
@@ -81,9 +88,25 @@ jobs:
           cat > backend-cloudrun.env.yaml <<EOF
           FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
           GEMINI_MODEL: "${GEMINI_MODEL:-gemini-3.1-flash-live-preview}"
+          REALTIME_PROVIDER: "${REALTIME_PROVIDER:-gemini}"
+          QWEN_WORKSPACE_ID: "${QWEN_WORKSPACE_ID}"
+          QWEN_MODEL: "${QWEN_MODEL:-qwen3.8-omni-flash-realtime}"
+          QWEN_VOICE: "${QWEN_VOICE:-Tina}"
+          WEB_SEARCH_MODEL: "${WEB_SEARCH_MODEL:-gemini-3.5-flash-lite}"
           CORS_ORIGIN: "${CORS_ORIGIN}"
           REDIS_CLEANUP_TOKEN: "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           EOF
+
+          case "${REALTIME_PROVIDER:-gemini}" in
+            gemini) ;;
+            qwen)
+              if [ -z "${CLOUD_RUN_QWEN_SECRET}" ] || [ -z "${QWEN_WORKSPACE_ID}" ]; then
+                echo "Qwen requires CLOUD_RUN_QWEN_SECRET and a Singapore QWEN_WORKSPACE_ID."
+                exit 1
+              fi
+              ;;
+            *) echo "REALTIME_PROVIDER must be gemini or qwen."; exit 1 ;;
+          esac
 
           if [ -z "${CLOUD_RUN_REDIS_URL_SECRET}" ]; then
             echo "CLOUD_RUN_REDIS_URL_SECRET must be configured as a GitHub Actions variable before deploying Cloud Run."
@@ -93,6 +116,10 @@ jobs:
       - name: Deploy to Cloud Run
         shell: bash
         run: |
+          SECRET_BINDINGS="GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest,REDIS_URL=${CLOUD_RUN_REDIS_URL_SECRET}:latest"
+          if [ -n "${CLOUD_RUN_QWEN_SECRET}" ]; then
+            SECRET_BINDINGS="${SECRET_BINDINGS},QWEN_API_KEY=${CLOUD_RUN_QWEN_SECRET}:latest"
+          fi
           gcloud run deploy "${CLOUD_RUN_SERVICE}" \
             --project "${GCP_PROJECT_ID}" \
             --region "${GCP_REGION}" \
@@ -110,7 +137,7 @@ jobs:
             --max-instances "${CLOUD_RUN_MAX_INSTANCES}" \
             --timeout "${CLOUD_RUN_TIMEOUT_SECONDS}" \
             --env-vars-file backend-cloudrun.env.yaml \
-            --set-secrets "GEMINI_API_KEY=${CLOUD_RUN_GEMINI_SECRET}:latest,REDIS_URL=${CLOUD_RUN_REDIS_URL_SECRET}:latest"
+            --set-secrets "${SECRET_BINDINGS}"
 
       - name: Smoke test deployed API
         shell: bash

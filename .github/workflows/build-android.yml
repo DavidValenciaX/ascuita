@@ -15,7 +15,6 @@ jobs:
     env:
       VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
       VITE_FIREBASE_CONFIG: ${{ vars.VITE_FIREBASE_CONFIG }}
-      VITE_GEMINI_MODEL: ${{ vars.VITE_GEMINI_MODEL }}
       VITE_DEBUG_MODE: 'false'
       VERSION_NAME: ${{ vars.ANDROID_VERSION_NAME }}
     steps:
@@ -40,7 +39,6 @@ jobs:
           cat > apps/web/.env.mobile <<EOF
           VITE_API_BASE_URL=${VITE_API_BASE_URL}
           VITE_FIREBASE_CONFIG=${VITE_FIREBASE_CONFIG}
-          VITE_GEMINI_MODEL=${VITE_GEMINI_MODEL}
           VITE_DEBUG_MODE=${VITE_DEBUG_MODE}
           EOF
 

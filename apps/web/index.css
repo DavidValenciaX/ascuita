@@ -585,6 +585,49 @@ header:hover .createButton {
   min-height: 38px;
 }
 
+.sources-panel {
+  position: relative;
+  flex-shrink: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.sources-panel > summary {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(24, 26, 27, 0.94);
+  color: var(--Neutral-90);
+  cursor: pointer;
+}
+
+.sources-panel > summary:focus-visible,
+.sources-panel a:focus-visible {
+  outline: 2px solid var(--Blue-400);
+  outline-offset: 3px;
+}
+
+.sources-panel__content {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  width: min(380px, calc(100vw - 40px));
+  max-height: min(420px, 65dvh);
+  padding: 18px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: #181a1b;
+  color: var(--Neutral-90);
+  box-shadow: 0 12px 32px #0005;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.sources-panel__content ul { display: grid; gap: 10px; margin-block: 14px; }
+.streaming-console .sources-panel__content a { color: var(--Blue-400); text-underline-offset: 3px; }
+.sources-panel__content iframe { display: block; width: 100%; height: 180px; border: 0; background: white; border-radius: 8px; }
+
 .control-tray .connection-container .connection-button-container {
   border-radius: 27px;
   border: 1px solid var(--Neutral-30);

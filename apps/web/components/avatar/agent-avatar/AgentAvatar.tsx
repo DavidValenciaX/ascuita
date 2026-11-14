@@ -3,12 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { useEffect, useRef } from 'react';
-import {
-  Modality,
-  Type,
-  type FunctionDeclaration,
-} from '@google/genai';
-import { LiveServerToolCall } from '@google/genai';
+import type { ToolDefinition, RealtimeToolCall } from '../../../../../shared/realtime-protocol';
 
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
@@ -20,38 +15,6 @@ import { saveUserAgent } from '@/hooks/useUserAgents';
 import { useUserMemories } from '@/hooks/useUserMemories';
 import { createMemoryToolDeclarations } from '@/lib/memory-tools';
 import { executeMemoryToolCall } from '@/lib/memory-tool-handler';
-
-function buildResumePrompt(
-  language: 'es' | 'en',
-  agentName: string,
-  messages: Array<{ role: 'user' | 'assistant'; text: string }>
-) {
-  const transcript = messages
-    .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text}`)
-    .join('\n\n');
-
-  if (language === 'es') {
-    return [
-      `Retoma esta conversacion previa como ${agentName}.`,
-      'No te presentes de nuevo ni reinicies el tono.',
-      'Usa el siguiente historial solo como contexto para continuar de forma natural desde donde se quedo la charla.',
-      'Si el ultimo mensaje es del asistente, continua con una respuesta breve que avance la conversacion.',
-      '',
-      'Historial:',
-      transcript,
-    ].join('\n');
-  }
-
-  return [
-    `Resume this earlier conversation as ${agentName}.`,
-    'Do not introduce yourself again or restart the tone.',
-    'Use the following transcript only as context so you can continue naturally from where the chat left off.',
-    'If the last message is from the assistant, continue with a brief reply that moves the conversation forward.',
-    '',
-    'Transcript:',
-    transcript,
-  ].join('\n');
-}
 
 export default function AgentAvatar() {
   const {
@@ -87,7 +50,7 @@ export default function AgentAvatar() {
 
   // Set the configuration for the Live API
   useEffect(() => {
-    const functionDeclarations: FunctionDeclaration[] = [
+    const functionDeclarations: ToolDefinition[] = [
       ...(memoryAvailable
         ? createMemoryToolDeclarations()
         : []),
@@ -98,10 +61,10 @@ export default function AgentAvatar() {
               description:
                 'Proposes a new name for the agent. The name is not saved until the user confirms and confirm_agent_name is called.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
                   name: {
-                    type: Type.STRING,
+                    type: 'string',
                     description: 'The name the user wants the agent to go by',
                   },
                 },
@@ -113,7 +76,7 @@ export default function AgentAvatar() {
               description:
                 'Confirms and permanently saves the proposed agent name after the user has verbally agreed to the change.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {},
                 required: [],
               },
@@ -123,10 +86,10 @@ export default function AgentAvatar() {
               description:
                 'Proposes a new personality description for the agent. The personality is not saved until the user confirms and confirm_agent_personality is called.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
                   personality: {
-                    type: Type.STRING,
+                    type: 'string',
                     description:
                       'The new personality description the user wants the agent to have',
                   },
@@ -139,7 +102,7 @@ export default function AgentAvatar() {
               description:
                 'Confirms and permanently saves the proposed agent personality after the user has verbally agreed to the change.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {},
                 required: [],
               },
@@ -149,10 +112,10 @@ export default function AgentAvatar() {
               description:
                 'Proposes a new avatar color for the agent. The color is not saved until the user confirms and confirm_agent_color is called.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {
                   color: {
-                    type: Type.STRING,
+                    type: 'string',
                     description:
                       'The hex color value the user wants the agent avatar to be',
                     enum: AGENT_COLORS,
@@ -166,40 +129,20 @@ export default function AgentAvatar() {
               description:
                 'Confirms and permanently saves the proposed avatar color after the user has verbally agreed to the change.',
               parameters: {
-                type: Type.OBJECT,
+                type: 'object',
                 properties: {},
                 required: [],
               },
             },
-          ] satisfies FunctionDeclaration[])
+          ] satisfies ToolDefinition[])
         : []),
     ];
 
     setConfig({
-      responseModalities: [Modality.AUDIO],
-      inputAudioTranscription: {},
-      outputAudioTranscription: {},
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: current.voice },
-        },
-      },
-      systemInstruction: {
-        parts: [
-          {
-            text: createSystemInstructions(current, user, language, {
-              memories,
-              memoryEnabled: memoryAvailable,
-            }),
-          },
-        ],
-      },
-      tools: [
-        { googleSearch: {} },
-        ...(memoryAvailable || !current.isPreset
-          ? [{ functionDeclarations }]
-          : []),
-      ],
+      instructions: createSystemInstructions(current, user, language, { memories, memoryEnabled: memoryAvailable }),
+      voice: current.voice,
+      webSearch: true,
+      tools: functionDeclarations,
     });
   }, [
     setConfig,
@@ -227,9 +170,9 @@ export default function AgentAvatar() {
 
   // Handle function calls from the model (e.g. saving a name given by voice)
   useEffect(() => {
-    const handleToolCall = async (toolCall: LiveServerToolCall) => {
+    const handleToolCall = async (toolCall: { calls: RealtimeToolCall[] }) => {
       const responses = [];
-      for (const fc of toolCall.functionCalls ?? []) {
+      for (const fc of toolCall.calls) {
         const memoryToolResult = await executeMemoryToolCall(
           fc.name,
           (fc.args || {}) as Record<string, unknown>,
@@ -243,7 +186,7 @@ export default function AgentAvatar() {
         );
         if (memoryToolResult) {
           responses.push({
-            id: fc.id as string,
+            id: fc.callId,
             name: fc.name,
             response: { result: memoryToolResult.result },
           });
@@ -251,7 +194,7 @@ export default function AgentAvatar() {
           const newName = (fc.args as { name: string }).name;
           pendingNameRef.current = newName;
           responses.push({
-            id: fc.id as string,
+            id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedName: newName } },
           });
@@ -263,13 +206,13 @@ export default function AgentAvatar() {
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingNameRef.current = null;
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: true, name: newName } },
             });
           } else {
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: false, error: 'No pending name to confirm' } },
             });
@@ -278,7 +221,7 @@ export default function AgentAvatar() {
           const newPersonality = (fc.args as { personality: string }).personality;
           pendingPersonalityRef.current = newPersonality;
           responses.push({
-            id: fc.id as string,
+            id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedPersonality: newPersonality } },
           });
@@ -290,13 +233,13 @@ export default function AgentAvatar() {
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingPersonalityRef.current = null;
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: true } },
             });
           } else {
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: false, error: 'No pending personality to confirm' } },
             });
@@ -305,7 +248,7 @@ export default function AgentAvatar() {
           const newColor = (fc.args as { color: string }).color;
           pendingColorRef.current = newColor;
           responses.push({
-            id: fc.id as string,
+            id: fc.callId,
             name: fc.name,
             response: { result: { pending_confirmation: true, proposedColor: newColor } },
           });
@@ -317,13 +260,13 @@ export default function AgentAvatar() {
             if (!freshAgent.isPreset) void saveUserAgent(freshAgent);
             pendingColorRef.current = null;
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: true, color: newColor } },
             });
           } else {
             responses.push({
-              id: fc.id as string,
+              id: fc.callId,
               name: fc.name,
               response: { result: { success: false, error: 'No pending color to confirm' } },
             });
@@ -331,7 +274,7 @@ export default function AgentAvatar() {
         }
       }
       if (responses.length > 0) {
-        await client.sendToolResponse({ functionResponses: responses });
+        await client.sendToolResults(responses.map(response => ({ callId: response.id, name: response.name, result: response.response.result })));
       }
     };
     client.on('toolcall', handleToolCall);
@@ -361,27 +304,18 @@ export default function AgentAvatar() {
       return;
     }
 
+    if (client.resumed) {
+      greetedRef.current = true;
+      setIntroPlaying(false);
+      if (pendingResume) clearPendingResume();
+      return;
+    }
+
     const beginSession = window.setTimeout(() => {
       const agentName = current.name || 'Ascuita';
       greetedRef.current = true;
       setIntroPlaying(true);
-      if (pendingResume) {
-        clearPendingResume();
-        if (pendingResume.messages.length > 0) {
-          void client.send(
-            {
-              text: buildResumePrompt(
-                language,
-                pendingResume.agentName || agentName,
-                pendingResume.messages
-              ),
-            },
-            true,
-            false
-          );
-          return;
-        }
-      }
+      if (pendingResume) clearPendingResume();
 
       void client.send(
         {

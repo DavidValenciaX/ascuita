@@ -1,11 +1,14 @@
 # Ascuita
 
-Ascuita es una aplicación web para crear, probar y conversar con personajes de IA en tiempo real usando Gemini Live API. El proyecto parte del código original publicado por Google, pero ahora incluye cambios importantes en identidad, animación del personaje, autenticación, persistencia de conversaciones, seguridad, experiencia de usuario y soporte multilenguaje.
+Ascuita es una aplicación web para crear, probar y conversar con personajes de IA en tiempo real usando Gemini Live API o Qwen Omni Realtime. El proyecto parte del código original publicado por Google, pero ahora incluye cambios importantes en identidad, animación del personaje, autenticación, persistencia de conversaciones, seguridad, experiencia de usuario y soporte multilenguaje.
 
 Actualmente el repositorio usa una arquitectura `monorepo`:
 
 * `apps/web`: frontend Vite + React + Zustand desplegado en Firebase Hosting.
-* `apps/api`: backend Node + Fastify + WebSocket desplegado en Cloud Run y encargado de hablar con Gemini Live API de forma segura.
+* `apps/api`: backend Node + Fastify + WebSocket desplegado en Cloud Run, con adaptadores para Gemini y Qwen.
+* `shared/realtime-protocol.d.ts`: contratos de sesión independientes del proveedor, compartidos entre frontend y backend.
+
+El proveedor se elige con `REALTIME_PROVIDER=gemini|qwen` en el backend. Gemini es el valor predeterminado; no hay cambio automático de proveedor. Consulta [configuración, transición y pruebas de Qwen](docs/realtime-providers.md).
 
 ## Capturas de pantalla
 
@@ -60,6 +63,7 @@ PORT=3000
 CORS_ORIGIN=http://localhost:5173
 GEMINI_API_KEY=tu_clave_real
 GEMINI_MODEL=gemini-3.1-flash-live-preview
+REALTIME_PROVIDER=gemini
 
 # Firebase Admin SDK (necesario para Auth y Firestore en el backend)
 # En local usa el archivo firebase_service_account.json mediante
@@ -94,7 +98,6 @@ Crea `apps/web/.env.local` con este contenido:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000
-VITE_GEMINI_MODEL=gemini-3.1-flash-live-preview
 VITE_DEBUG_MODE=true
 VITE_FIREBASE_CONFIG={"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"...","measurementId":"..."}
 ```
@@ -185,7 +188,6 @@ Variables esperadas por el workflow de frontend (configuradas como variables en 
 
 * `VITE_FIREBASE_CONFIG`
 * `VITE_API_BASE_URL`
-* `VITE_GEMINI_MODEL`
 * `VITE_DEBUG_MODE`
 
 Secrets requeridos por el workflow:
@@ -206,8 +208,10 @@ Variables esperadas en GitHub para el workflow de backend:
 * `CLOUD_RUN_SERVICE`
 * `CLOUD_RUN_RUNTIME_SERVICE_ACCOUNT`
 * `CLOUD_RUN_GEMINI_SECRET`: nombre del secreto de Secret Manager que contiene `GEMINI_API_KEY`
+* `CLOUD_RUN_QWEN_SECRET`: nombre del secreto que contiene `QWEN_API_KEY`; opcional con Gemini activo
 * `CLOUD_RUN_REDIS_URL_SECRET`: nombre del secreto de Secret Manager que contiene la URL TLS completa de Upstash Redis (`rediss://default:<password>@<endpoint>:6379`)
 * `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
+* `REALTIME_PROVIDER`, `QWEN_WORKSPACE_ID`, `QWEN_MODEL`, `QWEN_VOICE`, `WEB_SEARCH_MODEL`; los valores por defecto se describen en [la guía de proveedores](docs/realtime-providers.md)
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 
@@ -235,7 +239,7 @@ El workflow `deploy-firestore-rules.yml` despliega las reglas definidas en `fire
 
 Las memorias se almacenan en `users/{uid}/memories/{memoryId}` con una categoría (`preference`, `personal_fact`, `goal` o `context`), contenido breve y marcas de tiempo. Para usuarios registrados están activadas por defecto, aunque pueden desactivarse desde Configuración. Gemini Live puede solicitar guardar o eliminar una memoria mediante function calling, pero el navegador valida la solicitud y Firestore vuelve a comprobar la autorización y el esquema. Los usuarios invitados no reciben estas herramientas ni tienen almacenamiento de memorias.
 
-Importante: `GEMINI_API_KEY` solo debe existir en el backend y nunca en el build del frontend. En producción se recomienda usar Secret Manager para `GEMINI_API_KEY` y Application Default Credentials para Firebase Admin en lugar de guardar una private key.
+`GEMINI_API_KEY` y `QWEN_API_KEY` solo existen en el backend. En producción se inyectan mediante Secret Manager. Gemini sigue siendo necesario con Qwen activo para las búsquedas y los clientes antiguos. Para Firebase Admin se recomienda Application Default Credentials en lugar de guardar una private key.
 
 ## Stack Tecnológico
 

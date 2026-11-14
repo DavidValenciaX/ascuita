@@ -27,12 +27,6 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 
 /**
- * Default Live API model to request through the backend.
- */
-export const DEFAULT_LIVE_API_MODEL =
-  import.meta.env.VITE_GEMINI_MODEL || 'gemini-3.1-flash-live-preview';
-
-/**
  * Enables debug-only UI details.
  */
 export const DEBUG_MODE = import.meta.env.VITE_DEBUG_MODE === 'true';

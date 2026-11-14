@@ -1,12 +1,12 @@
-import {
-  GoogleGenAI,
-  LiveClientToolResponse,
-  LiveConnectConfig,
-  Part,
-  Session,
-} from '@google/genai';
 import { FastifyPluginAsync } from 'fastify';
-import { getConfig, isAllowedOrigin } from '../config.js';
+import { getConfig, isAllowedOrigin, realtimeConfigurationErrors, realtimeSessionInfo } from '../config.js';
+import type { ConversationTurn, RealtimeConfig, RealtimeServerMessage, ResumeState } from '../../../../shared/realtime-protocol.js';
+import type { RealtimeSession } from '../realtime/types.js';
+import { createRealtimeSession } from '../realtime/factory.js';
+import { getProviderError } from '../realtime/errors.js';
+import { legacyConfigToRealtime, legacyToolResults } from '../realtime/legacy.js';
+import { isRecord, parseClientMessage } from '../realtime/validation.js';
+export { withLongLivedLiveConfig } from '../realtime/gemini.js';
 import { appendAbuseLog } from '../lib/abuse-log.js';
 import {
   isFirebaseAdminConfigured,
@@ -20,6 +20,11 @@ import {
 } from '../lib/security-state.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
+// These shapes belong only to the /live compatibility boundary.
+type LiveConnectConfig = Record<string, unknown>;
+type Part = { text?: string; [key: string]: unknown };
+type LiveClientToolResponse = { functionResponses?: Array<{ id?: string; name?: string; response?: Record<string, unknown> }> };
+
 type ClientMessage =
   | {
       type: 'connect';
@@ -30,6 +35,8 @@ type ClientMessage =
         agentId?: string;
         agentName?: string;
         conversationId?: string;
+        history?: ConversationTurn[];
+        resume?: ResumeState;
       };
     }
   | {
@@ -121,22 +128,6 @@ export function getErrorLogFields(error: unknown) {
   }
 
   return fields;
-}
-
-export function withLongLivedLiveConfig(config: LiveConnectConfig): LiveConnectConfig {
-  const sessionResumption = { ...(config.sessionResumption ?? {}) };
-
-  // The SDK type exposes `transparent`, but the Gemini API rejects it for
-  // Live sessions. Strip it even when an older frontend still sends it.
-  delete sessionResumption.transparent;
-
-  return {
-    ...config,
-    contextWindowCompression: config.contextWindowCompression ?? {
-      slidingWindow: {},
-    },
-    sessionResumption,
-  };
 }
 
 export function extractTextFromServerMessage(serverMessage: unknown): string {
@@ -299,12 +290,25 @@ export function toBuffer(raw: unknown): Buffer {
   return Buffer.from(String(raw));
 }
 
+function toInternalMessage(value: unknown): ClientMessage {
+  const message = parseClientMessage(value);
+  if (message.type === 'connect') return message;
+  if (message.type === 'audio') return { type: 'realtime_input', payload: { chunks: [{ mimeType: 'audio/pcm;rate=16000', data: message.payload.data }] } };
+  if (message.type === 'text') return { type: 'send', payload: { parts: [{ text: message.payload.text }], persist: message.payload.persist, turnComplete: message.payload.turnComplete } };
+  if (message.type === 'tool.results') return { type: 'tool_response', payload: { toolResponse: { functionResponses: message.payload.results.map(result => ({ id: result.callId, name: result.name, response: { result: result.result } })) } } };
+  return message;
+}
+
 const liveRoute: FastifyPluginAsync = async fastify => {
+  fastify.get('/live/v2/config', async () => realtimeSessionInfo(getConfig()));
+  for (const protocol of ['legacy', 'v2'] as const) {
   fastify.get(
-    '/live',
+    protocol === 'legacy' ? '/live' : '/live/v2',
     { websocket: true },
     (socket, request) => {
       const config = getConfig();
+      const provider = protocol === 'legacy' ? 'gemini' : config.realtimeProvider;
+      const info = realtimeSessionInfo(config, provider);
       const clientKey = getClientKey(request.ip);
       const connectionId = String(request.id);
       const connectionStartedAt = Date.now();
@@ -313,7 +317,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           ? request.headers.origin
           : null;
       let lastLiveStage = 'websocket_connected';
-      let geminiConnectStartedAt: number | null = null;
+      let providerConnectStartedAt: number | null = null;
       let receivedMessageCount = 0;
       let receivedAudioChunkCount = 0;
       let receivedAudioBytes = 0;
@@ -338,8 +342,10 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           event: 'live.websocket.connected',
           connectionId,
           origin: originHeader,
-          model: process.env.GEMINI_MODEL || 'gemini-3.1-flash-live-preview',
-          geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+          model: info.model,
+          provider,
+          protocol,
+          providerConfigured: realtimeConfigurationErrors(config, provider).length === 0,
           firebaseAdminConfigured: isFirebaseAdminConfigured(),
         },
         'WebSocket client connected to /live'
@@ -609,45 +615,45 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      const defaultModel =
-        process.env.GEMINI_MODEL || 'gemini-3.1-flash-live-preview';
-      const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
-      let session: Session | undefined;
+      const defaultModel = info.model;
+      let session: RealtimeSession | undefined;
+      let sessionReady = false;
+      let generation = 0;
       let currentModel = defaultModel;
+      let firstAudio = false;
+      let persistence = Promise.resolve();
+      const persistedTurns = new Set<string>();
       let freeTrialTimer: ReturnType<typeof setTimeout> | undefined;
       let conversationUid: string | null = null;
       let conversationId: string | null = null;
       let conversationAgentId = 'default-agent';
       let conversationAgentName = 'Ascuita';
       let conversationCreationPromise: Promise<string | null> | null = null;
-      let pendingAssistantText = '';
-      let pendingAssistantTranscriptText = '';
-      let pendingUserTranscriptText = '';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let firestoreDb: any = null;
+      // Firebase Admin references are created only after token verification.
+      let firestoreDb: ReturnType<typeof getAdminDb> = null;
 
       const send = (message: Record<string, unknown>) => {
-        if (socket.readyState === socket.OPEN) {
-          socket.send(JSON.stringify(message));
+        if (socket.readyState !== socket.OPEN) return;
+        if (protocol === 'legacy' && message.type === 'error') {
+          const payload = isRecord(message.payload) ? message.payload : {};
+          message = { type: 'error', payload: { message: payload.message || 'Realtime connection failed' } };
         }
+        if (protocol === 'v2' && message.type === 'error') {
+          const payload = isRecord(message.payload) ? message.payload : {};
+          const text = typeof payload.message === 'string' ? payload.message : 'Realtime connection failed';
+          const code = typeof payload.code === 'string' ? payload.code : text.includes(':') ? text.split(':')[0] : 'SESSION_ERROR';
+          message = { type: 'error', payload: { code, message: text, fatal: payload.fatal ?? /AUTH_INVALID|NOT_CONFIGURED|_KEY|WORKSPACE/.test(text) } };
+        }
+        socket.send(JSON.stringify(message));
       };
 
       const closeSession = () => {
-        if (freeTrialTimer) {
-          clearTimeout(freeTrialTimer);
-          freeTrialTimer = undefined;
-        }
-        try {
-          session?.close();
-        } catch (error) {
-          request.log.warn({ err: error }, 'Error while closing Gemini session');
-        } finally {
-          session = undefined;
-          pendingAssistantText = '';
-          pendingAssistantTranscriptText = '';
-          pendingUserTranscriptText = '';
-        }
+        generation += 1;
+        sessionReady = false;
+        if (freeTrialTimer) { clearTimeout(freeTrialTimer); freeTrialTimer = undefined; }
+        try { session?.close(); }
+        catch (error) { request.log.warn({ err: error }, 'Error while closing realtime session'); }
+        finally { session = undefined; }
       };
 
       const endConversation = async () => {
@@ -736,16 +742,32 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
       };
 
-      const flushPendingUserTranscript = async () => {
-        const completedUserTurn = pendingUserTranscriptText.trim();
-        pendingUserTranscriptText = '';
-        if (completedUserTurn) {
-          const ensuredConversationId = await ensureConversation();
-          if (!ensuredConversationId) {
-            return;
-          }
-          await saveMessage('user', completedUserTurn);
+      const persistText = (role: 'user' | 'assistant', text: string) => {
+        persistence = persistence.then(async () => {
+          if (text.trim() && await ensureConversation()) await saveMessage(role, text);
+        }).catch(error => request.log.warn({ err: error }, 'Error persisting realtime transcript'));
+      };
+
+      const handleProviderEvent = (event: RealtimeServerMessage) => {
+        if (event.type === 'session.ready') {
+          sessionReady = true;
+          lastLiveStage = 'provider_session_ready';
+          request.log.info({ event: 'live.provider.ready', connectionId, provider, model: currentModel,
+            elapsedMs: providerConnectStartedAt ? Date.now() - providerConnectStartedAt : undefined }, 'Realtime session ready');
         }
+        if (event.type === 'audio' && !firstAudio) {
+          firstAudio = true;
+          request.log.info({ event: 'live.provider.first_audio', connectionId, provider, model: currentModel,
+            elapsedMs: providerConnectStartedAt ? Date.now() - providerConnectStartedAt : undefined }, 'First realtime audio received');
+        }
+        if (event.type === 'transcript.final' && !persistedTurns.has(event.payload.turnId)) {
+          persistedTurns.add(event.payload.turnId);
+          persistText(event.payload.role, event.payload.text);
+        }
+        if (event.type === 'usage') request.log.info({ event: 'live.provider.usage', connectionId, provider, model: currentModel, usage: event.payload }, 'Realtime usage');
+        if (event.type === 'error') request.log.warn({ event: 'live.provider.error', connectionId, provider, model: currentModel, code: event.payload.code }, 'Realtime provider error');
+        if (protocol === 'v2' || event.type === 'error' || event.type === 'close') send(event);
+        if (event.type === 'close') closeSession();
       };
 
       let startupComplete = false;
@@ -774,10 +796,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
         send({
           type: 'connection.ready',
-          payload: {
-            model: currentModel,
-            geminiConfigured: Boolean(apiKey),
-          },
+          payload: protocol === 'v2' ? info : { model: currentModel, geminiConfigured: Boolean(config.geminiApiKey) },
         });
         lastLiveStage = 'connection_ready_sent';
         request.log.info(
@@ -785,7 +804,8 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             event: 'live.connection.ready_sent',
             connectionId,
             model: currentModel,
-            geminiConfigured: Boolean(apiKey),
+            provider,
+            providerConfigured: realtimeConfigurationErrors(config, provider).length === 0,
           },
           'Sent WebSocket connection.ready'
         );
@@ -838,7 +858,14 @@ const liveRoute: FastifyPluginAsync = async fastify => {
           return;
         }
 
-        const message = safeJsonParse(toBuffer(raw));
+        let message: ClientMessage;
+        try {
+          const parsed: unknown = JSON.parse(toBuffer(raw).toString());
+          message = protocol === 'v2' ? toInternalMessage(parsed) : safeJsonParse(toBuffer(raw));
+        } catch {
+          send({ type: 'error', payload: { code: 'INVALID_MESSAGE', message: 'Invalid realtime message', fatal: false } });
+          return;
+        }
         receivedMessageCount += 1;
 
         if (
@@ -900,7 +927,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
         }
 
         if (isConnectMessage(message)) {
-          const requestedModel = message.payload.model || defaultModel;
+          const requestedModel = protocol === 'legacy' ? message.payload.model || defaultModel : defaultModel;
           const hasRequestedConversation = Boolean(
             message.payload.conversationId?.trim()
           );
@@ -936,27 +963,25 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             return;
           }
 
-          if (!genAI) {
-            lastLiveStage = 'gemini_api_key_missing';
-            request.log.error(
-              {
-                event: 'live.gemini.configuration_missing',
-                connectionId,
-                model: requestedModel,
-              },
-              'Cannot start live session because GEMINI_API_KEY is missing'
-            );
-            send({
-              type: 'error',
-              payload: {
-                message: 'GEMINI_API_KEY is missing on the backend',
-              },
-            });
+          const configurationErrors = realtimeConfigurationErrors(config, provider);
+          if (configurationErrors.length) {
+            send({ type: 'error', payload: { code: 'PROVIDER_NOT_CONFIGURED', message: configurationErrors.join('; '), fatal: true } });
             return;
           }
 
           closeSession();
+          const attempt = generation;
+          firstAudio = false;
           currentModel = requestedModel;
+          await persistence;
+          if (attempt !== generation || socket.readyState !== socket.OPEN) return;
+          await endConversation();
+          if (attempt !== generation || socket.readyState !== socket.OPEN) return;
+          conversationUid = null;
+          conversationId = null;
+          firestoreDb = null;
+          conversationCreationPromise = null;
+          persistedTurns.clear();
 
           try {
             lastLiveStage = 'firebase_auth_verification_started';
@@ -972,6 +997,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               message.payload.authToken
             );
 
+            if (attempt !== generation || socket.readyState !== socket.OPEN) return;
             if (!decodedToken) {
               lastLiveStage = 'guest_trial_check_started';
               request.log.info(
@@ -992,6 +1018,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                 failSecurityState(error);
                 return;
               }
+              if (attempt !== generation || socket.readyState !== socket.OPEN) return;
               const elapsed = now - trialStart;
               const remaining = config.freeTrialDurationMs - elapsed;
               request.log.info(
@@ -1051,11 +1078,13 @@ const liveRoute: FastifyPluginAsync = async fastify => {
                       `users/${conversationUid}/conversations/${requestedConversationId}`
                     );
                     const existingConversation = await existingConversationRef.get();
+                    if (attempt !== generation || socket.readyState !== socket.OPEN) return;
                     if (existingConversation.exists) {
                       await existingConversationRef.set(
                         { endedAt: null },
                         { merge: true }
                       );
+                      if (attempt !== generation || socket.readyState !== socket.OPEN) return;
                       conversationId = requestedConversationId;
                     }
                   }
@@ -1088,221 +1117,44 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             return;
           }
 
+          if (attempt !== generation || socket.readyState !== socket.OPEN) return;
           try {
-            const liveConfig = withLongLivedLiveConfig(message.payload.config);
-            geminiConnectStartedAt = Date.now();
-            lastLiveStage = 'gemini_connect_started';
-            request.log.info(
-              {
-                event: 'live.gemini.connect_started',
-                connectionId,
-                model: currentModel,
-                authMode: message.payload.authToken ? 'authenticated' : 'guest',
-                configKeys: Object.keys(liveConfig).sort(),
-              },
-              'Starting Gemini Live connection'
-            );
-            session = await genAI.live.connect({
-              model: currentModel,
-              config: liveConfig,
-              callbacks: {
-                onopen: () => {
-                  lastLiveStage = 'gemini_socket_open';
-                  request.log.info(
-                    {
-                      event: 'live.gemini.socket_open',
-                      connectionId,
-                      model: currentModel,
-                      elapsedMs: geminiConnectStartedAt
-                        ? Date.now() - geminiConnectStartedAt
-                        : undefined,
-                    },
-                    'Gemini Live socket opened'
-                  );
-                  send({ type: 'open' });
-                },
-                onmessage: async serverMessage => {
-                  if (serverMessage.setupComplete) {
-                    lastLiveStage = 'gemini_setup_complete';
-                    request.log.info(
-                      {
-                        event: 'live.gemini.setup_complete',
-                        connectionId,
-                        model: currentModel,
-                        elapsedMs: geminiConnectStartedAt
-                          ? Date.now() - geminiConnectStartedAt
-                          : undefined,
-                      },
-                      'Gemini Live setupComplete received'
-                    );
-                  }
-
-                  if (serverMessage.sessionResumptionUpdate) {
-                    request.log.info(
-                      {
-                        resumable:
-                          serverMessage.sessionResumptionUpdate.resumable === true,
-                        hasHandle: Boolean(
-                          serverMessage.sessionResumptionUpdate.newHandle
-                        ),
-                        lastConsumedClientMessageIndex:
-                          serverMessage.sessionResumptionUpdate
-                            .lastConsumedClientMessageIndex,
-                      },
-                      'Gemini Live session resumption update'
-                    );
-                  }
-
-                  if (serverMessage.goAway) {
-                    request.log.warn(
-                      { timeLeft: serverMessage.goAway.timeLeft },
-                      'Gemini Live sent GoAway'
-                    );
-                  }
-
-                  send({
-                    type: 'server_message',
-                    payload: serverMessage,
-                  });
-                  const text = extractTextFromServerMessage(serverMessage);
-                  const inputTranscription = extractTranscriptionFromServerMessage(
-                    serverMessage,
-                    'inputTranscription'
-                  );
-                  const outputTranscription = extractTranscriptionFromServerMessage(
-                    serverMessage,
-                    'outputTranscription'
-                  );
-                  if (inputTranscription.text) {
-                    pendingUserTranscriptText += inputTranscription.text;
-                  }
-                  if (inputTranscription.finished) {
-                    await flushPendingUserTranscript();
-                  }
-                  if (
-                    pendingUserTranscriptText.trim() &&
-                    (outputTranscription.text || text || isServerTurnComplete(serverMessage))
-                  ) {
-                    await flushPendingUserTranscript();
-                  }
-                  if (text) {
-                    pendingAssistantText += text;
-                  }
-                  if (outputTranscription.text) {
-                    pendingAssistantTranscriptText += outputTranscription.text;
-                  }
-                  if (outputTranscription.finished) {
-                    const completedAssistantTurn =
-                      pendingAssistantTranscriptText.trim();
-                    pendingAssistantTranscriptText = '';
-                    pendingAssistantText = '';
-                    if (completedAssistantTurn) {
-                      void saveMessage('assistant', completedAssistantTurn);
-                    }
-                  }
-                  if (isServerTurnComplete(serverMessage)) {
-                    const completedReply =
-                      pendingAssistantTranscriptText.trim() || pendingAssistantText.trim();
-                    pendingAssistantTranscriptText = '';
-                    pendingAssistantText = '';
-                    if (completedReply) {
-                      void saveMessage('assistant', completedReply);
-                    }
-                  }
-                },
-                onerror: error => {
-                  lastLiveStage = 'gemini_error';
-                  request.log.error(
-                    {
-                      event: 'live.gemini.error',
-                      connectionId,
-                      model: currentModel,
-                      elapsedMs: geminiConnectStartedAt
-                        ? Date.now() - geminiConnectStartedAt
-                        : undefined,
-                      ...getErrorLogFields(error),
-                      err: error,
-                    },
-                    'Gemini Live returned an error'
-                  );
-                  send({
-                    type: 'error',
-                    payload: {
-                      message: getErrorMessage(error),
-                    },
-                  });
-                },
-                onclose: event => {
-                  lastLiveStage = 'gemini_closed';
-                  request.log.warn(
-                    {
-                      event: 'live.gemini.closed',
-                      connectionId,
-                      model: currentModel,
-                      code: event.code,
-                      reason: event.reason || '',
-                      wasClean: event.wasClean,
-                      elapsedMs: geminiConnectStartedAt
-                        ? Date.now() - geminiConnectStartedAt
-                        : undefined,
-                    },
-                    'Gemini Live session closed'
-                  );
-                  send({
-                    type: 'close',
-                    payload: {
-                      reason:
-                        event.reason || `Gemini session closed (code ${event.code})`,
-                    },
-                  });
-                  session = undefined;
-                },
-              },
+            const connectInfo = { ...info, model: currentModel };
+            providerConnectStartedAt = Date.now();
+            lastLiveStage = 'provider_connect_started';
+            const instance = createRealtimeSession(config, connectInfo, {
+              onEvent: event => { if (attempt === generation) handleProviderEvent(event); },
+              ...(protocol === 'legacy' ? { onLegacyMessage: (message: unknown) => {
+                if (attempt === generation) send({ type: 'server_message', payload: message });
+              }, onLegacyOpen: () => {
+                if (attempt === generation) send({ type: 'open' });
+              } } : {}),
+            }, protocol === 'legacy' ? message.payload.config : undefined);
+            session = instance;
+            await instance.connect({
+              config: protocol === 'legacy' ? legacyConfigToRealtime(message.payload.config) : message.payload.config as RealtimeConfig,
+              agentId: message.payload.agentId || 'default-agent',
+              conversationId: message.payload.conversationId,
+              history: message.payload.history,
+              resume: message.payload.resume,
             });
-            lastLiveStage = 'gemini_connect_resolved';
-            request.log.info(
-              {
-                event: 'live.gemini.connect_resolved',
-                connectionId,
-                model: currentModel,
-                elapsedMs: geminiConnectStartedAt
-                  ? Date.now() - geminiConnectStartedAt
-                  : undefined,
-                sessionCreated: Boolean(session),
-              },
-              'Gemini Live connection resolved'
-            );
+            if (attempt !== generation || socket.readyState !== socket.OPEN) instance.close();
           } catch (error) {
-            lastLiveStage = 'gemini_connect_failed';
-            request.log.error(
-              {
-                event: 'live.gemini.connect_failed',
-                connectionId,
-                model: currentModel,
-                elapsedMs: geminiConnectStartedAt
-                  ? Date.now() - geminiConnectStartedAt
-                  : undefined,
-                ...getErrorLogFields(error),
-                err: error,
-              },
-              'Failed to connect backend session to Gemini Live'
-            );
-            session = undefined;
-            send({
-              type: 'error',
-              payload: {
-                message: getErrorMessage(error),
-              },
-            });
+            if (attempt !== generation || socket.readyState !== socket.OPEN) return;
+            closeSession();
+            request.log.error({ event: 'live.provider.connect_failed', connectionId, provider, model: currentModel,
+              ...getErrorLogFields(error) }, 'Realtime connection failed');
+            const failure = getProviderError(error, 'PROVIDER_CONNECT_FAILED');
+            send({ type: 'error', payload: { code: failure.code, message: failure.message, fatal: failure.fatal } });
           }
           return;
         }
 
-        if (!session) {
+        if (!session || !sessionReady) {
           send({
             type: 'error',
             payload: {
-              message: 'Gemini session is not connected',
+              message: 'Realtime session is not ready',
             },
           });
           return;
@@ -1310,26 +1162,12 @@ const liveRoute: FastifyPluginAsync = async fastify => {
 
         try {
           if (isSendMessage(message)) {
-            await session.sendClientContent({
-              turns: Array.isArray(message.payload.parts)
-                ? message.payload.parts
-                : [message.payload.parts],
-              turnComplete: message.payload.turnComplete ?? true,
-            });
-            const parts = Array.isArray(message.payload.parts)
-              ? message.payload.parts
-              : [message.payload.parts];
-            const text = parts
-              .map(p => ((p as Record<string, unknown>).text as string) || '')
-              .filter(Boolean)
-              .join('');
+            const parts = Array.isArray(message.payload.parts) ? message.payload.parts : [message.payload.parts];
+            const text = parts.map(part => part.text || '').filter(Boolean).join('');
             if (text && message.payload.persist !== false) {
-              const ensuredConversationId = await ensureConversation();
-              if (!ensuredConversationId) {
-                return;
-              }
-              await saveMessage('user', text);
+              persistText('user', text);
             }
+            await session.sendText(text, message.payload.turnComplete ?? true);
             return;
           }
 
@@ -1343,33 +1181,28 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             }
 
             for (const chunk of message.payload.chunks) {
-              await session.sendRealtimeInput(
-                currentModel === 'gemini-3.1-flash-live-preview'
-                  ? { audio: chunk }
-                  : { media: chunk }
-              );
+              if (chunk.mimeType.startsWith('audio/pcm')) await session.sendAudio(chunk.data);
             }
             return;
           }
 
           if (isToolResponseMessage(message)) {
             if (message.payload.toolResponse.functionResponses) {
-              await session.sendToolResponse({
-                functionResponses: message.payload.toolResponse.functionResponses,
-              });
+              await session.sendToolResults(legacyToolResults(message.payload.toolResponse, protocol === 'legacy'));
             }
             return;
           }
         } catch (error) {
           request.log.error(
             {
-              event: 'live.gemini.forward_error',
+              event: 'live.provider.forward_error',
               connectionId,
+              provider,
               ...getErrorLogFields(error),
               err: error,
               messageType: message.type,
             },
-            'Failed to forward client message to Gemini Live'
+            'Failed to forward client message to realtime provider'
           );
           send({
             type: 'error',
@@ -1381,17 +1214,16 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
 
       socket.on('close', (code: number, reason: Buffer) => {
-        const geminiConnectPending =
-          geminiConnectStartedAt !== null &&
-          !session &&
-          (lastLiveStage === 'gemini_connect_started' ||
-            lastLiveStage === 'gemini_socket_open');
+        const providerConnectPending =
+          providerConnectStartedAt !== null &&
+          !sessionReady &&
+          lastLiveStage === 'provider_connect_started';
         stopSecurityCounterFlush();
         void flushSecurityCounters().finally(() => {
           void releaseConnectionLease();
         });
         closeSession();
-        void endConversation();
+        void persistence.finally(endConversation);
         request.log.info(
           {
             event: 'live.websocket.closed',
@@ -1403,7 +1235,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
             receivedMessageCount,
             receivedAudioChunkCount,
             receivedAudioBytes,
-            geminiConnectPending,
+            providerConnectPending,
           },
           'WebSocket client disconnected from /live'
         );
@@ -1430,6 +1262,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
       });
     }
   );
+  }
 };
 
 export default liveRoute;

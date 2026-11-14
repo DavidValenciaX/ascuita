@@ -106,8 +106,9 @@ crear un tag `v*`. Configura estas variables de repositorio:
 
 - `VITE_API_BASE_URL`
 - `VITE_FIREBASE_CONFIG`
-- `VITE_GEMINI_MODEL`
 - `ANDROID_VERSION_NAME` opcional
+
+Los APK nuevos usan `/live/v2` y reciben el proveedor desde el backend. Los APK anteriores siguen usando `/live` con Gemini; el flag `REALTIME_PROVIDER` solo afecta al protocolo nuevo. Publica primero el backend compatible. Consulta [la guía de proveedores](realtime-providers.md).
 
 Y estos secrets:
 

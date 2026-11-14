@@ -509,7 +509,7 @@ function MemoriesTab() {
 function AgentsTab() {
   const { current, setCurrent, availablePresets, availablePersonal, addAgent, removeAgent } = useAgent();
   const updateAgent = useAgent(state => state.update);
-  const { disconnect, client, connected } = useLiveAPIContext();
+  const { disconnect, client, connected, sessionInfo } = useLiveAPIContext();
   const { t } = useTranslation();
   const { language } = useLanguage();
   const user = useUser();
@@ -650,17 +650,21 @@ function AgentsTab() {
           <label htmlFor="settings-new-agent-voice">{t('voice')}</label>
           <select
             id="settings-new-agent-voice"
-            value={editingAgent.voice}
+            value={sessionInfo?.voice.mode === 'fixed' ? sessionInfo.voice.name : editingAgent.voice}
+            disabled={!sessionInfo || sessionInfo.voice.mode === 'fixed'}
             onChange={e =>
               updateEditingAgent({ voice: e.target.value as INTERLOCUTOR_VOICE })
             }
           >
-            {INTERLOCUTOR_VOICES.map(voice => (
+            {sessionInfo?.voice.mode === 'fixed' ? (
+              <option value={sessionInfo.voice.name}>{sessionInfo.voice.name}</option>
+            ) : INTERLOCUTOR_VOICES.map(voice => (
               <option key={voice} value={voice}>
                 {voice}
               </option>
             ))}
           </select>
+          {sessionInfo?.voice.mode === 'fixed' ? <p>{t('fixedConversationVoice')}</p> : null}
         </div>
         {validationError && (
           <p className="settingsPanel__validationError">{validationError}</p>

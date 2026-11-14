@@ -27,7 +27,6 @@ import Header from '@/components/Header';
 import SettingsPanel from '@/components/SettingsPanel';
 import Sidebar from '@/components/Sidebar';
 import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
-import { DEFAULT_LIVE_API_MODEL } from '@/lib/constants';
 import { useAuthGate, useUI, useUser } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
 import {
@@ -106,7 +105,7 @@ function App() {
   
   return (
     <div className="App">
-      <LiveAPIProvider model={DEFAULT_LIVE_API_MODEL} authToken={authToken}>
+      <LiveAPIProvider authToken={authToken}>
         <ErrorScreen />
         <LoadingScreen />
         <AuthGateModal />

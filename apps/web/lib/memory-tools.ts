@@ -1,22 +1,22 @@
-import { Type, type FunctionDeclaration } from '@google/genai';
+import type { ToolDefinition } from '../../../shared/realtime-protocol';
 import { MEMORY_CATEGORIES } from './memories';
 
-export function createMemoryToolDeclarations(): FunctionDeclaration[] {
+export function createMemoryToolDeclarations(): ToolDefinition[] {
   return [
     {
       name: 'save_user_memory',
       description:
         'Saves a concise, durable, non-sensitive fact about the user for future conversations. Only call this when the user has clearly shared something useful to remember.',
       parameters: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
           content: {
-            type: Type.STRING,
+            type: 'string',
             description:
               'A concise statement of the durable fact or preference, without secrets or sensitive personal data.',
           },
           category: {
-            type: Type.STRING,
+            type: 'string',
             description: 'The type of memory being saved.',
             enum: [...MEMORY_CATEGORIES],
           },
@@ -29,10 +29,10 @@ export function createMemoryToolDeclarations(): FunctionDeclaration[] {
       description:
         'Deletes an existing user memory only after the user explicitly asks to forget or correct it.',
       parameters: {
-        type: Type.OBJECT,
+        type: 'object',
         properties: {
           memoryId: {
-            type: Type.STRING,
+            type: 'string',
             description:
               'The internal memory identifier from the persistent memory context.',
           },

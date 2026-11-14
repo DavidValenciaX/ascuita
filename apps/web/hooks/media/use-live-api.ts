@@ -19,23 +19,22 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { GenAILiveClient } from '../../lib/genai-live-client';
-import { LiveConnectConfig } from '@google/genai';
+import { RealtimeClient } from '../../lib/realtime-client';
+import type { GroundingResult, RealtimeConfig, RealtimeSessionInfo } from '../../../../shared/realtime-protocol';
 import { AudioStreamer } from '../../lib/audio-streamer';
 import { AudioRecorder } from '../../lib/audio-recorder';
 import { registeredWorklets } from '../../lib/audioworklet-registry';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
-import { DEFAULT_LIVE_API_MODEL } from '../../lib/constants';
-import { useAgent, useAuthGate, useConversationResume } from '../../lib/state';
+import { useAgent, useAuthGate, useConversationResume, useUser } from '../../lib/state';
 
 export type UseLiveApiResults = {
-  client: GenAILiveClient;
-  setConfig: (config: LiveConnectConfig) => void;
-  config: LiveConnectConfig;
+  client: RealtimeClient;
+  setConfig: (config: RealtimeConfig) => void;
+  config: RealtimeConfig;
 
   connect: () => Promise<void>;
-  disconnect: () => void;
+  disconnect: (preserveSession?: boolean) => void;
   connected: boolean;
   connecting: boolean;
   fatalError: string | null;
@@ -50,18 +49,18 @@ export type UseLiveApiResults = {
 
   volumeRef: RefObject<number>;
   audioStreamer: AudioStreamer | null;
+  sessionInfo: RealtimeSessionInfo | null;
+  sources: GroundingResult | null;
 };
 
 export function useLiveApi({
-  model = DEFAULT_LIVE_API_MODEL,
   authToken,
 }: {
-  model?: string;
   authToken?: string | null;
 }): UseLiveApiResults {
   const client = useMemo(
-    () => new GenAILiveClient(model),
-    [model]
+    () => new RealtimeClient(),
+    []
   );
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
@@ -78,14 +77,36 @@ export function useLiveApi({
   const [connecting, setConnecting] = useState(false);
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [displayError, setDisplayError] = useState<UseLiveApiResults['displayError']>(null);
-  const [config, setConfig] = useState<LiveConnectConfig>({});
+  const [config, setConfig] = useState<RealtimeConfig>({ instructions: '' });
   const [audioStreamer, setAudioStreamer] = useState<AudioStreamer | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<RealtimeSessionInfo | null>(null);
+  const [sources, setSources] = useState<GroundingResult | null>(null);
+  const activeConversation = useRef<{ agentId: string; conversationId?: string }>({ agentId: '' });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void client.loadConfiguration(controller.signal).then(info => {
+      if (!controller.signal.aborted) setSessionInfo(info);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [client]);
   const [audioReady, setAudioReady] = useState(false);
   const [audioStarting, setAudioStarting] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const setTrialExpired = useAuthGate(state => state.setTrialExpired);
   const currentAgent = useAgent(state => state.current);
   const pendingResume = useConversationResume(state => state.pending);
+  const userId = useUser(state => state.uid);
+
+  useEffect(() => {
+    client.disconnect();
+    activeConversation.current = { agentId: '' };
+    setConnected(false);
+    setConnecting(false);
+    setSources(null);
+    pendingAudioChunksRef.current = [];
+    audioStreamerRef.current?.stop();
+  }, [client, userId]);
 
   const reportAudioError = useCallback((error: unknown) => {
     const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : '';
@@ -173,6 +194,9 @@ export function useLiveApi({
     const onClose = () => {
       setConnecting(false);
       setConnected(false);
+      setSources(null);
+      pendingAudioChunksRef.current = [];
+      audioStreamerRef.current?.stop();
     };
 
     const onOpen = () => {
@@ -200,6 +224,7 @@ export function useLiveApi({
       }
 
       if (
+        error.error?.fatal === true ||
         error.message?.includes('GEMINI_API_KEY is missing on the backend') ||
         error.message?.includes('AUTH_INVALID') ||
         error.message?.includes('FIREBASE_AUTH_BACKEND_NOT_CONFIGURED')
@@ -233,6 +258,7 @@ export function useLiveApi({
     };
 
     const stopAudioStreamer = () => {
+      pendingAudioChunksRef.current = [];
       if (audioStreamerRef.current) {
         audioStreamerRef.current.stop();
       }
@@ -247,7 +273,9 @@ export function useLiveApi({
     };
 
     // Bind event listeners
-    client.on('setupcomplete', onSetupComplete);
+    client.on('ready', onSetupComplete);
+    client.on('configuration', setSessionInfo);
+    client.on('sources', setSources);
     client.on('open', onOpen);
     client.on('close', onClose);
     client.on('error', onError);
@@ -256,7 +284,9 @@ export function useLiveApi({
 
     return () => {
       // Clean up event listeners
-      client.off('setupcomplete', onSetupComplete);
+      client.off('ready', onSetupComplete);
+      client.off('configuration', setSessionInfo);
+      client.off('sources', setSources);
       client.off('open', onOpen);
       client.off('close', onClose);
       client.off('error', onError);
@@ -274,6 +304,9 @@ export function useLiveApi({
     setFatalError(null);
     setDisplayError(null);
     setConnecting(true);
+    setSources(null);
+    if (activeConversation.current.agentId !== currentAgent.id) activeConversation.current = { agentId: currentAgent.id };
+    if (pendingResume) activeConversation.current.conversationId = pendingResume.conversationId;
     await client.connect(
       config,
       authToken,
@@ -281,20 +314,25 @@ export function useLiveApi({
         ...currentAgent,
         name: currentAgent.name || 'Ascuita',
       },
-      pendingResume?.conversationId
+      activeConversation.current.conversationId,
+      pendingResume?.messages
     );
   }, [
     authToken,
     client,
     currentAgent.id,
     currentAgent.name,
-    pendingResume?.conversationId,
+    pendingResume,
     setConnected,
     config,
   ]);
 
-  const disconnect = useCallback(async () => {
-    client.disconnect();
+  const disconnect = useCallback(async (preserveSession = false) => {
+    client.disconnect(preserveSession);
+    if (!preserveSession) activeConversation.current = { agentId: '' };
+    pendingAudioChunksRef.current = [];
+    audioStreamerRef.current?.stop();
+    setSources(null);
     setConnecting(false);
     setConnected(false);
   }, [setConnected, client]);
@@ -322,5 +360,7 @@ export function useLiveApi({
     disconnect,
     volumeRef,
     audioStreamer,
+    sessionInfo,
+    sources,
   };
 }

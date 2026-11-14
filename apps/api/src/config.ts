@@ -1,9 +1,17 @@
-type AppConfig = {
+import type { RealtimeProvider, RealtimeSessionInfo } from '../../../shared/realtime-protocol.js';
+
+export type AppConfig = {
   host: string;
   port: number;
   corsOrigin: string[];
   geminiApiKey?: string;
   geminiModel: string;
+  realtimeProvider: RealtimeProvider;
+  qwenApiKey?: string;
+  qwenModel: string;
+  qwenWorkspaceId?: string;
+  qwenVoice: string;
+  webSearchModel: string;
   logLevel: string;
   httpRateLimitWindowMs: number;
   httpRateLimitMaxRequests: number;
@@ -81,12 +89,22 @@ export function parseNumber(value: string | undefined, fallback: number) {
 }
 
 export function getConfig(): AppConfig {
+  const provider = process.env.REALTIME_PROVIDER || 'gemini';
+  if (provider !== 'gemini' && provider !== 'qwen') {
+    throw new Error('REALTIME_PROVIDER must be gemini or qwen');
+  }
   return {
     host: process.env.HOST || getDefaultHost(),
     port: Number(process.env.PORT || '3000'),
     corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN),
     geminiApiKey: process.env.GEMINI_API_KEY,
     geminiModel: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    realtimeProvider: provider,
+    qwenApiKey: process.env.QWEN_API_KEY,
+    qwenModel: process.env.QWEN_MODEL || 'qwen3.8-omni-flash-realtime',
+    qwenWorkspaceId: process.env.QWEN_WORKSPACE_ID,
+    qwenVoice: process.env.QWEN_VOICE || 'Tina',
+    webSearchModel: process.env.WEB_SEARCH_MODEL || 'gemini-3.5-flash-lite',
     logLevel: DEFAULT_LOG_LEVEL,
     httpRateLimitWindowMs: DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS,
     httpRateLimitMaxRequests: DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS,
@@ -101,5 +119,37 @@ export function getConfig(): AppConfig {
     wsMaxAudioBytesPerWindow: DEFAULT_WS_MAX_AUDIO_BYTES_PER_WINDOW,
     wsTemporaryBlockDurationMs: DEFAULT_WS_TEMPORARY_BLOCK_DURATION_MS,
     freeTrialDurationMs: DEFAULT_FREE_TRIAL_DURATION_MS,
+  };
+}
+
+export function realtimeConfigurationErrors(config: AppConfig, provider = config.realtimeProvider): string[] {
+  const errors: string[] = [];
+  if (!config.geminiApiKey) errors.push('GEMINI_API_KEY is missing on the backend');
+  if (provider === 'qwen') {
+    if (!config.qwenApiKey) errors.push('QWEN_API_KEY is missing on the backend');
+    if (!config.qwenWorkspaceId || !/^[a-zA-Z0-9-]+$/.test(config.qwenWorkspaceId)) {
+      errors.push('QWEN_WORKSPACE_ID must be a valid Singapore workspace ID');
+    }
+  }
+  return errors;
+}
+
+export function realtimeReadinessChecks(config: AppConfig): Array<{ name: string; ready: boolean }> {
+  return [
+    { name: 'geminiApiKey', ready: Boolean(config.geminiApiKey) },
+    ...(config.realtimeProvider === 'qwen' ? [
+      { name: 'qwenApiKey', ready: Boolean(config.qwenApiKey) },
+      { name: 'qwenWorkspaceId', ready: Boolean(config.qwenWorkspaceId && /^[a-zA-Z0-9-]+$/.test(config.qwenWorkspaceId)) },
+    ] : []),
+  ];
+}
+
+export function realtimeSessionInfo(config: AppConfig, provider = config.realtimeProvider): RealtimeSessionInfo {
+  return {
+    provider,
+    model: provider === 'gemini' ? config.geminiModel : config.qwenModel,
+    voice: provider === 'gemini' ? { mode: 'agent' } : { mode: 'fixed', name: config.qwenVoice },
+    audio: { inputSampleRate: 16000, outputSampleRate: 24000, format: 'pcm_s16le', channels: 1 },
+    capabilities: { tools: true, webSearch: true, nativeResumption: provider === 'gemini' },
   };
 }

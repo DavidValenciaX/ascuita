@@ -5,7 +5,7 @@ import Fastify from 'fastify';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getConfig, isAllowedOrigin, isRunningInCloudRun } from './config.js';
+import { getConfig, isAllowedOrigin, isRunningInCloudRun, realtimeConfigurationErrors, realtimeReadinessChecks } from './config.js';
 import { appendAbuseLog } from './lib/abuse-log.js';
 import { isFirebaseAdminConfigured } from './lib/firebase-admin.js';
 import { ServerLifecycle } from './lib/lifecycle.js';
@@ -128,6 +128,7 @@ await app.register(accountRoute);
 await app.register(healthRoute, {
   isServing: () => lifecycle.isReady(),
   checkReadiness: async () => [
+    ...realtimeReadinessChecks(config),
     {
       name: 'securityState',
       ready: await securityState.checkReadiness(),
@@ -165,6 +166,8 @@ const start = async () => {
         corsOrigin: config.corsOrigin,
         geminiConfigured: Boolean(config.geminiApiKey),
         geminiModel: config.geminiModel,
+        realtimeProvider: config.realtimeProvider,
+        realtimeConfigured: realtimeConfigurationErrors(config).length === 0,
         firebaseAdminConfigured: isFirebaseAdminConfigured(),
         cloudRun: isRunningInCloudRun(),
         securityStateBackend: securityState.backend,
