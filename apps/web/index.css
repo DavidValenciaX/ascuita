@@ -2290,25 +2290,6 @@ input[type='range'] {
   accent-color: var(--text);
 }
 
-.settingsPanel__fireActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 6px;
-}
-
-.settingsPanel__fireActions .button {
-  background: var(--Neutral-20);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.settingsPanel__fireActions .button:hover {
-  background: rgba(255, 148, 64, 0.12);
-  border-color: rgba(255, 148, 64, 0.28);
-  color: white;
-}
-
 .settingsPanel__avatarSections {
   display: flex;
   flex-direction: column;

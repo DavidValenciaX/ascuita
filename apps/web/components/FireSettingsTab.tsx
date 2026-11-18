@@ -1,26 +1,16 @@
-import { useRef } from 'react';
-import {
-  cloneInnerFireConfig,
-  defaultInnerFireConfig,
-} from '@/lib/fire/config';
 import { useInnerFire } from '@/lib/state';
 import FireSliderSection from './FireSliderSection';
 import {
   createFireSectionUpdater,
   renderFireSliderControls,
 } from './fire-settings-helpers';
-import { exportFireConfig, importFireConfigFromInput } from './fire-settings-io';
 import {
   FIRE_SETTINGS_SECTIONS,
   FireSliderSectionSchema,
 } from './fire-settings-schema';
 
 export default function FireSettingsTab() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { config, updateConfig, replaceConfig, resetConfig } = useInnerFire();
-
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) =>
-    importFireConfigFromInput(event, replaceConfig);
+  const { config, updateConfig, resetConfig } = useInnerFire();
 
   const createSectionUpdater = createFireSectionUpdater(config, updateConfig);
   const updateTransformValue = createSectionUpdater('transform');
@@ -76,41 +66,6 @@ export default function FireSettingsTab() {
           {renderSliderSection(section)}
         </FireSliderSection>
       ))}
-
-      <div className="settingsPanel__fireActions">
-        <button
-          type="button"
-          className="button"
-          onClick={() => exportFireConfig(config)}
-        >
-          <span className="icon">download</span>
-          Exportar
-        </button>
-        <button
-          type="button"
-          className="button"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <span className="icon">upload</span>
-          Importar
-        </button>
-        <button
-          type="button"
-          className="button"
-          onClick={() => replaceConfig(cloneInnerFireConfig(defaultInnerFireConfig))}
-        >
-          <span className="icon">restart_alt</span>
-          Valores base
-        </button>
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json"
-        hidden
-        onChange={handleImport}
-      />
     </div>
   );
 }

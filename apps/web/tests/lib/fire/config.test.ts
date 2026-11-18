@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   cloneInnerFireConfig,
   mergeInnerFireConfig,
-  normalizeInnerFireConfig,
   defaultInnerFireConfig,
 } from '@/lib/fire/config';
 
@@ -57,23 +56,5 @@ describe('mergeInnerFireConfig', () => {
   it('does not mutate the original target', () => {
     mergeInnerFireConfig(defaultInnerFireConfig, { transform: { x: 1 } });
     expect(defaultInnerFireConfig.transform.x).toBe(0);
-  });
-});
-
-describe('normalizeInnerFireConfig', () => {
-  it('returns full defaults for an empty object', () => {
-    expect(normalizeInnerFireConfig({})).toEqual(defaultInnerFireConfig);
-  });
-
-  it('merges a partial config with defaults', () => {
-    const result = normalizeInnerFireConfig({
-      transform: { y: 5 },
-      bloom: { strength: 3 },
-    });
-    expect(result.transform.y).toBe(5);
-    expect(result.transform.x).toBe(0);
-    expect(result.bloom.strength).toBe(3);
-    expect(result.bloom.radius).toBe(0.5);
-    expect(result.particles).toEqual(defaultInnerFireConfig.particles);
   });
 });

@@ -10,7 +10,6 @@ import {
   DeepPartial,
   InnerFireConfig,
   mergeInnerFireConfig,
-  normalizeInnerFireConfig,
 } from './fire/config';
 
 /**
@@ -65,13 +64,11 @@ export const useSpeechAnimation = create<{
 export const useInnerFire = create<{
   config: InnerFireConfig;
   updateConfig: (adjustments: DeepPartial<InnerFireConfig>) => void;
-  replaceConfig: (config: InnerFireConfig) => void;
   resetConfig: () => void;
 }>(set => ({
   config: cloneInnerFireConfig(defaultInnerFireConfig),
   updateConfig: adjustments =>
     set(state => ({ config: mergeInnerFireConfig(state.config, adjustments) })),
-  replaceConfig: config => set({ config: normalizeInnerFireConfig(config) }),
   resetConfig: () => set({ config: cloneInnerFireConfig(defaultInnerFireConfig) }),
 }));
 

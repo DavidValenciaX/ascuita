@@ -96,15 +96,6 @@ export function cloneInnerFireConfig(config: InnerFireConfig): InnerFireConfig {
   return JSON.parse(JSON.stringify(config)) as InnerFireConfig;
 }
 
-export function normalizeInnerFireConfig(
-  config: DeepPartial<InnerFireConfig>
-): InnerFireConfig {
-  return mergeInnerFireConfig(
-    cloneInnerFireConfig(defaultInnerFireConfig),
-    config
-  );
-}
-
 export function mergeInnerFireConfig(
   target: InnerFireConfig,
   source: DeepPartial<InnerFireConfig>
