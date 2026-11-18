@@ -4,6 +4,7 @@ import { useConversations, type ConversationMessage } from '@/hooks/useConversat
 import { useConversationResume, useAgent, useUI, useAuthGate, useUser } from '@/lib/state';
 import { useLiveAPIContext } from '@/contexts/LiveAPIContext';
 import { useTranslation } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/confirm-dialog';
 
 function formatDate(ms: number) {
   if (!ms) return '';
@@ -70,7 +71,13 @@ function Sidebar() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t('chatsDeleteConfirm'))) return;
+    const confirmed = await confirmDestructive({
+      title: t('chatsDeleteConfirmTitle'),
+      text: t('chatsDeleteConfirm'),
+      confirmText: t('chatsDelete'),
+      cancelText: t('confirmCancel'),
+    });
+    if (!confirmed) return;
     setDeletingId(id);
     try {
       await deleteConversation(id);

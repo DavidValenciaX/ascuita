@@ -8,6 +8,7 @@ import {
 } from '../../firebase';
 import { deleteAccount } from '@/lib/account-deletion';
 import { useTranslation } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/confirm-dialog';
 
 type DeletionState = 'idle' | 'signing-in' | 'deleting' | 'success' | 'error';
 
@@ -40,9 +41,13 @@ export default function AccountDeletionPage() {
       return;
     }
 
-    if (!window.confirm(t('accountDeleteConfirm'))) {
-      return;
-    }
+    const confirmed = await confirmDestructive({
+      title: t('accountDeleteConfirmTitle'),
+      text: t('accountDeleteConfirm'),
+      confirmText: t('accountDeletionDelete'),
+      cancelText: t('confirmCancel'),
+    });
+    if (!confirmed) return;
 
     setState('deleting');
     try {

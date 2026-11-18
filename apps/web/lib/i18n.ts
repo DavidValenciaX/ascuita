@@ -22,6 +22,7 @@ export const translations: Translations = {
         defaultAgentName: 'Ascuita',
         edit: 'Edit',
         deleteAgent: 'Delete',
+        deleteAgentConfirmTitle: 'Delete agent?',
         deleteAgentConfirm: 'Delete this agent? This cannot be undone.',
         deleteAgentCascadeConfirm:
             'This agent is used by {count} saved conversations. If you delete it, those conversations will also be deleted. This cannot be undone.',
@@ -63,6 +64,7 @@ export const translations: Translations = {
         accountDeleteDescription:
             'This permanently deletes your Ascuita data, conversations, agents, memories, and Firebase account.',
         accountSignOutError: 'Could not sign out. Please try again.',
+        accountDeleteConfirmTitle: 'Delete account?',
         accountDeleteConfirm:
             'Delete your Ascuita account and all associated data? This cannot be undone.',
         accountDeleting: 'Deleting account...',
@@ -89,6 +91,9 @@ export const translations: Translations = {
         memoriesDate: 'Updated',
         memoriesDelete: 'Delete memory',
         memoriesClear: 'Delete all memories',
+        memoriesClearConfirmTitle: 'Delete all memories?',
+        memoriesDeleteConfirmTitle: 'Delete memory?',
+        memoriesDeleteConfirm: 'This memory will be permanently removed.',
         memoriesClearConfirm: 'Delete all persistent memories? This cannot be undone.',
         memoriesExport: 'Export memories',
         memoriesExportError: 'The memories could not be exported.',
@@ -125,6 +130,8 @@ export const translations: Translations = {
         chatsResumeHint: 'Resume this chat with the same conversation context and continue from where it stopped.',
         chatsBack: 'Back to list',
         chatsDeleteDisabled: 'Active conversations can only be deleted after they end.',
+        chatsDeleteConfirmTitle: 'Delete conversation?',
+        confirmCancel: 'Cancel',
         chatsDeleteConfirm: 'Delete this conversation? This cannot be undone.',
         chatsLoading: 'Loading messages...',
         chatsNoMessages: 'No messages in this conversation.',
@@ -186,6 +193,7 @@ export const translations: Translations = {
         defaultAgentName: 'Ascuita',
         edit: 'Editar',
         deleteAgent: 'Eliminar',
+        deleteAgentConfirmTitle: '¿Eliminar agente?',
         deleteAgentConfirm: '¿Eliminar este agente? Esta acción no se puede deshacer.',
         deleteAgentCascadeConfirm:
             'Este agente está relacionado con {count} conversaciones guardadas. Si lo eliminas, esas conversaciones también se eliminarán. Esta acción no se puede deshacer.',
@@ -227,6 +235,7 @@ export const translations: Translations = {
         accountDeleteDescription:
             'Esto elimina permanentemente tus datos de Ascuita, conversaciones, agentes, memorias y cuenta de Firebase.',
         accountSignOutError: 'No se pudo cerrar la sesión. Inténtalo de nuevo.',
+        accountDeleteConfirmTitle: '¿Eliminar cuenta?',
         accountDeleteConfirm:
             '¿Eliminar tu cuenta de Ascuita y todos los datos asociados? Esta acción no se puede deshacer.',
         accountDeleting: 'Eliminando cuenta...',
@@ -253,6 +262,9 @@ export const translations: Translations = {
         memoriesDate: 'Actualizada',
         memoriesDelete: 'Eliminar memoria',
         memoriesClear: 'Eliminar todas las memorias',
+        memoriesClearConfirmTitle: '¿Eliminar todas las memorias?',
+        memoriesDeleteConfirmTitle: '¿Eliminar memoria?',
+        memoriesDeleteConfirm: 'Esta memoria se eliminará permanentemente.',
         memoriesClearConfirm: '¿Eliminar todas las memorias persistentes? Esta acción no se puede deshacer.',
         memoriesExport: 'Exportar memorias',
         memoriesExportError: 'No se pudieron exportar las memorias.',
@@ -289,6 +301,8 @@ export const translations: Translations = {
         chatsResumeHint: 'Retoma este chat con el mismo contexto de conversación y continúa desde donde se quedó.',
         chatsBack: 'Volver a la lista',
         chatsDeleteDisabled: 'Las conversaciones activas solo se pueden eliminar cuando terminan.',
+        chatsDeleteConfirmTitle: '¿Eliminar conversación?',
+        confirmCancel: 'Cancelar',
         chatsDeleteConfirm: '¿Eliminar esta conversación? Esta acción no se puede deshacer.',
         chatsLoading: 'Cargando mensajes...',
         chatsNoMessages: 'No hay mensajes en esta conversación.',

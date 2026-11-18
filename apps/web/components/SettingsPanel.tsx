@@ -32,6 +32,7 @@ import type { MemoryCategory } from '@/lib/memories';
 import { auth, signOutFromGoogle } from '../firebase';
 import { deleteAccount } from '@/lib/account-deletion';
 import { exportJsonFile } from '@/lib/file-sharing';
+import { confirmDestructive } from '@/lib/confirm-dialog';
 
 type Tab =
   | 'profile'
@@ -234,9 +235,14 @@ function ProfileTab() {
 
   async function handleDeleteAccount() {
     const user = auth.currentUser;
-    if (!user || !window.confirm(t('accountDeleteConfirm'))) {
-      return;
-    }
+    if (!user) return;
+    const confirmed = await confirmDestructive({
+      title: t('accountDeleteConfirmTitle'),
+      text: t('accountDeleteConfirm'),
+      confirmText: t('accountDelete'),
+      cancelText: t('confirmCancel'),
+    });
+    if (!confirmed) return;
 
     setAccountAction('deleting');
     try {
@@ -388,8 +394,25 @@ function MemoriesTab() {
   }
 
   async function handleClear() {
-    if (!window.confirm(t('memoriesClearConfirm'))) return;
+    const confirmed = await confirmDestructive({
+      title: t('memoriesClearConfirmTitle'),
+      text: t('memoriesClearConfirm'),
+      confirmText: t('memoriesClear'),
+      cancelText: t('confirmCancel'),
+    });
+    if (!confirmed) return;
     await clearMemories();
+  }
+
+  async function handleDeleteMemory(memoryId: string) {
+    const confirmed = await confirmDestructive({
+      title: t('memoriesDeleteConfirmTitle'),
+      text: t('memoriesDeleteConfirm'),
+      confirmText: t('memoriesDelete'),
+      cancelText: t('confirmCancel'),
+    });
+    if (!confirmed) return;
+    await deleteMemory(memoryId);
   }
 
   function handleExport() {
@@ -489,7 +512,7 @@ function MemoriesTab() {
                     type="button"
                     className="settingsPanel__agentEdit"
                     onClick={() => {
-                      void deleteMemory(memory.id);
+                      void handleDeleteMemory(memory.id);
                     }}
                     title={t('memoriesDelete')}
                     aria-label={t('memoriesDelete')}
@@ -757,7 +780,13 @@ function AgentsTab() {
                             String(relatedConversationCount)
                           )
                         : t('deleteAgentConfirm');
-                    if (!window.confirm(confirmMessage)) return;
+                    const confirmed = await confirmDestructive({
+                      title: t('deleteAgentConfirmTitle'),
+                      text: confirmMessage,
+                      confirmText: t('deleteAgent'),
+                      cancelText: t('confirmCancel'),
+                    });
+                    if (!confirmed) return;
 
                     if (agent.id === current.id && connected) {
                       disconnect();
