@@ -209,6 +209,11 @@ button {
 }
 
 /* SweetAlert2 confirmation dialogs */
+/* Must sit above every app overlay (settings panel 9999, audio welcome 99991). */
+.swal2-container.swalContainer {
+  z-index: 100000;
+}
+
 .swal2-container.swal2-backdrop-show {
   background: rgba(0, 0, 0, 0.6);
 }

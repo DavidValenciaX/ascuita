@@ -28,6 +28,7 @@ export async function confirmDestructive({
     reverseButtons: true,
     buttonsStyling: false,
     customClass: {
+      container: 'swalContainer',
       popup: 'swalPopup',
       title: 'swalTitle',
       htmlContainer: 'swalText',
