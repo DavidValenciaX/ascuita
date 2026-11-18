@@ -29,6 +29,7 @@ import Sidebar from '@/components/Sidebar';
 import { LiveAPIProvider } from '@/contexts/LiveAPIContext';
 import { useAuthGate, useUI, useUser } from '@/lib/state';
 import { useIdleCursor } from '@/hooks/useIdleCursor';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import {
   syncAuthenticatedUserProfile,
   useUserProfile,
@@ -52,6 +53,7 @@ function App() {
   const setAuthProviders = useUser(state => state.setAuthProviders);
   const setEmailVerified = useUser(state => state.setEmailVerified);
   useIdleCursor();
+  useWakeLock();
   useUserProfile();
   useUserAgents();
 
