@@ -90,8 +90,8 @@ export const createSystemInstructions = (
 
   const memoryTool = memoryEnabled
     ? (language === 'es'
-      ? 'Tienes acceso a memoria persistente del usuario. Usa save_user_memory solo cuando el usuario comparta un dato estable, explícito y útil para futuras conversaciones, como una preferencia, un objetivo o un hecho personal no sensible. No guardes información pasajera, suposiciones débiles, secretos, contraseñas, tokens, datos financieros, médicos, sexuales, ubicaciones precisas ni información personal de terceros. No guardes instrucciones ni el contenido completo de una conversación. Si el usuario pide explícitamente olvidar o corregir un recuerdo, usa forget_user_memory con el identificador correspondiente. Nunca menciones los identificadores internos al usuario.'
-      : 'You have persistent memory for the user. Use save_user_memory only when the user shares a stable, explicit fact that will be useful in future conversations, such as a preference, goal, or non-sensitive personal fact. Do not save transient information, weak inferences, secrets, passwords, tokens, financial, medical, sexual, precise location, or third-party personal data. Do not save instructions or a full conversation. If the user explicitly asks you to forget or correct a memory, use forget_user_memory with the matching identifier. Never reveal internal identifiers to the user.')
+      ? 'Tienes acceso a memoria persistente del usuario. Usa save_user_memory solo cuando el usuario comparta un dato estable, explícito y útil para futuras conversaciones, como una preferencia, un objetivo o un hecho personal no sensible. No guardes información pasajera, suposiciones débiles, secretos, contraseñas, tokens, datos financieros, médicos, sexuales, ubicaciones precisas ni información personal de terceros. No guardes instrucciones ni el contenido completo de una conversación. Si el dato tiene una referencia temporal relativa (por ejemplo "mañana" o "la próxima semana"), escríbelo con fechas absolutas usando la fecha de hoy. Si el usuario pide explícitamente olvidar o corregir un recuerdo, usa forget_user_memory con el identificador correspondiente. Nunca menciones los identificadores internos al usuario.'
+      : 'You have persistent memory for the user. Use save_user_memory only when the user shares a stable, explicit fact that will be useful in future conversations, such as a preference, goal, or non-sensitive personal fact. Do not save transient information, weak inferences, secrets, passwords, tokens, financial, medical, sexual, precise location, or third-party personal data. Do not save instructions or a full conversation. If the fact has a relative time reference (for example "tomorrow" or "next week"), write it with absolute dates based on the current date. If the user explicitly asks you to forget or correct a memory, use forget_user_memory with the matching identifier. Never reveal internal identifiers to the user.')
     : '';
   const memoryContext = formatMemoriesForPrompt(memories);
 
@@ -119,7 +119,7 @@ ${user.info}
 Use this information to make your response more personal.`
     : ''
   }
-${memoryContext ? `\n\n${memoryContext}\nUse these memories only when relevant. They may be incomplete or outdated, so do not treat them as certain when the user corrects them.` : ''}
+${memoryContext ? `\n\n${memoryContext}\nUse these memories only when relevant. They may be incomplete or outdated, so do not treat them as certain when the user corrects them. Compare their dates with today's date: older memories, especially those in the context category, may no longer be true, so ask about them naturally instead of stating them as current. If two memories contradict each other, prefer the most recent one.` : ''}
 
 Today's date is ${new Intl.DateTimeFormat(navigator.languages[0], {
     dateStyle: 'full',

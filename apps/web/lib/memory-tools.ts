@@ -13,7 +13,7 @@ export function createMemoryToolDeclarations(): ToolDefinition[] {
           content: {
             type: 'string',
             description:
-              'A concise statement of the durable fact or preference, without secrets or sensitive personal data.',
+              'A concise statement of the durable fact or preference, without secrets or sensitive personal data. Use absolute dates instead of relative time expressions.',
           },
           category: {
             type: 'string',
