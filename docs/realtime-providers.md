@@ -17,6 +17,7 @@ QWEN_MODEL=qwen3.8-omni-flash-realtime
 QWEN_VOICE=Tina
 
 WEB_SEARCH_MODEL=gemini-3.5-flash-lite
+MATH_MODEL=gemini-3.5-flash-lite
 ```
 
 `REALTIME_PROVIDER` admite `gemini` y `qwen`. Si se omite, se utiliza Gemini. Un valor diferente impide arrancar el servidor. La falta de credenciales necesarias hace que `/ready` devuelva 503; `/health` sigue siendo una comprobación de vida. Estas comprobaciones no consultan los modelos ni consumen tokens.
@@ -91,6 +92,15 @@ Qwen no permite activar `tools` y `enable_search` simultáneamente. Ascuita mant
 
 Si falla la búsqueda, Qwen recibe un resultado de error y conserva la conversación. Las búsquedas puntuales se facturan en Gemini además del consumo de Qwen. Los logs permiten identificar estas llamadas, su duración y sus errores. Gemini Live conserva su búsqueda nativa.
 
+## Herramientas matemáticas
+
+El backend registra dos herramientas del servidor para ambos proveedores (solo en `/live/v2`; el puente `/live` heredado no las recibe). Sus llamadas no llegan al frontend:
+
+* `calculate`: evalúa una expresión con mathjs en el propio servidor, sin red (aritmética, porcentajes, raíces, trigonometría, unidades, `derivative`, `simplify`). El análisis bloquea funciones que modifican la instancia, evalúan cadenas anidadas o reservan memoria sin límite (`import`, `createUnit`, `config`, `evaluate`, `zeros`, rangos, etc.). Devuelve `result` con 12 cifras significativas y `spoken` con 6 para leer en voz alta.
+* `solve_math`: usa `MATH_MODEL` mediante Gemini `generateContent` con la herramienta nativa `codeExecution` para ecuaciones, problemas con enunciado y estadística. Tiene un límite de 15 segundos y 1.024 tokens de salida, sin reintentos. Si falla, el modelo recibe un error y se registra `live.provider.solve_math_failed`.
+
+Cada ejecución emite un evento `usage` con `operation`, `count`, `success` y `elapsedMs`.
+
 ## Pruebas
 
 ```powershell
@@ -111,7 +121,7 @@ Estos comandos sí realizan solicitudes de pago. Usan una frase de prueba en esp
 ## Desplegar y revertir
 
 1. Desplegar el backend con `REALTIME_PROVIDER=gemini`. Mantener `/live` para clientes antiguos.
-2. Configurar, cuando esté disponible, un secreto de Secret Manager para `QWEN_API_KEY`, dar acceso a la cuenta de ejecución y establecer `CLOUD_RUN_QWEN_SECRET` con su nombre. `QWEN_WORKSPACE_ID`, `QWEN_MODEL`, `QWEN_VOICE`, `WEB_SEARCH_MODEL` y `REALTIME_PROVIDER` son variables del workflow.
+2. Configurar, cuando esté disponible, un secreto de Secret Manager para `QWEN_API_KEY`, dar acceso a la cuenta de ejecución y establecer `CLOUD_RUN_QWEN_SECRET` con su nombre. `QWEN_WORKSPACE_ID`, `QWEN_MODEL`, `QWEN_VOICE`, `WEB_SEARCH_MODEL`, `MATH_MODEL` y `REALTIME_PROVIDER` son variables del workflow.
 3. Publicar el frontend nuevo y actualizar los APK. El workflow de frontend comprueba primero la disponibilidad de `/live/v2/config` y `/ready` para evitar publicarlo contra un backend antiguo.
 4. Verificar Qwen con sus credenciales y cambiar `REALTIME_PROVIDER=qwen` en las variables de GitHub; ejecutar el workflow de backend. El frontend y los APK actualizados reciben el cambio sin un nuevo build.
 5. Para revertir, desplegar el backend con `REALTIME_PROVIDER=gemini`. Los clientes antiguos siguen utilizando Gemini durante toda la transición.

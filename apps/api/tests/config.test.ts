@@ -115,6 +115,7 @@ describe('getConfig', () => {
     'QWEN_MODEL',
     'QWEN_VOICE',
     'WEB_SEARCH_MODEL',
+    'MATH_MODEL',
     'LOG_LEVEL',
     'HTTP_RATE_LIMIT_WINDOW_MS',
     'HTTP_RATE_LIMIT_MAX_REQUESTS',

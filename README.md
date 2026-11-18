@@ -211,7 +211,7 @@ Variables esperadas en GitHub para el workflow de backend:
 * `CLOUD_RUN_QWEN_SECRET`: nombre del secreto que contiene `QWEN_API_KEY`; opcional con Gemini activo
 * `CLOUD_RUN_REDIS_URL_SECRET`: nombre del secreto de Secret Manager que contiene la URL TLS completa de Upstash Redis (`rediss://default:<password>@<endpoint>:6379`)
 * `FIREBASE_PROJECT_ID`, `GEMINI_MODEL`, `CORS_ORIGIN`
-* `REALTIME_PROVIDER`, `QWEN_WORKSPACE_ID`, `QWEN_MODEL`, `QWEN_VOICE`, `WEB_SEARCH_MODEL`; los valores por defecto se describen en [la guía de proveedores](docs/realtime-providers.md)
+* `REALTIME_PROVIDER`, `QWEN_WORKSPACE_ID`, `QWEN_MODEL`, `QWEN_VOICE`, `WEB_SEARCH_MODEL`, `MATH_MODEL`; los valores por defecto se describen en [la guía de proveedores](docs/realtime-providers.md)
 
 Para la aplicación Android, `CORS_ORIGIN` debe incluir `https://localhost`, que es el origen utilizado por el WebView de Capacitor Android.
 

@@ -84,6 +84,14 @@ describe('createSystemInstructions', () => {
     expect(enResult).toContain('converse in English');
   });
 
+  it('tells the model to delegate math to the server tools', () => {
+    for (const language of ['es', 'en'] as const) {
+      const result = createSystemInstructions(presetAgent, {}, language);
+      expect(result).toContain('calculate');
+      expect(result).toContain('solve_math');
+    }
+  });
+
   it('includes persistent memory instructions and bounded context when enabled', () => {
     const memories: UserMemory[] = [
       {

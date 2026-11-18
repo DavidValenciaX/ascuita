@@ -523,13 +523,104 @@ describe('Qwen server-side search tool', () => {
     await connected;
     const configured = socket.sent[0].session as { enable_search: boolean; tools: Array<{ function: ToolDefinition }> };
     expect(configured.enable_search).toBe(false);
-    expect(configured.tools.map(tool => tool.function.name)).toEqual([memoryTool.name, 'web_search']);
+    expect(configured.tools.map(tool => tool.function.name)).toEqual([memoryTool.name, 'web_search', 'calculate', 'solve_math']);
     socket.receive({ type: 'response.function_call_arguments.done', response_id: 'search-response', call_id: 'search', name: 'web_search', arguments: '{"query":"today"}' });
     socket.receive({ type: 'response.done', response: { id: 'search-response' } });
     await vi.waitFor(() => expect(events.map(event => event.type)).toContain('sources'));
     expect(mocks.generate).toHaveBeenCalledOnce();
     expect(mocks.generate.mock.calls[0][0]).toMatchObject({ model: 'gemini-3.5-flash-lite', config: { maxOutputTokens: 1024, tools: [{ googleSearch: {} }] } });
     expect(socket.sent.filter(event => event.type === 'response.create')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'tool.call')).toHaveLength(0);
+  });
+});
+
+describe('server-side math tools', () => {
+  async function geminiSession(legacyConfig?: object) {
+    const config = getConfig();
+    const session = createRealtimeSession(config, realtimeSessionInfo(config, 'gemini'), { onEvent }, legacyConfig);
+    sessions.push(session);
+    await session.connect(settings);
+    return session;
+  }
+  const declared = () => (mocks.connect.mock.calls[0][0].config.tools as Array<{ functionDeclarations?: ToolDefinition[] }>)
+    .flatMap(tool => tool.functionDeclarations ?? []).map(tool => tool.name);
+
+  it('declares the math tools to Gemini next to the client tools and native search', async () => {
+    await geminiSession();
+    expect(declared()).toEqual([memoryTool.name, 'calculate', 'solve_math']);
+    expect(mocks.connect.mock.calls[0][0].config.tools).toContainEqual({ googleSearch: {} });
+  });
+
+  it('answers calculate on the server without forwarding it to the client', async () => {
+    await geminiSession();
+    handlers().onmessage({ toolCall: { functionCalls: [
+      { id: 'math', name: 'calculate', args: { expression: '2^10' } },
+      { id: 'memory', name: memoryTool.name, args: { content: 'Coffee' } },
+    ] } });
+    await vi.waitFor(() => expect(native.sendToolResponse).toHaveBeenCalledOnce());
+    expect(native.sendToolResponse).toHaveBeenCalledWith({ functionResponses: [{ id: 'math', name: 'calculate',
+      response: { result: { success: true, expression: '2^10', result: '1024', spoken: '1024' } } }] });
+    const forwarded = events.filter(event => event.type === 'tool.call');
+    expect(forwarded).toEqual([{ type: 'tool.call', payload: { calls: [{ callId: 'memory', name: memoryTool.name, args: { content: 'Coffee' } }] } }]);
+    expect(events).toContainEqual({ type: 'usage', payload: expect.objectContaining({ operation: 'calculate', count: 1, success: true }) });
+  });
+
+  it('delegates solve_math to Gemini code execution', async () => {
+    mocks.generate.mockResolvedValue({ candidates: [{ content: { parts: [
+      { executableCode: { code: 'print(sorted([2, 3]))' } }, { codeExecutionResult: { output: '[2, 3]\n' } }, { text: 'x = 2 o x = 3.' },
+    ] } }] });
+    await geminiSession();
+    handlers().onmessage({ toolCall: { functionCalls: [{ id: 'solve', name: 'solve_math', args: { problem: 'x^2 - 5x + 6 = 0' } }] } });
+    await vi.waitFor(() => expect(native.sendToolResponse).toHaveBeenCalledOnce());
+    expect(mocks.generate.mock.calls[0][0]).toMatchObject({ model: 'gemini-3.5-flash-lite', contents: 'x^2 - 5x + 6 = 0', config: { tools: [{ codeExecution: {} }] } });
+    expect(native.sendToolResponse).toHaveBeenCalledWith({ functionResponses: [{ id: 'solve', name: 'solve_math',
+      response: { result: { success: true, answer: 'x = 2 o x = 3.', computedOutput: '[2, 3]' } } }] });
+  });
+
+  it('returns a tool error and logs a warning when the solver fails', async () => {
+    mocks.generate.mockRejectedValue(new Error('Unavailable'));
+    const onWarning = vi.fn();
+    const config = getConfig();
+    const session = createRealtimeSession(config, realtimeSessionInfo(config, 'gemini'), { onEvent, onWarning });
+    sessions.push(session);
+    await session.connect(settings);
+    handlers().onmessage({ toolCall: { functionCalls: [{ id: 'solve', name: 'solve_math', args: { problem: '1 + 1' } }] } });
+    await vi.waitFor(() => expect(native.sendToolResponse).toHaveBeenCalledOnce());
+    expect(native.sendToolResponse.mock.calls[0][0].functionResponses[0].response).toMatchObject({ result: { success: false } });
+    expect(onWarning).toHaveBeenCalledWith(expect.objectContaining({ event: 'live.provider.solve_math_failed', tool: 'solve_math', queryLength: 5 }));
+  });
+
+  it('aborts an in-flight solve_math when the provider cancels the call', async () => {
+    mocks.generate.mockReturnValue(new Promise(() => {}));
+    await geminiSession();
+    handlers().onmessage({ toolCall: { functionCalls: [{ id: 'solve', name: 'solve_math', args: { problem: 'hard' } }] } });
+    await vi.waitFor(() => expect(mocks.generate).toHaveBeenCalledOnce());
+    handlers().onmessage({ toolCallCancellation: { ids: ['solve'] } });
+    expect(mocks.generate.mock.calls[0][0].config.abortSignal.aborted).toBe(true);
+    await Promise.resolve();
+    expect(native.sendToolResponse).not.toHaveBeenCalled();
+  });
+
+  it('does not inject math tools into legacy Gemini sessions', async () => {
+    const legacy = { tools: [{ functionDeclarations: [{ name: memoryTool.name, parameters: memoryTool.parameters }] }] };
+    await geminiSession(legacy);
+    expect(declared()).toEqual([memoryTool.name]);
+  });
+
+  it('answers calculate on Qwen and continues the response', async () => {
+    const config = getConfig();
+    const session = createRealtimeSession(config, realtimeSessionInfo(config, 'qwen'), { onEvent });
+    sessions.push(session);
+    const connected = session.connect(settings);
+    const socket = mocks.sockets.at(-1)!;
+    socket.receive({ type: 'session.created' });
+    socket.receive({ type: 'session.updated' });
+    await connected;
+    socket.receive({ type: 'response.created', response: { id: 'math-response' } });
+    socket.receive({ type: 'response.function_call_arguments.done', response_id: 'math-response', call_id: 'math', name: 'calculate', arguments: '{"expression":"sqrt(16) + 1"}' });
+    socket.receive({ type: 'response.done', response: { id: 'math-response' } });
+    await vi.waitFor(() => expect(socket.sent.filter(event => event.type === 'response.create')).toHaveLength(1));
+    expect(socket.sent).toContainEqual(expect.objectContaining({ item: expect.objectContaining({ output: expect.stringContaining('"result":"5"') }) }));
     expect(events.filter(event => event.type === 'tool.call')).toHaveLength(0);
   });
 });

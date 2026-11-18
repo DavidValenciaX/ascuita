@@ -1152,7 +1152,7 @@ const liveRoute: FastifyPluginAsync = async fastify => {
               onEvent: event => { if (attempt === generation) handleProviderEvent(event); },
               onWarning: ({ event, ...details }) => request.log.warn(
                 { event, connectionId, provider, ...details },
-                'Realtime web search failed',
+                'Realtime server tool failed',
               ),
               ...(protocol === 'legacy' ? { onLegacyMessage: (message: unknown) => {
                 if (attempt === generation) send({ type: 'server_message', payload: message });

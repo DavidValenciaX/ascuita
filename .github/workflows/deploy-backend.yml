@@ -34,6 +34,7 @@ env:
   QWEN_MODEL: ${{ vars.QWEN_MODEL }}
   QWEN_VOICE: ${{ vars.QWEN_VOICE }}
   WEB_SEARCH_MODEL: ${{ vars.WEB_SEARCH_MODEL }}
+  MATH_MODEL: ${{ vars.MATH_MODEL }}
   CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
   CLOUD_RUN_CPU: "1"
   CLOUD_RUN_MEMORY: 1Gi
@@ -93,6 +94,7 @@ jobs:
           QWEN_MODEL: "${QWEN_MODEL:-qwen3.8-omni-flash-realtime}"
           QWEN_VOICE: "${QWEN_VOICE:-Tina}"
           WEB_SEARCH_MODEL: "${WEB_SEARCH_MODEL:-gemini-3.5-flash-lite}"
+          MATH_MODEL: "${MATH_MODEL:-gemini-3.5-flash-lite}"
           CORS_ORIGIN: "${CORS_ORIGIN}"
           REDIS_CLEANUP_TOKEN: "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           EOF

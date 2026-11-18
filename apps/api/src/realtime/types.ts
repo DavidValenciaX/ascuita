@@ -21,7 +21,8 @@ export type SessionCallbacks = {
 };
 
 export type SessionWarning = {
-  event: 'live.provider.web_search_failed';
+  event: 'live.provider.web_search_failed' | 'live.provider.solve_math_failed';
+  tool: string;
   model: string;
   elapsedMs: number;
   queryLength: number;

@@ -3,7 +3,7 @@ import { getConfig, realtimeConfigurationErrors, realtimeReadinessChecks, realti
 import { parseClientMessage } from '../../src/realtime/validation.js';
 
 beforeEach(() => {
-  for (const name of ['REALTIME_PROVIDER', 'QWEN_API_KEY', 'QWEN_WORKSPACE_ID', 'QWEN_MODEL', 'QWEN_VOICE', 'WEB_SEARCH_MODEL']) vi.stubEnv(name, '');
+  for (const name of ['REALTIME_PROVIDER', 'QWEN_API_KEY', 'QWEN_WORKSPACE_ID', 'QWEN_MODEL', 'QWEN_VOICE', 'WEB_SEARCH_MODEL', 'MATH_MODEL']) vi.stubEnv(name, '');
   vi.stubEnv('GEMINI_API_KEY', 'google-test');
 });
 afterEach(() => vi.unstubAllEnvs());

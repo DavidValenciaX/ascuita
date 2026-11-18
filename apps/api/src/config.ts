@@ -12,6 +12,7 @@ export type AppConfig = {
   qwenWorkspaceId?: string;
   qwenVoice: string;
   webSearchModel: string;
+  mathModel: string;
   logLevel: string;
   httpRateLimitWindowMs: number;
   httpRateLimitMaxRequests: number;
@@ -105,6 +106,7 @@ export function getConfig(): AppConfig {
     qwenWorkspaceId: process.env.QWEN_WORKSPACE_ID,
     qwenVoice: process.env.QWEN_VOICE || 'Tina',
     webSearchModel: process.env.WEB_SEARCH_MODEL || 'gemini-3.5-flash-lite',
+    mathModel: process.env.MATH_MODEL || 'gemini-3.5-flash-lite',
     logLevel: DEFAULT_LOG_LEVEL,
     httpRateLimitWindowMs: DEFAULT_HTTP_RATE_LIMIT_WINDOW_MS,
     httpRateLimitMaxRequests: DEFAULT_HTTP_RATE_LIMIT_MAX_REQUESTS,

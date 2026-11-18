@@ -88,6 +88,10 @@ export const createSystemInstructions = (
     ? 'Tienes acceso a una herramienta de búsqueda en Google (Google Search). Úsala siempre que necesites buscar información actualizada en internet para responder al usuario.'
     : 'You have access to a Google Search tool. Use it whenever you need to search for up-to-date information on the internet to answer the user.';
 
+  const mathTool = language === 'es'
+    ? 'Para cualquier cálculo numérico (operaciones, porcentajes, raíces, conversiones de unidades, derivadas) usa la herramienta calculate; nunca calcules de memoria. Si el problema requiere plantear o resolver algo (ecuaciones, sistemas, problemas con enunciado, estadística), usa solve_math. Da el resultado de forma natural y breve, como se diría en voz alta.'
+    : 'For any numeric calculation (arithmetic, percentages, roots, unit conversions, derivatives) use the calculate tool; never compute numbers mentally. If the problem needs to be set up or solved (equations, systems, word problems, statistics), use solve_math. Give the result naturally and briefly, the way it would be said aloud.';
+
   const memoryTool = memoryEnabled
     ? (language === 'es'
       ? 'Tienes acceso a memoria persistente del usuario. Usa save_user_memory solo cuando el usuario comparta un dato estable, explícito y útil para futuras conversaciones, como una preferencia, un objetivo o un hecho personal no sensible. No guardes información pasajera, suposiciones débiles, secretos, contraseñas, tokens, datos financieros, médicos, sexuales, ubicaciones precisas ni información personal de terceros. No guardes instrucciones ni el contenido completo de una conversación. Si el dato tiene una referencia temporal relativa (por ejemplo "mañana" o "la próxima semana"), escríbelo con fechas absolutas usando la fecha de hoy. Si el usuario pide explícitamente olvidar o corregir un recuerdo, usa forget_user_memory con el identificador correspondiente. Nunca menciones los identificadores internos al usuario.'
@@ -107,6 +111,8 @@ ${personalityTool}
 ${colorTool}
 
 ${searchTool}
+
+${mathTool}
 
 ${memoryTool}
 
