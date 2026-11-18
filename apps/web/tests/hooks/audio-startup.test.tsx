@@ -27,6 +27,7 @@ vi.mock('@/lib/audio-streamer', () => ({ AudioStreamer: class {
   context: AudioContext;
   addWorklet = mocks.addWorklet;
   stop = mocks.stopPlayback;
+  setOutputGain = vi.fn();
   constructor(context: AudioContext) { this.context = context; }
 } }));
 vi.mock('@/lib/realtime-client', () => ({ RealtimeClient: class extends EventEmitter {

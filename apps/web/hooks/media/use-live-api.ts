@@ -20,13 +20,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { RealtimeClient } from '../../lib/realtime-client';
-import type { GroundingResult, RealtimeConfig, RealtimeSessionInfo } from '../../../../shared/realtime-protocol';
+import type { GroundingResult, RealtimeConfig, RealtimeProvider, RealtimeSessionInfo } from '../../../../shared/realtime-protocol';
 import { AudioStreamer } from '../../lib/audio-streamer';
 import { AudioRecorder } from '../../lib/audio-recorder';
 import { registeredWorklets } from '../../lib/audioworklet-registry';
 import { audioContext } from '../../lib/utils';
 import VolMeterWorket from '../../lib/worklets/vol-meter';
 import { useAgent, useAuthGate, useConversationResume, useUser } from '../../lib/state';
+
+/** Playback volume multiplier per provider (1 = unchanged). Qwen's voice is noticeably quieter than Gemini's. */
+const PROVIDER_OUTPUT_GAIN: Record<RealtimeProvider, number> = {
+  gemini: 1,
+  qwen: 2.5,
+};
 
 export type UseLiveApiResults = {
   client: RealtimeClient;
@@ -90,6 +96,12 @@ export function useLiveApi({
     }).catch(() => {});
     return () => controller.abort();
   }, [client]);
+
+  // Some providers deliver quieter speech than others; normalize playback volume per provider.
+  const provider = sessionInfo?.provider;
+  useEffect(() => {
+    audioStreamer?.setOutputGain(provider ? PROVIDER_OUTPUT_GAIN[provider] : 1);
+  }, [audioStreamer, provider]);
   const [audioReady, setAudioReady] = useState(false);
   const [audioStarting, setAudioStarting] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);

@@ -34,10 +34,15 @@ export class AudioStreamer {
   private checkInterval: number | null = null;
   private scheduledTime: number = 0;
   private initialBufferTime: number = 0.1; // 100ms initial buffer for lower lip-sync latency
-  // Web Audio API nodes. source => gain => destination
+  // Web Audio API nodes:
+  // source => gainNode (fade/interrupt) => outputGain (volume boost) => limiter => analyser => destination
   public gainNode: GainNode;
   public source: AudioBufferSourceNode;
   private endOfQueueAudioSource: AudioBufferSourceNode | null = null;
+  // Persistent volume stage; survives stop() so a per-provider boost is not lost.
+  private outputGain: GainNode;
+  // Prevents clipping when outputGain > 1.
+  private limiter: DynamicsCompressorNode;
 
   public onComplete = () => { };
   public analyser: AnalyserNode;
@@ -46,11 +51,26 @@ export class AudioStreamer {
     this.analyser = this.context.createAnalyser();
     this.analyser.fftSize = 512;
     this.analyser.smoothingTimeConstant = 0.1;
+    this.limiter = this.context.createDynamicsCompressor();
+    this.limiter.threshold.value = -3;
+    this.limiter.knee.value = 0;
+    this.limiter.ratio.value = 20;
+    this.limiter.attack.value = 0.003;
+    this.limiter.release.value = 0.1;
+    this.outputGain = this.context.createGain();
     this.gainNode = this.context.createGain();
     this.source = this.context.createBufferSource();
-    this.gainNode.connect(this.analyser);
+    this.gainNode.connect(this.outputGain);
+    this.outputGain.connect(this.limiter);
+    this.limiter.connect(this.analyser);
     this.analyser.connect(this.context.destination);
     this.addPCM16 = this.addPCM16.bind(this);
+  }
+
+  /** Sets the playback volume multiplier (1 = unchanged). Values > 1 amplify; the limiter avoids clipping. */
+  setOutputGain(value: number) {
+    const safe = Number.isFinite(value) && value > 0 ? value : 1;
+    this.outputGain.gain.setValueAtTime(safe, this.context.currentTime);
   }
 
   async addWorklet<T extends (d: any) => void>(
@@ -245,7 +265,7 @@ export class AudioStreamer {
     setTimeout(() => {
       this.gainNode.disconnect();
       this.gainNode = this.context.createGain();
-      this.gainNode.connect(this.analyser);
+      this.gainNode.connect(this.outputGain);
     }, 200);
   }
 
