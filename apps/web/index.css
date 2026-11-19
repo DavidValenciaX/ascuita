@@ -156,6 +156,15 @@ select {
   font-size: 16px;
   cursor: pointer;
   accent-color: var(--text);
+  /* Makes the native dropdown (desktop browsers) use dark colors. */
+  color-scheme: dark;
+}
+
+/* Desktop browsers can't use a translucent select background for the popup
+   list, so options fell back to white-on-white. */
+select option {
+  background-color: var(--Neutral-15);
+  color: #fff;
 }
 
 select:focus-visible {
