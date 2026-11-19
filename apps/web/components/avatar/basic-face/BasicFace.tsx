@@ -192,7 +192,14 @@ export default function BasicFace({
       antialias: false,
       powerPreference: 'high-performance',
     });
-    renderer.setClearColor(sceneTheme === 'light' ? '#e8f0ff' : '#1a1a28', 1);
+    // The selective fire-bloom pass is cleared with this color and then *added*
+    // on top of the scene, so with post-processing it must stay transparent
+    // black. Only the direct (low tier) path may clear to the room color.
+    if (quality.postprocessing === 'none') {
+      renderer.setClearColor(sceneTheme === 'light' ? '#e8f0ff' : '#1a1a28', 1);
+    } else {
+      renderer.setClearColor(0x000000, 0);
+    }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
     renderer.shadowMap.enabled = quality.shadows;
