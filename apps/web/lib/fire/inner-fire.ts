@@ -8,6 +8,7 @@ import {
 } from './config';
 
 const DEFAULT_AVATAR_FIRE_COLOR = '#5B9BF5';
+const PALETTE_LUT_SIZE = 256;
 
 export type InnerFireSystem = {
   root: THREE.Group;
@@ -15,15 +16,15 @@ export type InnerFireSystem = {
   setAvatarColor: (nextAvatarColor: string) => void;
   applyConfig: (overrides: DeepPartial<InnerFireConfig>) => void;
   replaceConfig: (nextConfig: InnerFireConfig) => void;
-  update: (elapsedSeconds: number, isTalking: boolean) => void;
+  /** `dtSeconds` is the real frame time; particle speeds are tuned for 60 fps. */
+  update: (elapsedSeconds: number, isTalking: boolean, dtSeconds?: number) => void;
   dispose: () => void;
 };
 
-type FireVelocity = {
-  x: number;
-  y: number;
-  z: number;
-};
+/** Same as a per-frame lerp factor tuned at 60 fps, but frame-rate independent. */
+function damp(perFrameFactor: number, dtSeconds: number): number {
+  return 1 - Math.pow(1 - perFrameFactor, dtSeconds * 60);
+}
 
 function buildFireSpriteTexture(
   config: InnerFireConfig,
@@ -109,47 +110,47 @@ function getMonochromeFireStops(
   targetStops[4].setHSL(hue, saturation * 0.75, THREE.MathUtils.clamp(midLightness - 0.38, 0.04, 0.28));
 }
 
-function sampleFirePalette(
+/**
+ * Precomputes the fire palette (life 0→1) into a flat RGB lookup table so the
+ * per-particle loop does a single array read instead of 5 HSL conversions.
+ */
+export function buildFirePaletteLut(
   config: InnerFireConfig,
   avatarColor: string,
-  life: number,
-  paletteStops: THREE.Color[],
-  targetColor: THREE.Color,
-  mixTargetColor: THREE.Color,
-  scratchHsl: THREE.HSL
-): THREE.Color {
-  let fromIndex = 0;
-  let toIndex = 1;
-  let mixFactor = 0;
+  target: Float32Array = new Float32Array(PALETTE_LUT_SIZE * 3)
+): Float32Array {
+  const size = target.length / 3;
+  const stops = Array.from({ length: 5 }, () => new THREE.Color());
+  const hsl: THREE.HSL = { h: 0, s: 0, l: 0 };
+  const mixed = new THREE.Color();
+  getMonochromeFireStops(avatarColor, stops, hsl);
+  const { threshold1, threshold2, threshold3 } = config.color;
 
-  if (life < config.color.threshold1) {
-    mixFactor = THREE.MathUtils.clamp(life / config.color.threshold1, 0, 1);
-  } else if (life < config.color.threshold2) {
-    fromIndex = 1;
-    toIndex = 2;
-    mixFactor = THREE.MathUtils.clamp(
-      (life - config.color.threshold1) / (config.color.threshold2 - config.color.threshold1),
-      0,
-      1
-    );
-  } else if (life < config.color.threshold3) {
-    fromIndex = 2;
-    toIndex = 3;
-    mixFactor = THREE.MathUtils.clamp(
-      (life - config.color.threshold2) / (config.color.threshold3 - config.color.threshold2),
-      0,
-      1
-    );
-  } else {
-    fromIndex = 3;
-    toIndex = 4;
-    mixFactor = THREE.MathUtils.clamp((life - config.color.threshold3) / (1 - config.color.threshold3), 0, 1);
+  for (let i = 0; i < size; i += 1) {
+    const life = i / (size - 1);
+    let fromIndex: number;
+    let mixFactor: number;
+    if (life < threshold1) {
+      fromIndex = 0;
+      mixFactor = life / threshold1;
+    } else if (life < threshold2) {
+      fromIndex = 1;
+      mixFactor = (life - threshold1) / (threshold2 - threshold1);
+    } else if (life < threshold3) {
+      fromIndex = 2;
+      mixFactor = (life - threshold2) / (threshold3 - threshold2);
+    } else {
+      fromIndex = 3;
+      mixFactor = (life - threshold3) / (1 - threshold3);
+    }
+    mixed
+      .copy(stops[fromIndex])
+      .lerp(stops[fromIndex + 1], THREE.MathUtils.clamp(Number.isFinite(mixFactor) ? mixFactor : 1, 0, 1));
+    target[i * 3] = mixed.r;
+    target[i * 3 + 1] = mixed.g;
+    target[i * 3 + 2] = mixed.b;
   }
-
-  getMonochromeFireStops(avatarColor, paletteStops, scratchHsl);
-  targetColor.copy(paletteStops[fromIndex]);
-  mixTargetColor.copy(paletteStops[toIndex]);
-  return targetColor.lerp(mixTargetColor, mixFactor);
+  return target;
 }
 
 export function createInnerFireSystem(
@@ -162,11 +163,9 @@ export function createInnerFireSystem(
   let positions = new Float32Array(config.particles.count * 3);
   let colors = new Float32Array(config.particles.count * 3);
   let lifetimes = new Float32Array(config.particles.count);
-  let velocities: FireVelocity[] = [];
-  const colorScratch = new THREE.Color();
-  const colorMixScratch = new THREE.Color();
-  const paletteStops = Array.from({ length: 5 }, () => new THREE.Color());
-  const hslScratch: THREE.HSL = { h: 0, s: 0, l: 0 };
+  let velocities = new Float32Array(config.particles.count * 3);
+  const paletteLut = new Float32Array(PALETTE_LUT_SIZE * 3);
+  buildFirePaletteLut(config, avatarColor, paletteLut);
   const root = new THREE.Group();
   let texture = buildFireSpriteTexture(config, avatarColor);
   let material = new THREE.PointsMaterial({
@@ -181,15 +180,14 @@ export function createInnerFireSystem(
   let points = new THREE.Points(geometry, material);
 
   const respawnParticle = (index: number, resetHeight = false) => {
-    positions[index * 3] = (Math.random() - 0.5) * config.particles.spawnRadius * 2;
-    positions[index * 3 + 1] = resetHeight ? 0 : Math.random() * config.particles.spawnHeight;
-    positions[index * 3 + 2] = (Math.random() - 0.5) * config.particles.spawnRadius * 2;
+    const base = index * 3;
+    positions[base] = (Math.random() - 0.5) * config.particles.spawnRadius * 2;
+    positions[base + 1] = resetHeight ? 0 : Math.random() * config.particles.spawnHeight;
+    positions[base + 2] = (Math.random() - 0.5) * config.particles.spawnRadius * 2;
 
-    velocities[index] = {
-      x: (Math.random() - 0.5) * config.particles.velXZ * 2,
-      y: config.particles.velYBase + Math.random() * config.particles.velYRand,
-      z: (Math.random() - 0.5) * config.particles.velXZ * 2,
-    };
+    velocities[base] = (Math.random() - 0.5) * config.particles.velXZ * 2;
+    velocities[base + 1] = config.particles.velYBase + Math.random() * config.particles.velYRand;
+    velocities[base + 2] = (Math.random() - 0.5) * config.particles.velXZ * 2;
   };
 
   const syncTransform = () => {
@@ -215,7 +213,7 @@ export function createInnerFireSystem(
     colors = new Float32Array(config.particles.count * 3);
     positions = new Float32Array(config.particles.count * 3);
     lifetimes = new Float32Array(config.particles.count);
-    velocities = [];
+    velocities = new Float32Array(config.particles.count * 3);
     geometry = new THREE.BufferGeometry();
 
     for (let i = 0; i < config.particles.count; i += 1) {
@@ -241,6 +239,7 @@ export function createInnerFireSystem(
       if (resolvedAvatarColor === avatarColor) return;
 
       avatarColor = resolvedAvatarColor;
+      buildFirePaletteLut(config, avatarColor, paletteLut);
       refreshTexture();
     },
     applyConfig(overrides) {
@@ -249,6 +248,7 @@ export function createInnerFireSystem(
 
       syncTransform();
       syncMaterial();
+      buildFirePaletteLut(config, avatarColor, paletteLut);
 
       if (
         previousConfig.texture.size !== config.texture.size ||
@@ -268,10 +268,14 @@ export function createInnerFireSystem(
       config = cloneInnerFireConfig(nextConfig);
       syncTransform();
       syncMaterial();
+      buildFirePaletteLut(config, avatarColor, paletteLut);
       refreshTexture();
       regenerateParticles();
     },
-    update(elapsedSeconds, isTalking) {
+    update(elapsedSeconds, isTalking, dtSeconds = 1 / 60) {
+      // Particle constants are tuned per 60 fps frame; scale them by real time.
+      const frames = Math.min(dtSeconds * 60, 6);
+      const ease = damp(0.08, dtSeconds);
       const speedBoost = isTalking ? 1.45 : 1;
       const swayBoost = isTalking ? 1.35 : 1;
       const targetOpacity = isTalking ? 0.96 : config.particles.opacity;
@@ -279,51 +283,52 @@ export function createInnerFireSystem(
       const targetScaleXZ = isTalking ? config.scale.talkingXZ : config.scale.idleXZ;
       const targetScaleY = isTalking ? config.scale.talkingY : config.scale.idleY;
 
-      material.opacity = THREE.MathUtils.lerp(material.opacity, targetOpacity, 0.08);
-      material.size = THREE.MathUtils.lerp(material.size, targetSize, 0.08);
+      material.opacity = THREE.MathUtils.lerp(material.opacity, targetOpacity, ease);
+      material.size = THREE.MathUtils.lerp(material.size, targetSize, ease);
 
       root.position.x = config.transform.x + Math.sin(elapsedSeconds * 2.1) * 0.025;
       root.position.y = config.transform.y
         + Math.sin(elapsedSeconds * 3.2) * 0.03
         + (isTalking ? Math.sin(elapsedSeconds * 13) * 0.045 : 0);
       root.rotation.z = Math.sin(elapsedSeconds * 1.7) * 0.035;
-      root.scale.x = THREE.MathUtils.lerp(root.scale.x, targetScaleXZ, 0.08);
-      root.scale.y = THREE.MathUtils.lerp(root.scale.y, targetScaleY, 0.08);
-      root.scale.z = THREE.MathUtils.lerp(root.scale.z, targetScaleXZ, 0.08);
+      root.scale.x = THREE.MathUtils.lerp(root.scale.x, targetScaleXZ, ease);
+      root.scale.y = THREE.MathUtils.lerp(root.scale.y, targetScaleY, ease);
+      root.scale.z = THREE.MathUtils.lerp(root.scale.z, targetScaleXZ, ease);
       points.rotation.y = elapsedSeconds * 0.45;
 
       const positionAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
       const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
 
-      for (let i = 0; i < config.particles.count; i += 1) {
-        lifetimes[i] += config.particles.lifetimeSpeed * speedBoost;
+      const count = config.particles.count;
+      const lifeStep = config.particles.lifetimeSpeed * speedBoost * frames;
+      const moveScale = speedBoost * frames;
+      const swayAmount = config.particles.sway * swayBoost * frames;
+      const swayPhase = elapsedSeconds * config.particles.swaySpeed;
+      const taper = Math.pow(config.particles.taper, frames);
+      const lutMax = PALETTE_LUT_SIZE - 1;
 
-        if (lifetimes[i] >= 1) {
-          lifetimes[i] = 0;
+      for (let i = 0; i < count; i += 1) {
+        let life = lifetimes[i] + lifeStep;
+        if (life >= 1) {
+          life = 0;
           respawnParticle(i, true);
         }
+        lifetimes[i] = life;
 
-        const baseIndex = i * 3;
-        positions[baseIndex] += velocities[i].x * speedBoost
-          + Math.sin(elapsedSeconds * config.particles.swaySpeed + positions[baseIndex + 1]) * config.particles.sway * swayBoost;
-        positions[baseIndex + 1] += velocities[i].y * speedBoost;
-        positions[baseIndex + 2] += velocities[i].z * speedBoost
-          + Math.cos(elapsedSeconds * config.particles.swaySpeed + positions[baseIndex + 1]) * config.particles.sway * swayBoost;
-        positions[baseIndex] *= config.particles.taper;
-        positions[baseIndex + 2] *= config.particles.taper;
+        const base = i * 3;
+        const y = positions[base + 1];
+        positions[base] = (positions[base]
+          + velocities[base] * moveScale
+          + Math.sin(swayPhase + y) * swayAmount) * taper;
+        positions[base + 1] = y + velocities[base + 1] * moveScale;
+        positions[base + 2] = (positions[base + 2]
+          + velocities[base + 2] * moveScale
+          + Math.cos(swayPhase + y) * swayAmount) * taper;
 
-        const color = sampleFirePalette(
-          config,
-          avatarColor,
-          lifetimes[i],
-          paletteStops,
-          colorScratch,
-          colorMixScratch,
-          hslScratch
-        );
-        colors[baseIndex] = color.r;
-        colors[baseIndex + 1] = color.g;
-        colors[baseIndex + 2] = color.b;
+        const lutIndex = ((life * lutMax) | 0) * 3;
+        colors[base] = paletteLut[lutIndex];
+        colors[base + 1] = paletteLut[lutIndex + 1];
+        colors[base + 2] = paletteLut[lutIndex + 2];
       }
 
       positionAttr.needsUpdate = true;

@@ -1768,7 +1768,6 @@ input[type='range'] {
 }
 
 .basic-face {
-  --avatar-glow-color: #5B9BF5;
   display: block;
   isolation: isolate;
   position: fixed;
@@ -1779,10 +1778,9 @@ input[type='range'] {
   z-index: 0;
 }
 
+/* The glow lives inside the 3D scene (bloom passes); a CSS filter here would
+   re-blur the whole full-screen canvas every frame. */
 .basic-face canvas {
-  filter:
-    drop-shadow(0 0 18px var(--avatar-glow-color))
-    drop-shadow(0 0 44px color-mix(in srgb, var(--avatar-glow-color) 40%, transparent));
   height: 100%;
   width: 100%;
   z-index: 1;

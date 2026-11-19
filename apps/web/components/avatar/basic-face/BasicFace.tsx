@@ -10,12 +10,17 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { drawFriendlyMouth, getMouthSignature } from '../../../hooks/avatar/mouth-config';
-import useFace from '../../../hooks/avatar/use-face';
-import useHover from '../../../hooks/avatar/use-hover';
-import useTilt from '../../../hooks/avatar/use-tilt';
+import {
+  computeEyeScale,
+  computeHoverOffset,
+  damp,
+  MouthAnalyzer,
+  TiltController,
+} from '../../../hooks/avatar/face-animation';
+import type { MouthShape } from '../../../hooks/avatar/mouth-config';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createInnerFireSystem, type InnerFireSystem } from '@/lib/fire/inner-fire';
-import { useAvatarRender, useInnerFire } from '@/lib/state';
+import { useAvatarRender, useInnerFire, useSpeechAnimation } from '@/lib/state';
 import {
   SceneEnvironmentTheme,
   setupSceneEnvironment,
@@ -27,6 +32,9 @@ const AUDIO_OUTPUT_DETECTION_THRESHOLD = 0.05;
 // Amount of delay between end of audio output and setting talking state to false
 const TALKING_STATE_COOLDOWN_MS = 2000;
 const FIRE_BLOOM_LAYER = 1;
+// Longest frame step fed to the animation (avoids jumps after a stall).
+const MAX_FRAME_DT_SECONDS = 0.1;
+const NEUTRAL_MOUTH: MouthShape = { viseme: 'Neutral', intensity: 0, open: 0, spread: 0, round: 0 };
 
 type BasicFaceProps = {
   /** The canvas element on which to render the face. */
@@ -55,25 +63,23 @@ export default function BasicFace({
   color,
   sceneTheme = 'light',
 }: BasicFaceProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const innerFireRef = useRef<InnerFireSystem | null>(null);
   const innerFireConfig = useInnerFire(state => state.config);
   const avatarRenderConfig = useAvatarRender(state => state.config);
 
   // Audio output volume (read via ref in the animation loop to avoid per-tick re-renders)
-  const { volumeRef } = useLiveAPIContext();
+  const { volumeRef, audioStreamer } = useLiveAPIContext();
 
-  // Talking state
+  // Talking state (React state only toggles when it actually changes)
   const [isTalking, setIsTalking] = useState(false);
 
-  // Face states from existing hooks
-  const { eyeScale, mouthShape } = useFace();
-  const hoverPosition = useHover();
-  const tiltAngle = useTilt({
-    maxAngle: 5,
-    speed: 0.075,
-    isActive: isTalking,
-  });
+  // All per-frame face animation (blink, hover, tilt, lip-sync) runs inside the
+  // Three.js loop below; nothing here triggers a React render per frame.
+  const mouthAnalyzerRef = useRef<MouthAnalyzer | null>(null);
+  useEffect(() => {
+    mouthAnalyzerRef.current = audioStreamer ? new MouthAnalyzer(audioStreamer.analyser) : null;
+    return () => { mouthAnalyzerRef.current = null; };
+  }, [audioStreamer]);
 
   // Three.js renderer & camera refs for resize updates without rebuilding the scene
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -82,22 +88,12 @@ export default function BasicFace({
   const fireBloomComposerRef = useRef<EffectComposer | null>(null);
 
   // Synchronize dynamic variables with refs to feed into the Three.js loop without closures going stale
-  const eyeScaleRef = useRef(eyeScale);
   const colorRef = useRef(color);
-  const hoverPositionRef = useRef(hoverPosition);
-  const tiltAngleRef = useRef(tiltAngle);
-  const isTalkingRef = useRef(isTalking);
-  const mouthShapeRef = useRef(mouthShape);
   const innerFireConfigRef = useRef(innerFireConfig);
   const avatarRenderConfigRef = useRef(avatarRenderConfig);
   const sceneThemeRef = useRef(sceneTheme);
 
-  useEffect(() => { eyeScaleRef.current = eyeScale; }, [eyeScale]);
   useEffect(() => { colorRef.current = color; }, [color]);
-  useEffect(() => { hoverPositionRef.current = hoverPosition; }, [hoverPosition]);
-  useEffect(() => { tiltAngleRef.current = tiltAngle; }, [tiltAngle]);
-  useEffect(() => { isTalkingRef.current = isTalking; }, [isTalking]);
-  useEffect(() => { mouthShapeRef.current = mouthShape; }, [mouthShape]);
   useEffect(() => { innerFireConfigRef.current = innerFireConfig; }, [innerFireConfig]);
   useEffect(() => { avatarRenderConfigRef.current = avatarRenderConfig; }, [avatarRenderConfig]);
   useEffect(() => { sceneThemeRef.current = sceneTheme; }, [sceneTheme]);
@@ -158,7 +154,10 @@ export default function BasicFace({
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: true,
+      // MSAA on the default framebuffer is wasted: every frame goes through the
+      // EffectComposer's (non-multisampled) render targets first.
+      antialias: false,
+      powerPreference: 'high-performance',
     });
     renderer.setSize(canvasWidth, canvasHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -376,15 +375,21 @@ export default function BasicFace({
     const currentSaccade = { x: 0, y: 0 };
 
     // ── 8. Animation loop ─────────────────────────────────────────────────────
-    let animationId: number;
+    let animationId = 0;
     let lastMouthSignature = '';
     let lastColor = '';
     let lastLoudAt = 0;
     let talkingState = false;
+    let lastFrameSeconds = 0;
+    const tilt = new TiltController(5, 0.075);
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       const elapsedSeconds = performance.now() / 1000;
+      const dt = lastFrameSeconds === 0
+        ? 1 / 60
+        : Math.min(Math.max(elapsedSeconds - lastFrameSeconds, 0), MAX_FRAME_DT_SECONDS);
+      lastFrameSeconds = elapsedSeconds;
 
       // Talking detection from output volume (read via ref to avoid per-tick re-renders)
       const talkingNowMs = elapsedSeconds * 1000;
@@ -426,7 +431,7 @@ export default function BasicFace({
         : avatarRenderConfigRef.current.sceneBloomThreshold;
 
       // Eye blink — squash both eyes vertically
-      const currentEyeScale = eyeScaleRef.current;
+      const currentEyeScale = computeEyeScale(elapsedSeconds);
       leftEye.scale.y = 1.15 * currentEyeScale;
       rightEye.scale.y = 1.15 * currentEyeScale;
       leftEye.scale.x = 1 + (1 - currentEyeScale) * 0.18;
@@ -447,8 +452,9 @@ export default function BasicFace({
           nextSaccadeTime = nowMs + 2000 + Math.random() * 3000; // wait before next dart
         }
       }
-      currentSaccade.x = THREE.MathUtils.lerp(currentSaccade.x, saccadeTarget.x, 0.4);
-      currentSaccade.y = THREE.MathUtils.lerp(currentSaccade.y, saccadeTarget.y, 0.4);
+      const saccadeEase = damp(0.4, dt);
+      currentSaccade.x = THREE.MathUtils.lerp(currentSaccade.x, saccadeTarget.x, saccadeEase);
+      currentSaccade.y = THREE.MathUtils.lerp(currentSaccade.y, saccadeTarget.y, saccadeEase);
 
       leftEyePivot.rotation.x = THREE.MathUtils.degToRad(-14.2) + currentSaccade.y;
       leftEyePivot.rotation.y = THREE.MathUtils.degToRad(-16.3) + currentSaccade.x;
@@ -456,7 +462,8 @@ export default function BasicFace({
       rightEyePivot.rotation.y = THREE.MathUtils.degToRad(16.3) + currentSaccade.x;
 
       // Procedural viseme drawing keeps the lip sync while avoiding uncanny mouth art.
-      const currentMouthShape = mouthShapeRef.current;
+      const currentMouthShape = mouthAnalyzerRef.current?.update(dt, useSpeechAnimation.getState().config)
+        ?? NEUTRAL_MOUTH;
       const mouthSignature = getMouthSignature(currentMouthShape);
       if (mouthSignature !== lastMouthSignature) {
         lastMouthSignature = mouthSignature;
@@ -465,28 +472,29 @@ export default function BasicFace({
       }
 
       // Hover bobbing
-      const hoverY = (hoverPositionRef.current / 10) * 0.18;
+      const hoverY = (computeHoverOffset(elapsedSeconds) / 10) * 0.18;
       characterGroup.position.y = hoverY + Math.sin(elapsedSeconds * 1.8) * 0.035;
-      const speechBounce = isTalkingRef.current
+      const speechBounce = talkingState
         ? Math.sin(elapsedSeconds * 12) * 0.018 * avatarRenderConfigRef.current.talkingBounceIntensity
         : 0;
       bodyMesh.scale.set(1.04 + speechBounce, 1.15 - speechBounce * 0.45, 0.88);
 
       // Fire animation inside the body core.
-      const isTalking = isTalkingRef.current;
-      innerFire.update(elapsedSeconds, isTalking);
+      innerFire.update(elapsedSeconds, talkingState, dt);
 
       // Head gently turns toward cursor
       if (document.body.classList.contains('cursor-hidden')) {
-        mouse.x = THREE.MathUtils.lerp(mouse.x, 0, 0.02);
-        mouse.y = THREE.MathUtils.lerp(mouse.y, 0, 0.02);
+        const idleEase = damp(0.02, dt);
+        mouse.x = THREE.MathUtils.lerp(mouse.x, 0, idleEase);
+        mouse.y = THREE.MathUtils.lerp(mouse.y, 0, idleEase);
       }
-      bodyMesh.rotation.y = THREE.MathUtils.lerp(bodyMesh.rotation.y, mouse.x * 1.5, 0.08);
-      bodyMesh.rotation.x = THREE.MathUtils.lerp(bodyMesh.rotation.x, -mouse.y * 1.5, 0.08);
+      const headEase = damp(0.08, dt);
+      bodyMesh.rotation.y = THREE.MathUtils.lerp(bodyMesh.rotation.y, mouse.x * 1.5, headEase);
+      bodyMesh.rotation.x = THREE.MathUtils.lerp(bodyMesh.rotation.x, -mouse.y * 1.5, headEase);
 
       // Speech tilt
-      const targetTilt = (tiltAngleRef.current * Math.PI) / 180;
-      characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, 0.1);
+      const targetTilt = (tilt.update(elapsedSeconds, dt, talkingState) * Math.PI) / 180;
+      characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, damp(0.1, dt));
 
       const previousCameraLayersMask = camera.layers.mask;
       const previousBackground = scene.background;
@@ -498,11 +506,23 @@ export default function BasicFace({
       composer.render();
     };
 
-    animate();
+    // Stop rendering entirely while the tab / Android app is in the background.
+    const handleVisibilityChange = () => {
+      cancelAnimationFrame(animationId);
+      animationId = 0;
+      if (!document.hidden) {
+        lastFrameSeconds = 0;
+        animate();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    if (!document.hidden) animate();
 
     // ── 9. Cleanup ────────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(animationId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('mousemove', handleMouseMove as any);
       window.removeEventListener('touchstart', handleMouseMove as any);
       window.removeEventListener('touchmove', handleMouseMove as any);
@@ -530,13 +550,8 @@ export default function BasicFace({
     innerFireRef.current?.replaceConfig(innerFireConfig);
   }, [innerFireConfig]);
 
-  useEffect(() => {
-    containerRef.current?.style.setProperty('--avatar-glow-color', color || '#5B9BF5');
-  }, [color]);
-
   return (
     <div
-      ref={containerRef}
       className={`basic-face${isTalking ? ' is-talking' : ''}`}
     >
       <canvas
