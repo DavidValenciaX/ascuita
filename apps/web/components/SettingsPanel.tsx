@@ -5,6 +5,12 @@
 import { useRef, useState } from 'react';
 import c from 'classnames';
 import FireSettingsTab from './FireSettingsTab';
+import FireSelectControl from './FireSelectControl';
+import {
+  type RenderQualitySetting,
+  type RenderQualityTier,
+  useRenderQuality,
+} from '@/lib/render-quality';
 import {
   AvatarRenderConfig,
   SpeechAnimationConfig,
@@ -912,7 +918,41 @@ function AppearanceTab() {
           <small>{isLight ? t('sceneThemeLight') : t('sceneThemeDark')}</small>
         </span>
       </label>
+
+      <RenderQualityControl />
     </div>
+  );
+}
+
+function RenderQualityControl() {
+  const { t } = useTranslation();
+  const setting = useRenderQuality(state => state.setting);
+  const autoTier = useRenderQuality(state => state.autoTier);
+  const setSetting = useRenderQuality(state => state.setSetting);
+  const tierLabels: Record<RenderQualityTier, string> = {
+    low: t('renderQualityLow'),
+    medium: t('renderQualityMedium'),
+    high: t('renderQualityHigh'),
+  };
+
+  return (
+    <FireSelectControl<RenderQualitySetting>
+      label={t('renderQuality')}
+      value={setting}
+      description={t('renderQualityDesc')}
+      options={[
+        {
+          value: 'auto',
+          label: setting === 'auto'
+            ? t('renderQualityAutoActive').replace('{tier}', tierLabels[autoTier])
+            : t('renderQualityAuto'),
+        },
+        { value: 'low', label: tierLabels.low },
+        { value: 'medium', label: tierLabels.medium },
+        { value: 'high', label: tierLabels.high },
+      ]}
+      onChange={setSetting}
+    />
   );
 }
 

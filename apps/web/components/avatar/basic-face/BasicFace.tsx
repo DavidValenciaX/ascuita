@@ -21,6 +21,13 @@ import type { MouthShape } from '../../../hooks/avatar/mouth-config';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createInnerFireSystem, type InnerFireSystem } from '@/lib/fire/inner-fire';
 import { useAvatarRender, useInnerFire, useSpeechAnimation } from '@/lib/state';
+import type { InnerFireConfig } from '@/lib/fire/config';
+import {
+  FrameRateMonitor,
+  RENDER_QUALITY_PROFILES,
+  resolvePixelRatio,
+  useRenderQuality,
+} from '@/lib/render-quality';
 import {
   SceneEnvironmentTheme,
   setupSceneEnvironment,
@@ -47,6 +54,36 @@ type BasicFaceProps = {
   readonly sceneTheme?: SceneEnvironmentTheme;
 };
 
+/** Scales the particle count for the current quality tier. */
+function scaleFireConfig(config: InnerFireConfig, particleFactor: number): InnerFireConfig {
+  if (particleFactor === 1) return config;
+  return {
+    ...config,
+    particles: {
+      ...config.particles,
+      count: Math.max(150, Math.round(config.particles.count * particleFactor)),
+    },
+  };
+}
+
+/** Soft radial sprite used as a cheap stand-in for bloom on low-end GPUs. */
+function buildGlowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.55)');
+    gradient.addColorStop(0.35, 'rgba(255,255,255,0.22)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /** Build a 4-step toon gradient map using DataTexture (WebGL2-safe, no FLIP_Y issues). */
 function buildGradientMap(): THREE.DataTexture {
   const colors = new Uint8Array([128, 168, 210, 255]);
@@ -66,6 +103,8 @@ export default function BasicFace({
   const innerFireRef = useRef<InnerFireSystem | null>(null);
   const innerFireConfig = useInnerFire(state => state.config);
   const avatarRenderConfig = useAvatarRender(state => state.config);
+  const qualityTier = useRenderQuality(state => state.tier);
+  const quality = RENDER_QUALITY_PROFILES[qualityTier];
 
   // Audio output volume (read via ref in the animation loop to avoid per-tick re-renders)
   const { volumeRef, audioStreamer } = useLiveAPIContext();
@@ -81,11 +120,8 @@ export default function BasicFace({
     return () => { mouthAnalyzerRef.current = null; };
   }, [audioStreamer]);
 
-  // Three.js renderer & camera refs for resize updates without rebuilding the scene
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const finalComposerRef = useRef<EffectComposer | null>(null);
-  const fireBloomComposerRef = useRef<EffectComposer | null>(null);
+  // Resize handler installed by the scene effect (no rebuild on resize)
+  const resizeRef = useRef<((width: number, height: number) => void) | null>(null);
 
   // Synchronize dynamic variables with refs to feed into the Three.js loop without closures going stale
   const colorRef = useRef(color);
@@ -122,18 +158,14 @@ export default function BasicFace({
 
   // Handle resizing the WebGL renderer and updating camera projection
   useEffect(() => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    if (renderer && camera) {
-      renderer.setSize(canvasWidth, canvasHeight, false);
-      finalComposerRef.current?.setSize(canvasWidth, canvasHeight);
-      fireBloomComposerRef.current?.setSize(canvasWidth, canvasHeight);
-      const aspect = canvasWidth / canvasHeight;
-      camera.aspect = aspect;
-      camera.fov = aspect < 1 ? Math.min(48 / aspect, 85) : 48;
-      camera.updateProjectionMatrix();
-    }
+    resizeRef.current?.(canvasWidth, canvasHeight);
   }, [canvasWidth, canvasHeight]);
+
+  // Overlays with backdrop-filter re-blur the animated canvas every frame.
+  useEffect(() => {
+    document.body.classList.toggle('quality-low', !quality.overlayBlur);
+    return () => document.body.classList.remove('quality-low');
+  }, [quality.overlayBlur]);
 
   // Main Three.js Scene Setup (Runs once on mount)
   useEffect(() => {
@@ -149,82 +181,105 @@ export default function BasicFace({
     const camera = new THREE.PerspectiveCamera(responsiveFOV, canvasWidth / canvasHeight, 0.1, 1000);
     camera.position.set(0, 0.9, 8.5);
     camera.lookAt(0, 0.0, -2);
-    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      alpha: true,
-      // MSAA on the default framebuffer is wasted: every frame goes through the
-      // EffectComposer's (non-multisampled) render targets first.
+      // The room fills the whole frame, so an opaque canvas is cheaper to composite.
+      alpha: false,
+      // MSAA on the default framebuffer is wasted when post-processing (the
+      // EffectComposer's render targets are not multisampled); without
+      // post-processing it costs too much fill rate on low-end GPUs.
       antialias: false,
       powerPreference: 'high-performance',
     });
-    renderer.setSize(canvasWidth, canvasHeight, false);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(sceneTheme === 'light' ? '#e8f0ff' : '#1a1a28', 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = avatarRenderConfigRef.current.sceneExposure;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = quality.shadows;
     renderer.shadowMap.type = THREE.PCFShadowMap;
-    rendererRef.current = renderer;
 
     // ── 1b. Bloom post-processing ───────────────────────────────────────────
-    // The glow used to be a CSS drop-shadow that relied on a transparent canvas.
-    // Now that an opaque room fills the canvas, the glow has to live inside the
-    // 3D scene. UnrealBloomPass blooms only the brightest pixels (the emissive
-    // body + additive glow sprite), leaving the dim room walls untouched.
-    const composer = new EffectComposer(renderer);
-    composer.setSize(canvasWidth, canvasHeight);
-    const finalRenderPass = new RenderPass(scene, camera);
-    const fireBloomPass = new UnrealBloomPass(
-      new THREE.Vector2(canvasWidth, canvasHeight),
-      innerFireConfigRef.current.bloom.strength,
-      innerFireConfigRef.current.bloom.radius,
-      innerFireConfigRef.current.bloom.threshold
-    );
-    const fireBloomComposer = new EffectComposer(renderer);
-    fireBloomComposer.renderToScreen = false;
-    fireBloomComposer.setSize(canvasWidth, canvasHeight);
-    fireBloomComposer.addPass(new RenderPass(scene, camera));
-    fireBloomComposer.addPass(fireBloomPass);
+    // high:   selective fire/body bloom + subtle scene bloom (original look).
+    // medium: selective fire/body bloom only, rendered at reduced resolution.
+    // low:    no post-processing; an additive glow sprite fakes the halo.
+    let composer: EffectComposer | null = null;
+    let fireBloomComposer: EffectComposer | null = null;
+    let fireBloomPass: UnrealBloomPass | null = null;
+    let sceneBloomPass: UnrealBloomPass | null = null;
 
-    const fireBloomMixPass = new ShaderPass(
-      new THREE.ShaderMaterial({
-        uniforms: {
-          baseTexture: { value: null },
-          bloomTexture: { value: fireBloomComposer.renderTarget2.texture },
-        },
-        vertexShader: `
-          varying vec2 vUv;
+    if (quality.postprocessing !== 'none') {
+      composer = new EffectComposer(renderer);
+      fireBloomPass = new UnrealBloomPass(
+        new THREE.Vector2(canvasWidth, canvasHeight),
+        innerFireConfigRef.current.bloom.strength,
+        innerFireConfigRef.current.bloom.radius,
+        innerFireConfigRef.current.bloom.threshold
+      );
+      fireBloomComposer = new EffectComposer(renderer);
+      fireBloomComposer.renderToScreen = false;
+      fireBloomComposer.addPass(new RenderPass(scene, camera));
+      fireBloomComposer.addPass(fireBloomPass);
 
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D baseTexture;
-          uniform sampler2D bloomTexture;
-          varying vec2 vUv;
+      const fireBloomMixPass = new ShaderPass(
+        new THREE.ShaderMaterial({
+          uniforms: {
+            baseTexture: { value: null },
+            bloomTexture: { value: fireBloomComposer.renderTarget2.texture },
+          },
+          vertexShader: `
+            varying vec2 vUv;
 
-          void main() {
-            gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv);
-          }
-        `,
-      }),
-      'baseTexture'
-    );
-    const sceneBloomPass = new UnrealBloomPass(
-      new THREE.Vector2(canvasWidth, canvasHeight),
-      avatarRenderConfigRef.current.sceneBloomStrength,
-      avatarRenderConfigRef.current.sceneBloomRadius,
-      avatarRenderConfigRef.current.sceneBloomThreshold
-    );
-    composer.addPass(finalRenderPass);
-    composer.addPass(fireBloomMixPass);
-    composer.addPass(sceneBloomPass);
-    composer.addPass(new OutputPass());
-    finalComposerRef.current = composer;
-    fireBloomComposerRef.current = fireBloomComposer;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform sampler2D baseTexture;
+            uniform sampler2D bloomTexture;
+            varying vec2 vUv;
+
+            void main() {
+              gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv);
+            }
+          `,
+        }),
+        'baseTexture'
+      );
+      composer.addPass(new RenderPass(scene, camera));
+      composer.addPass(fireBloomMixPass);
+      if (quality.postprocessing === 'full') {
+        sceneBloomPass = new UnrealBloomPass(
+          new THREE.Vector2(canvasWidth, canvasHeight),
+          avatarRenderConfigRef.current.sceneBloomStrength,
+          avatarRenderConfigRef.current.sceneBloomRadius,
+          avatarRenderConfigRef.current.sceneBloomThreshold
+        );
+        composer.addPass(sceneBloomPass);
+      }
+      composer.addPass(new OutputPass());
+    }
+
+    // Dynamic resolution: on the low tier, step the resolution down further
+    // when frames are still too slow.
+    let dynamicScale = 1;
+    const applySize = (width: number, height: number) => {
+      const pixelRatio = resolvePixelRatio(quality, width, height, window.devicePixelRatio || 1, dynamicScale);
+      renderer.setPixelRatio(pixelRatio);
+      renderer.setSize(width, height, false);
+      if (composer && fireBloomComposer) {
+        composer.setPixelRatio(pixelRatio);
+        composer.setSize(width, height);
+        fireBloomComposer.setPixelRatio(pixelRatio * quality.bloomScale);
+        fireBloomComposer.setSize(width, height);
+      }
+      const aspect = width / height;
+      camera.aspect = aspect;
+      camera.fov = aspect < 1 ? Math.min(48 / aspect, 85) : 48;
+      camera.updateProjectionMatrix();
+    };
+    applySize(canvasWidth, canvasHeight);
+    resizeRef.current = applySize;
 
     // ── 2. Toon shading gradient map ────────────────────────────────────────
     const gradientMap = buildGradientMap();
@@ -267,11 +322,14 @@ export default function BasicFace({
     const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
     bodyMesh.renderOrder = 1;
     bodyMesh.layers.enable(FIRE_BLOOM_LAYER);
-    bodyMesh.castShadow = true;
+    bodyMesh.castShadow = quality.shadows;
     bodyMesh.scale.set(1.04, 1.15, 0.88);
     characterGroup.add(bodyMesh);
 
-    const innerFire = createInnerFireSystem(innerFireConfig, initialColor);
+    const innerFire = createInnerFireSystem(
+      scaleFireConfig(innerFireConfigRef.current, quality.particleFactor),
+      initialColor
+    );
     innerFire.points.layers.enable(FIRE_BLOOM_LAYER);
     innerFireRef.current = innerFire;
     bodyMesh.add(innerFire.root);
@@ -345,7 +403,31 @@ export default function BasicFace({
     mouthPivot.add(mouthMesh);
 
     // ── 6. Environment (walls, lights, fog) ──────────────────────────────────
-    const cleanupEnvironment = setupSceneEnvironment(scene, { theme: sceneTheme });
+    const cleanupEnvironment = setupSceneEnvironment(scene, {
+      theme: sceneTheme,
+      enableShadows: quality.shadows,
+      extraLights: quality.extraLights,
+    });
+
+    // Cheap halo replacing bloom when post-processing is off.
+    let glowTexture: THREE.CanvasTexture | null = null;
+    let glowMaterial: THREE.SpriteMaterial | null = null;
+    if (quality.postprocessing === 'none') {
+      glowTexture = buildGlowTexture();
+      glowMaterial = new THREE.SpriteMaterial({
+        map: glowTexture,
+        color: initialColor,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        fog: false,
+      });
+      const glow = new THREE.Sprite(glowMaterial);
+      glow.scale.set(6.4, 6.4, 1);
+      glow.position.set(0, 0, -0.4);
+      glow.renderOrder = -1;
+      characterGroup.add(glow);
+    }
 
     // ── 7. Mouse/Touch tracker ───────────────────────────────────────────────
     const mouse = { x: 0, y: 0 };
@@ -382,14 +464,33 @@ export default function BasicFace({
     let talkingState = false;
     let lastFrameSeconds = 0;
     const tilt = new TiltController(5, 0.075);
+    // Small slack so a 60 Hz display reliably yields every other frame at 30 fps.
+    const minFrameSeconds = 1 / quality.maxFps - 0.002;
+    const frameMonitor = new FrameRateMonitor(quality.maxFps);
+    let slowReported = false;
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       const elapsedSeconds = performance.now() / 1000;
+      if (lastFrameSeconds !== 0 && elapsedSeconds - lastFrameSeconds < minFrameSeconds) return;
+      const rawDt = lastFrameSeconds === 0 ? 0 : elapsedSeconds - lastFrameSeconds;
       const dt = lastFrameSeconds === 0
         ? 1 / 60
-        : Math.min(Math.max(elapsedSeconds - lastFrameSeconds, 0), MAX_FRAME_DT_SECONDS);
+        : Math.min(Math.max(rawDt, 0), MAX_FRAME_DT_SECONDS);
       lastFrameSeconds = elapsedSeconds;
+
+      // Adaptive quality: step down when frames are consistently over budget.
+      if (rawDt > 0 && !slowReported && frameMonitor.sample(rawDt * 1000)) {
+        const { setting, autoTier } = useRenderQuality.getState();
+        if (setting === 'auto' && autoTier !== 'low') {
+          slowReported = true;
+          useRenderQuality.getState().reportSlowFrames();
+        } else if (dynamicScale > 0.6) {
+          dynamicScale = Math.max(0.6, dynamicScale - 0.15);
+          applySize(window.innerWidth, window.innerHeight);
+          frameMonitor.reset();
+        }
+      }
 
       // Talking detection from output volume (read via ref to avoid per-tick re-renders)
       const talkingNowMs = elapsedSeconds * 1000;
@@ -409,6 +510,7 @@ export default function BasicFace({
         bodyMat.color.set(lastColor);
         bodyMat.emissive.set(lastColor);
         innerFire.setAvatarColor(lastColor);
+        glowMaterial?.color.set(lastColor);
       }
 
       const isLightTheme = sceneThemeRef.current === 'light';
@@ -419,16 +521,20 @@ export default function BasicFace({
       renderer.toneMappingExposure = isLightTheme
         ? avatarRenderConfigRef.current.sceneExposure * 0.88
         : avatarRenderConfigRef.current.sceneExposure;
-      fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
-      fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;
-      fireBloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
-      sceneBloomPass.strength = isLightTheme
-        ? avatarRenderConfigRef.current.sceneBloomStrength * 0.6
-        : avatarRenderConfigRef.current.sceneBloomStrength;
-      sceneBloomPass.radius = avatarRenderConfigRef.current.sceneBloomRadius;
-      sceneBloomPass.threshold = isLightTheme
-        ? Math.max(avatarRenderConfigRef.current.sceneBloomThreshold, 0.4)
-        : avatarRenderConfigRef.current.sceneBloomThreshold;
+      if (fireBloomPass) {
+        fireBloomPass.strength = innerFireConfigRef.current.bloom.strength;
+        fireBloomPass.radius = innerFireConfigRef.current.bloom.radius;
+        fireBloomPass.threshold = innerFireConfigRef.current.bloom.threshold;
+      }
+      if (sceneBloomPass) {
+        sceneBloomPass.strength = isLightTheme
+          ? avatarRenderConfigRef.current.sceneBloomStrength * 0.6
+          : avatarRenderConfigRef.current.sceneBloomStrength;
+        sceneBloomPass.radius = avatarRenderConfigRef.current.sceneBloomRadius;
+        sceneBloomPass.threshold = isLightTheme
+          ? Math.max(avatarRenderConfigRef.current.sceneBloomThreshold, 0.4)
+          : avatarRenderConfigRef.current.sceneBloomThreshold;
+      }
 
       // Eye blink — squash both eyes vertically
       const currentEyeScale = computeEyeScale(elapsedSeconds);
@@ -496,14 +602,18 @@ export default function BasicFace({
       const targetTilt = (tilt.update(elapsedSeconds, dt, talkingState) * Math.PI) / 180;
       characterGroup.rotation.z = THREE.MathUtils.lerp(characterGroup.rotation.z, targetTilt, damp(0.1, dt));
 
-      const previousCameraLayersMask = camera.layers.mask;
-      const previousBackground = scene.background;
-      camera.layers.set(FIRE_BLOOM_LAYER);
-      scene.background = null;
-      fireBloomComposer.render();
-      scene.background = previousBackground;
-      camera.layers.mask = previousCameraLayersMask;
-      composer.render();
+      if (composer && fireBloomComposer) {
+        const previousCameraLayersMask = camera.layers.mask;
+        const previousBackground = scene.background;
+        camera.layers.set(FIRE_BLOOM_LAYER);
+        scene.background = null;
+        fireBloomComposer.render();
+        scene.background = previousBackground;
+        camera.layers.mask = previousCameraLayersMask;
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
     };
 
     // Stop rendering entirely while the tab / Android app is in the background.
@@ -512,6 +622,7 @@ export default function BasicFace({
       animationId = 0;
       if (!document.hidden) {
         lastFrameSeconds = 0;
+        frameMonitor.reset();
         animate();
       }
     };
@@ -536,19 +647,20 @@ export default function BasicFace({
       innerFireRef.current = null;
       mouthTexture.dispose();
       gradientMap.dispose();
-      fireBloomPass.dispose();
-      sceneBloomPass.dispose();
-      composer.dispose();
-      fireBloomComposer.dispose();
-      finalComposerRef.current = null;
-      fireBloomComposerRef.current = null;
+      glowTexture?.dispose();
+      glowMaterial?.dispose();
+      fireBloomPass?.dispose();
+      sceneBloomPass?.dispose();
+      composer?.dispose();
+      fireBloomComposer?.dispose();
+      resizeRef.current = null;
       renderer.dispose();
     };
-  }, [sceneTheme]);
+  }, [sceneTheme, qualityTier]);
 
   useEffect(() => {
-    innerFireRef.current?.replaceConfig(innerFireConfig);
-  }, [innerFireConfig]);
+    innerFireRef.current?.replaceConfig(scaleFireConfig(innerFireConfig, quality.particleFactor));
+  }, [innerFireConfig, quality.particleFactor]);
 
   return (
     <div

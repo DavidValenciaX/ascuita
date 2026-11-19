@@ -3066,3 +3066,16 @@ body.cursor-hidden * {
     font-size: 1.05rem;
   }
 }
+
+/* Low render quality: overlays with backdrop-filter force the GPU to re-blur
+   the animated full-screen canvas every frame. Their backgrounds are already
+   mostly opaque, so dropping the blur is visually minor. */
+body.quality-low .headerAccountButton,
+body.quality-low .control-tray .connection-container,
+body.quality-low .actions-nav,
+body.quality-low .authGateModal,
+body.quality-low .userSettingsButton,
+body.quality-low .audio-welcome {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

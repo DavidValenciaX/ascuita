@@ -19,6 +19,11 @@ export interface SceneEnvironmentOptions {
   roomHeight?: number;
   roomDepth?: number;
   enableShadows?: boolean;
+  /**
+   * When false (low-end GPUs) the room uses cheap Lambert materials and only
+   * an ambient + key light instead of PBR walls and five light sources.
+   */
+  extraLights?: boolean;
   /** Fog near and far distances for atmosphere depth */
   fogNear?: number;
   fogFar?: number;
@@ -141,12 +146,17 @@ export function setupSceneEnvironment(
     roomHeight = 7,
     roomDepth = 20,
     enableShadows = true,
+    extraLights = true,
     fogNear = preset.fogNear,
     fogFar = preset.fogFar,
     fogColor = preset.fogColor,
   } = options;
 
   const dispose: (() => void)[] = [];
+  const wallMaterial = (params: { color: THREE.ColorRepresentation; roughness: number; metalness: number }) =>
+    extraLights
+      ? new THREE.MeshStandardMaterial(params)
+      : new THREE.MeshLambertMaterial({ color: params.color });
   const added: THREE.Object3D[] = [];
   const previousBackground = scene.background;
   const previousFog = scene.fog;
@@ -168,7 +178,7 @@ export function setupSceneEnvironment(
         map: backWallTexture,
         color: roomColor,
       })
-    : new THREE.MeshStandardMaterial({
+    : wallMaterial({
         color: roomColor,
         roughness: 0.95,
         metalness: 0.0,
@@ -181,7 +191,7 @@ export function setupSceneEnvironment(
   dispose.push(() => { backWallGeom.dispose(); backWallMat.dispose(); backWallTexture?.dispose(); });
 
   const leftWallGeom = new THREE.PlaneGeometry(roomDepth, roomHeight);
-  const leftWall = new THREE.Mesh(leftWallGeom, new THREE.MeshStandardMaterial({
+  const leftWall = new THREE.Mesh(leftWallGeom, wallMaterial({
     color: isLightTheme ? '#dfeaff' : ceilingColor,
     roughness: 0.95,
     metalness: 0.0,
@@ -194,7 +204,7 @@ export function setupSceneEnvironment(
   dispose.push(() => { leftWallGeom.dispose(); leftWall.material.dispose(); });
 
   const rightWallGeom = new THREE.PlaneGeometry(roomDepth, roomHeight);
-  const rightWall = new THREE.Mesh(rightWallGeom, new THREE.MeshStandardMaterial({
+  const rightWall = new THREE.Mesh(rightWallGeom, wallMaterial({
     color: isLightTheme ? '#fff0dc' : ceilingColor,
     roughness: 0.95,
     metalness: 0.0,
@@ -207,7 +217,7 @@ export function setupSceneEnvironment(
   dispose.push(() => { rightWallGeom.dispose(); rightWall.material.dispose(); });
 
   const ceilingGeom = new THREE.PlaneGeometry(roomWidth, roomDepth);
-  const ceiling = new THREE.Mesh(ceilingGeom, new THREE.MeshStandardMaterial({
+  const ceiling = new THREE.Mesh(ceilingGeom, wallMaterial({
     color: ceilingColor,
     roughness: 0.95,
     metalness: 0.0,
@@ -219,7 +229,7 @@ export function setupSceneEnvironment(
   added.push(ceiling);
   dispose.push(() => { ceilingGeom.dispose(); ceiling.material.dispose(); });
 
-  const floorMat = new THREE.MeshStandardMaterial({
+  const floorMat = wallMaterial({
     color: floorColor,
     roughness: isLightTheme ? 0.82 : 0.9,
     metalness: isLightTheme ? 0.02 : 0.05,
@@ -267,7 +277,12 @@ export function setupSceneEnvironment(
   }
 
   // ── Lights ────────────────────────────────────────────────────────────────
-  const ambient = new THREE.AmbientLight(new THREE.Color(ambientColor), isLightTheme ? 0.58 : 0.5);
+  // Without the fill/rim/back lights, lift the ambient term to keep the room's brightness.
+  const ambientBoost = extraLights ? 1 : 1.6;
+  const ambient = new THREE.AmbientLight(
+    new THREE.Color(ambientColor),
+    (isLightTheme ? 0.58 : 0.5) * ambientBoost
+  );
   scene.add(ambient);
   added.push(ambient);
 
@@ -288,26 +303,28 @@ export function setupSceneEnvironment(
   scene.add(mainLight);
   added.push(mainLight);
 
-  const rimLight = new THREE.DirectionalLight(isLightTheme ? 0xb8d7ff : 0xd0c8ff, isLightTheme ? 0.42 : 0.35);
-  rimLight.position.set(-6, 4, -4);
-  scene.add(rimLight);
-  added.push(rimLight);
+  if (extraLights) {
+    const rimLight = new THREE.DirectionalLight(isLightTheme ? 0xb8d7ff : 0xd0c8ff, isLightTheme ? 0.42 : 0.35);
+    rimLight.position.set(-6, 4, -4);
+    scene.add(rimLight);
+    added.push(rimLight);
 
-  const fillLight = new THREE.PointLight(isLightTheme ? 0xfff1d8 : 0xfff8f0, isLightTheme ? 0.48 : 0.35, 18);
-  fillLight.position.set(0, isLightTheme ? 2.4 : 2, isLightTheme ? 4.5 : 5);
-  scene.add(fillLight);
-  added.push(fillLight);
+    const fillLight = new THREE.PointLight(isLightTheme ? 0xfff1d8 : 0xfff8f0, isLightTheme ? 0.48 : 0.35, 18);
+    fillLight.position.set(0, isLightTheme ? 2.4 : 2, isLightTheme ? 4.5 : 5);
+    scene.add(fillLight);
+    added.push(fillLight);
 
-  const backLight = new THREE.PointLight(isLightTheme ? 0xbfdcff : 0xe8e0ff, isLightTheme ? 0.36 : 0.25, isLightTheme ? 16 : 15);
-  backLight.position.set(0, isLightTheme ? 1.7 : 1.5, isLightTheme ? -3.2 : -3);
-  scene.add(backLight);
-  added.push(backLight);
+    const backLight = new THREE.PointLight(isLightTheme ? 0xbfdcff : 0xe8e0ff, isLightTheme ? 0.36 : 0.25, isLightTheme ? 16 : 15);
+    backLight.position.set(0, isLightTheme ? 1.7 : 1.5, isLightTheme ? -3.2 : -3);
+    scene.add(backLight);
+    added.push(backLight);
 
-  if (isLightTheme) {
-    const warmAccent = new THREE.PointLight(0xffc790, 0.28, 14);
-    warmAccent.position.set(4.8, -0.6, -2.8);
-    scene.add(warmAccent);
-    added.push(warmAccent);
+    if (isLightTheme) {
+      const warmAccent = new THREE.PointLight(0xffc790, 0.28, 14);
+      warmAccent.position.set(4.8, -0.6, -2.8);
+      scene.add(warmAccent);
+      added.push(warmAccent);
+    }
   }
 
   return () => {

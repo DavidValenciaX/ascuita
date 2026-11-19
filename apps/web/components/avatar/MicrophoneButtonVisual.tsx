@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { createMicrophoneButtonScene } from '@/lib/microphone-button-scene';
+import { RENDER_QUALITY_PROFILES, useRenderQuality } from '@/lib/render-quality';
 
 type ButtonScene = ReturnType<typeof createMicrophoneButtonScene>;
 
@@ -7,11 +8,13 @@ export default function MicrophoneButtonVisual({ busy }: { busy: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<ButtonScene | null>(null);
   const [rendered, setRendered] = useState(false);
+  // A second WebGL context is too much for low-end GPUs; use the SVG button there.
+  const useWebGL = useRenderQuality(state => RENDER_QUALITY_PROFILES[state.tier].webglMicrophoneButton);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const button = canvas?.closest('button');
-    if (!canvas || !button || typeof window.WebGL2RenderingContext === 'undefined') return;
+    if (!useWebGL || !canvas || !button || typeof window.WebGL2RenderingContext === 'undefined') return;
     let cancelled = false;
     void import('@/lib/microphone-button-scene').then(({ createMicrophoneButtonScene }) => {
       if (cancelled) return;
@@ -29,8 +32,9 @@ export default function MicrophoneButtonVisual({ busy }: { busy: boolean }) {
       cancelled = true;
       sceneRef.current?.dispose();
       sceneRef.current = null;
+      setRendered(false);
     };
-  }, []);
+  }, [useWebGL]);
 
   useEffect(() => { sceneRef.current?.setBusy(busy); }, [busy]);
 
